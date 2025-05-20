@@ -83,4 +83,4 @@ Lancer en prod : npm start
 À venir : tests unitaires via Playwright ou Jest
 
 ## 🧠 Auteur
-Développé par Cedric Renouleau pour un outil d’aide à l’automatisation des PME.
+Développé par Cedric Renouleau pour un outil d’aide à l’automatisation des PME.# sunset-lambda-back-office
