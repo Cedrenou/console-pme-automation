@@ -1,5 +1,5 @@
 import React from "react";
-
+import "./globals.css";
 export const metadata = {
   title: "Sunset Lambda Back Office",
   description: "Console d'administration PME Automation",
