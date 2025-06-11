@@ -1,10 +1,11 @@
 import React from "react";
 import { FaArrowUp, FaArrowDown } from "react-icons/fa";
+import Link from "next/link";
 
 const services = [
-  { id: 1, name: "Service Emailing", description: "Envoi automatique d&apos;emails clients.", value: "50.8K", trend: "+28.4%", trendUp: true },
-  { id: 2, name: "Service Facturation", description: "Génération automatique des factures.", value: "$240.8K", trend: "+24.6%", trendUp: true },
-  { id: 3, name: "Service Reporting", description: "Rapports d&apos;activité hebdomadaires.", value: "23.6K", trend: "-12.6%", trendUp: false },
+  { id: "emailing", name: "Service Emailing", description: "Envoi automatique d&apos;emails clients.", value: "50.8K", trend: "+28.4%", trendUp: true },
+  { id: "facturation", name: "Service Facturation", description: "Génération automatique des factures.", value: "$240.8K", trend: "+24.6%", trendUp: true },
+  { id: "reporting", name: "Service Reporting", description: "Rapports d&apos;activité hebdomadaires.", value: "23.6K", trend: "-12.6%", trendUp: false },
 ];
 
 const HomePage = () => {
@@ -26,7 +27,7 @@ const HomePage = () => {
             </div>
             <div className="text-3xl font-bold mb-2">{service.value}</div>
             <p className="text-gray-400 mb-4">{service.description}</p>
-            <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors w-full">Configurer</button>
+            <Link href={`/lambdas/${service.id}`} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors w-full text-center">Configurer</Link>
           </div>
         ))}
       </div>

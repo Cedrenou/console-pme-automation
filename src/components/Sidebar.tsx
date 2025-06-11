@@ -46,7 +46,6 @@ const Sidebar = () => (
           <div className="text-xs text-gray-400">Account settings</div>
         </div>
       </div>
-      <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition-colors">Get template →</button>
     </div>
   </nav>
 );
