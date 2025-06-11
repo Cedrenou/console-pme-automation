@@ -2,9 +2,9 @@ import React from "react";
 import { FaArrowUp, FaArrowDown } from "react-icons/fa";
 
 const services = [
-  { id: 1, name: "Service Emailing", description: "Envoi automatique d'emails clients.", value: "50.8K", trend: "+28.4%", trendUp: true },
+  { id: 1, name: "Service Emailing", description: "Envoi automatique d&apos;emails clients.", value: "50.8K", trend: "+28.4%", trendUp: true },
   { id: 2, name: "Service Facturation", description: "Génération automatique des factures.", value: "$240.8K", trend: "+24.6%", trendUp: true },
-  { id: 3, name: "Service Reporting", description: "Rapports d'activité hebdomadaires.", value: "23.6K", trend: "-12.6%", trendUp: false },
+  { id: 3, name: "Service Reporting", description: "Rapports d&apos;activité hebdomadaires.", value: "23.6K", trend: "-12.6%", trendUp: false },
 ];
 
 const HomePage = () => {
@@ -12,7 +12,7 @@ const HomePage = () => {
     <div className="min-h-screen bg-[#151826] text-white p-8">
       <div className="mb-10">
         <h1 className="text-3xl font-bold mb-2">Bienvenue !</h1>
-        <p className="text-gray-400">Retrouvez vos services automatisés et leur état en un coup d'œil.</p>
+        <p className="text-gray-400">Retrouvez vos services automatisés et leur état en un coup d&apos;œil.</p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
         {services.map(service => (
@@ -32,7 +32,7 @@ const HomePage = () => {
       </div>
       <div className="bg-[#23263A] rounded-2xl shadow-lg p-8 mt-8">
         <h3 className="text-2xl font-bold mb-4">Aperçu des rapports</h3>
-        <div className="text-gray-400">(Ici, vous pouvez ajouter des graphiques, des statistiques ou d'autres widgets personnalisés.)</div>
+        <div className="text-gray-400">(Ici, vous pouvez ajouter des graphiques, des statistiques ou d&apos;autres widgets personnalisés.)</div>
       </div>
     </div>
   );
