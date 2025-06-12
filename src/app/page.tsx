@@ -1,14 +1,24 @@
-import React from "react";
+"use client";
+import React, { useEffect, useState } from "react";
 import { FaArrowUp, FaArrowDown } from "react-icons/fa";
 import Link from "next/link";
-
-const services = [
-  { id: "emailing", name: "Service Emailing", description: "Envoi automatique d&apos;emails clients.", value: "50.8K", trend: "+28.4%", trendUp: true },
-  { id: "facturation", name: "Service Facturation", description: "Génération automatique des factures.", value: "$240.8K", trend: "+24.6%", trendUp: true },
-  { id: "reporting", name: "Service Reporting", description: "Rapports d&apos;activité hebdomadaires.", value: "23.6K", trend: "-12.6%", trendUp: false },
-];
+import { fetchLambdas } from "@/lib/api";
 
 const HomePage = () => {
+  const [services, setServices] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchLambdas()
+      .then(data => setServices(data))
+      .catch(() => setError("Erreur lors du chargement des services."))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="text-white p-8">Chargement...</div>;
+  if (error) return <div className="text-red-400 p-8">{error}</div>;
+
   return (
     <div className="min-h-screen bg-[#151826] text-white p-8">
       <div className="mb-10">
@@ -20,12 +30,14 @@ const HomePage = () => {
           <div key={service.id} className="bg-[#23263A] rounded-2xl shadow-lg p-6 flex flex-col gap-2 border border-[#23263A] hover:border-blue-600 transition-colors">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold mb-1">{service.name}</h2>
-              <span className={`flex items-center text-sm font-semibold ${service.trendUp ? 'text-green-400' : 'text-red-400'}`}>
-                {service.trendUp ? <FaArrowUp className="mr-1" /> : <FaArrowDown className="mr-1" />}
-                {service.trend}
-              </span>
+              {service.trend !== undefined && (
+                <span className={`flex items-center text-sm font-semibold ${service.trendUp ? 'text-green-400' : 'text-red-400'}`}>
+                  {service.trendUp ? <FaArrowUp className="mr-1" /> : <FaArrowDown className="mr-1" />}
+                  {service.trend}
+                </span>
+              )}
             </div>
-            <div className="text-3xl font-bold mb-2">{service.value}</div>
+            {service.value && <div className="text-3xl font-bold mb-2">{service.value}</div>}
             <p className="text-gray-400 mb-4">{service.description}</p>
             <Link href={`/lambdas/${service.id}`} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors w-full text-center">Configurer</Link>
           </div>
