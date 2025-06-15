@@ -1,3 +1,19 @@
+export type LambdaParameter = {
+  key: string;
+  value: string;
+  description?: string;
+};
+
+export type LambdaDetails = {
+  clientId: string;
+  lambdaName: string;
+  displayName: string;
+  description: string;
+  config: Record<string, string>;
+  active: boolean;
+  order: number;
+};
+
 export type LambdaVariable = {
   key: string;
   label: string;

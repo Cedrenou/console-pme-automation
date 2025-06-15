@@ -5,9 +5,7 @@ import { FaTachometerAlt, FaFileAlt, FaEnvelope, FaChartBar, FaCog, FaUserCircle
 const links = [
   { href: "/", label: "Dashboard", icon: <FaTachometerAlt /> },
   { href: "/factures", label: "Factures", icon: <FaFileAlt /> },
-  { href: "/emails", label: "Emails", icon: <FaEnvelope /> },
-  { href: "/reporting", label: "Reporting", icon: <FaChartBar /> },
-  { href: "/parametres", label: "Paramètres", icon: <FaCog /> },
+  { href: "/emails", label: "Emails", icon: <FaEnvelope /> }
 ];
 
 const Sidebar = () => (
@@ -16,13 +14,6 @@ const Sidebar = () => (
       <div className="flex items-center gap-2 text-2xl font-bold px-6 py-8">
         <span className="inline-block w-3 h-3 bg-blue-500 rounded-full mr-2"></span>
         Sunset Lambda
-      </div>
-      <div className="px-6 mb-6">
-        <input
-          type="text"
-          placeholder="Search for..."
-          className="w-full px-3 py-2 rounded bg-[#23263A] text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
       </div>
       <ul className="flex flex-col gap-1 px-2">
         {links.map(link => (

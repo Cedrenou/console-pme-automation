@@ -18,9 +18,18 @@ const HomePage = () => {
 
   useEffect(() => {
     fetchLambdas()
-      .then(data => setServices(data))
-      .catch(() => setError("Erreur lors du chargement des services."))
-      .finally(() => setLoading(false));
+      .then(data => {
+        console.log('Lambdas reçues:', data);
+        setServices(data);
+      })
+      .catch((e) => {
+        setError("Erreur lors du chargement des services.");
+        console.error('Erreur fetchLambdas:', e);
+      })
+      .finally(() => {
+        console.log('Fin du chargement des lambdas');
+        setLoading(false);
+      });
   }, []);
 
   if (loading) return <div className="text-white p-8">Chargement...</div>;
