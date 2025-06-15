@@ -1,6 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import { FaTachometerAlt, FaFileAlt, FaEnvelope, FaChartBar, FaCog, FaUserCircle } from "react-icons/fa";
+import { FaTachometerAlt, FaFileAlt, FaEnvelope, FaUserCircle } from "react-icons/fa";
 
 const links = [
   { href: "/", label: "Dashboard", icon: <FaTachometerAlt /> },
