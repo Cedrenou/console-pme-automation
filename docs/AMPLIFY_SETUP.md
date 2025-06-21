@@ -30,6 +30,8 @@ Ce guide explique comment configurer AWS Amplify pour déployer automatiquement 
    - Cliquer sur "Save and deploy"
 
 4. **Configurer les variables d'environnement pour la production**
+   - Aller dans "App settings" → "Environment variables"
+   - Ajouter les variables suivantes :
    ```
    NEXT_PUBLIC_API_URL=https://api.execute-api.eu-west-3.amazonaws.com/prod
    NEXT_PUBLIC_ENVIRONMENT=production
@@ -44,6 +46,8 @@ Ce guide explique comment configurer AWS Amplify pour déployer automatiquement 
    - Build settings : Même configuration que main
 
 2. **Configurer les variables d'environnement pour staging**
+   - Aller dans "Branch settings" → "staging" → "Environment variables"
+   - Ajouter les variables suivantes :
    ```
    NEXT_PUBLIC_API_URL=https://staging-api.execute-api.eu-west-3.amazonaws.com/staging
    NEXT_PUBLIC_ENVIRONMENT=staging
@@ -58,6 +62,8 @@ Ce guide explique comment configurer AWS Amplify pour déployer automatiquement 
    - Build settings : Même configuration
 
 2. **Configurer les variables d'environnement pour développement**
+   - Aller dans "Branch settings" → "develop" → "Environment variables"
+   - Ajouter les variables suivantes :
    ```
    NEXT_PUBLIC_API_URL=https://dev-api.execute-api.eu-west-3.amazonaws.com/dev
    NEXT_PUBLIC_ENVIRONMENT=development
@@ -195,7 +201,7 @@ Créer des rôles IAM spécifiques :
 - [ ] Branche `main` configurée (production)
 - [ ] Branche `staging` configurée
 - [ ] Branche `develop` configurée
-- [ ] Variables d'environnement configurées pour chaque branche
+- [ ] Variables d'environnement configurées pour chaque branche dans la console
 - [ ] Tests de déploiement effectués
 - [ ] Script de workflow testé
 - [ ] Notifications configurées (optionnel)

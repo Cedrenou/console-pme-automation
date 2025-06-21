@@ -6,21 +6,18 @@
 const environments = {
   // Production (main)
   main: {
-    NEXT_PUBLIC_API_URL: 'https://api.execute-api.eu-west-3.amazonaws.com/prod',
     NEXT_PUBLIC_ENVIRONMENT: 'production',
     NEXT_PUBLIC_APP_URL: 'https://console-pme-automation.amplifyapp.com'
   },
   
   // Staging (staging)
   staging: {
-    NEXT_PUBLIC_API_URL: 'https://staging-api.execute-api.eu-west-3.amazonaws.com/staging',
     NEXT_PUBLIC_ENVIRONMENT: 'staging',
     NEXT_PUBLIC_APP_URL: 'https://staging.console-pme-automation.amplifyapp.com'
   },
   
   // Développement (develop)
   develop: {
-    NEXT_PUBLIC_API_URL: 'https://dev-api.execute-api.eu-west-3.amazonaws.com/dev',
     NEXT_PUBLIC_ENVIRONMENT: 'development',
     NEXT_PUBLIC_APP_URL: 'https://dev.console-pme-automation.amplifyapp.com'
   }
