@@ -9,7 +9,7 @@ Cette application front-end est une interface d'administration permettant à des
 - [Next.js](https://nextjs.org/)
 - [TailwindCSS](https://tailwindcss.com/)
 - [Shadcn UI](https://ui.shadcn.com/)
-- [AWS Amplify Hosting](https://docs.amplify.aws/)
+- [AWS Amplify](https://docs.amplify.aws/) pour le hosting et les services
 - Communication avec l'API via **API Gateway + Lambda**
 
 ---
