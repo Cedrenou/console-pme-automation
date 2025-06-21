@@ -1,6 +1,6 @@
 /**
  * Configuration des environnements
- * Ce fichier permet de gérer les variables d'environnement selon la branche
+ * Ce fichier permet de gérer les variables d'environnement selon la branche Git
  */
 
 const environments = {
@@ -26,13 +26,6 @@ const environments = {
   }
 };
 
-// Variables communes à tous les environnements
-const commonVars = {
-  NEXT_PUBLIC_COGNITO_USER_POOL_ID: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID,
-  NEXT_PUBLIC_COGNITO_CLIENT_ID: process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID,
-  NEXT_PUBLIC_COGNITO_REGION: process.env.NEXT_PUBLIC_COGNITO_REGION || 'eu-west-3'
-};
-
 /**
  * Détermine l'environnement basé sur la branche Git
  */
@@ -55,7 +48,6 @@ function getEnvironmentVars() {
   const envVars = environments[env] || environments.develop;
   
   return {
-    ...commonVars,
     ...envVars
   };
 }

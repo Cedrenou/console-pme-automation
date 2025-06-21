@@ -10,7 +10,6 @@ Cette application front-end est une interface d'administration permettant à des
 - [TailwindCSS](https://tailwindcss.com/)
 - [Shadcn UI](https://ui.shadcn.com/)
 - [AWS Amplify Hosting](https://docs.amplify.aws/)
-- [Amazon Cognito](https://docs.aws.amazon.com/cognito/) pour l'authentification
 - Communication avec l'API via **API Gateway + Lambda**
 
 ---
@@ -64,10 +63,13 @@ git push origin main
 
 ## 🔐 Authentification
 
-L'application utilise **Amazon Cognito** :
-- Connexion via formulaire personnalisé ou Hosted UI
-- Authentification via **JWT**, stocké dans `localStorage` ou `cookie` sécurisé
-- Le token est automatiquement utilisé pour authentifier les appels à l'API Gateway
+L'authentification sera implémentée avec **Supabase** dans le cadre de la migration en cours.
+
+**Fonctionnalités prévues :**
+- Connexion via email/password
+- Gestion des sessions sécurisées
+- Protection des routes par client
+- Interface d'administration intégrée
 
 ---
 
@@ -89,26 +91,20 @@ console-pme-automation/
 
 ### **Développement (`.env.local`)**
 ```env
-NEXT_PUBLIC_API_URL=https://dev-api.execute-api.eu-west-1.amazonaws.com/dev
-NEXT_PUBLIC_COGNITO_USER_POOL_ID=eu-west-1_XXXXXXX
-NEXT_PUBLIC_COGNITO_CLIENT_ID=XXXXXXXXXXXXXX
-NEXT_PUBLIC_COGNITO_REGION=eu-west-1
+NEXT_PUBLIC_API_URL=https://dev-api.execute-api.eu-west-3.amazonaws.com/dev
+NEXT_PUBLIC_ENVIRONMENT=development
 ```
 
 ### **Staging (AWS Amplify)**
 ```env
-NEXT_PUBLIC_API_URL=https://staging-api.execute-api.eu-west-1.amazonaws.com/staging
-NEXT_PUBLIC_COGNITO_USER_POOL_ID=eu-west-1_XXXXXXX
-NEXT_PUBLIC_COGNITO_CLIENT_ID=XXXXXXXXXXXXXX
-NEXT_PUBLIC_COGNITO_REGION=eu-west-1
+NEXT_PUBLIC_API_URL=https://staging-api.execute-api.eu-west-3.amazonaws.com/staging
+NEXT_PUBLIC_ENVIRONMENT=staging
 ```
 
 ### **Production (AWS Amplify)**
 ```env
-NEXT_PUBLIC_API_URL=https://api.execute-api.eu-west-1.amazonaws.com/prod
-NEXT_PUBLIC_COGNITO_USER_POOL_ID=eu-west-1_XXXXXXX
-NEXT_PUBLIC_COGNITO_CLIENT_ID=XXXXXXXXXXXXXX
-NEXT_PUBLIC_COGNITO_REGION=eu-west-1
+NEXT_PUBLIC_API_URL=https://api.execute-api.eu-west-3.amazonaws.com/prod
+NEXT_PUBLIC_ENVIRONMENT=production
 ```
 
 ## 📦 Installation
@@ -145,7 +141,7 @@ Lancer en prod : npm start
 
 ## ✨ Fonctionnalités prévues
 
-- 🔐 Connexion / Déconnexion via Cognito
+- 🔐 Connexion / Déconnexion via Supabase
 - 📄 Affichage des Lambdas disponibles
 - 📝 Formulaire dynamique de configuration (clé / valeur)
 - 💾 Enregistrement des paramètres via appel REST API (AWS Gateway + Lambda)

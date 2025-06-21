@@ -2,7 +2,7 @@
 
 ## 📋 Vue d'ensemble
 
-**Objectif :** Migrer l'authentification de Cognito vers Supabase et améliorer la gestion des configurations des lambdas.
+**Objectif :** Implémenter l'authentification avec Supabase et améliorer la gestion des configurations des lambdas.
 
 **Durée estimée :** 6-8 semaines  
 **Difficulté :** Intermédiaire  
@@ -77,15 +77,15 @@
 ## 🔐 Phase 2 : Authentification (Semaine 2-3)
 
 ### **Objectifs :**
-- Remplacer Cognito par Supabase
-- Implémenter l'authentification complète
+- Implémenter l'authentification complète avec Supabase
 - Tester la sécurité
+- Gérer les sessions utilisateur
 
 ### **Tâches :**
 
 #### **Semaine 2 : Setup de base**
 - [ ] Installer `@supabase/supabase-js`
-- [ ] Configurer les variables d'environnement
+- [ ] Configurer les variables d'environnement Supabase
 - [ ] Créer les composants de login/logout
 - [ ] Tester l'authentification basique
 

@@ -16,7 +16,7 @@ Ce guide explique comment configurer AWS Amplify pour déployer automatiquement 
 
 1. **Aller sur AWS Amplify Console**
    - URL : https://console.aws.amazon.com/amplify/
-   - Région : `eu-west-1` (recommandé)
+   - Région : `eu-west-3`
 
 2. **Connecter le dépôt GitHub**
    - Cliquer sur "New app" → "Host web app"
@@ -31,11 +31,8 @@ Ce guide explique comment configurer AWS Amplify pour déployer automatiquement 
 
 4. **Configurer les variables d'environnement pour la production**
    ```
-   NEXT_PUBLIC_API_URL=https://api.execute-api.eu-west-1.amazonaws.com/prod
+   NEXT_PUBLIC_API_URL=https://api.execute-api.eu-west-3.amazonaws.com/prod
    NEXT_PUBLIC_ENVIRONMENT=production
-   NEXT_PUBLIC_COGNITO_USER_POOL_ID=eu-west-1_XXXXXXX
-   NEXT_PUBLIC_COGNITO_CLIENT_ID=XXXXXXXXXXXXXX
-   NEXT_PUBLIC_COGNITO_REGION=eu-west-1
    ```
 
 ### **Étape 2 : Créer l'environnement Staging**
@@ -48,11 +45,8 @@ Ce guide explique comment configurer AWS Amplify pour déployer automatiquement 
 
 2. **Configurer les variables d'environnement pour staging**
    ```
-   NEXT_PUBLIC_API_URL=https://staging-api.execute-api.eu-west-1.amazonaws.com/staging
+   NEXT_PUBLIC_API_URL=https://staging-api.execute-api.eu-west-3.amazonaws.com/staging
    NEXT_PUBLIC_ENVIRONMENT=staging
-   NEXT_PUBLIC_COGNITO_USER_POOL_ID=eu-west-1_XXXXXXX
-   NEXT_PUBLIC_COGNITO_CLIENT_ID=XXXXXXXXXXXXXX
-   NEXT_PUBLIC_COGNITO_REGION=eu-west-1
    ```
 
 ### **Étape 3 : Créer l'environnement Développement**
@@ -65,11 +59,8 @@ Ce guide explique comment configurer AWS Amplify pour déployer automatiquement 
 
 2. **Configurer les variables d'environnement pour développement**
    ```
-   NEXT_PUBLIC_API_URL=https://dev-api.execute-api.eu-west-1.amazonaws.com/dev
+   NEXT_PUBLIC_API_URL=https://dev-api.execute-api.eu-west-3.amazonaws.com/dev
    NEXT_PUBLIC_ENVIRONMENT=development
-   NEXT_PUBLIC_COGNITO_USER_POOL_ID=eu-west-1_XXXXXXX
-   NEXT_PUBLIC_COGNITO_CLIENT_ID=XXXXXXXXXXXXXX
-   NEXT_PUBLIC_COGNITO_REGION=eu-west-1
    ```
 
 ---
