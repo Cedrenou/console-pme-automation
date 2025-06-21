@@ -15,6 +15,53 @@ Cette application front-end est une interface d'administration permettant à des
 
 ---
 
+## 🌿 Workflow Git & Environnements
+
+### **Branches et environnements :**
+
+- **`main`** → **Production** (stable, déployé automatiquement)
+  - URL : `https://console-pme-automation.amplifyapp.com`
+  - Variables d'environnement : Production
+  
+- **`staging`** → **Staging/Pré-production** (tests avant prod)
+  - URL : `https://staging.console-pme-automation.amplifyapp.com`
+  - Variables d'environnement : Staging
+  
+- **`develop`** → **Développement** (intégration des features)
+  - URL : `https://dev.console-pme-automation.amplifyapp.com`
+  - Variables d'environnement : Développement
+
+### **Workflow de développement :**
+
+1. **Nouvelle feature :** `feature/nom-de-la-feature` ← `develop`
+2. **Tests :** `develop` → `staging`
+3. **Déploiement :** `staging` → `main` (après validation)
+
+### **Commandes Git utiles :**
+
+```bash
+# Créer une nouvelle feature
+git checkout develop
+git checkout -b feature/nouvelle-feature
+
+# Merger une feature
+git checkout develop
+git merge feature/nouvelle-feature
+git push origin develop
+
+# Déployer en staging
+git checkout staging
+git merge develop
+git push origin staging
+
+# Déployer en production
+git checkout main
+git merge staging
+git push origin main
+```
+
+---
+
 ## 🔐 Authentification
 
 L'application utilise **Amazon Cognito** :
@@ -38,10 +85,27 @@ console-pme-automation/
 
 ---
 
-## ⚙️ Variables d'environnement (`.env.local`)
+## ⚙️ Variables d'environnement
 
+### **Développement (`.env.local`)**
 ```env
-NEXT_PUBLIC_API_URL=https://<your-api-id>.execute-api.<region>.amazonaws.com/prod
+NEXT_PUBLIC_API_URL=https://dev-api.execute-api.eu-west-1.amazonaws.com/dev
+NEXT_PUBLIC_COGNITO_USER_POOL_ID=eu-west-1_XXXXXXX
+NEXT_PUBLIC_COGNITO_CLIENT_ID=XXXXXXXXXXXXXX
+NEXT_PUBLIC_COGNITO_REGION=eu-west-1
+```
+
+### **Staging (AWS Amplify)**
+```env
+NEXT_PUBLIC_API_URL=https://staging-api.execute-api.eu-west-1.amazonaws.com/staging
+NEXT_PUBLIC_COGNITO_USER_POOL_ID=eu-west-1_XXXXXXX
+NEXT_PUBLIC_COGNITO_CLIENT_ID=XXXXXXXXXXXXXX
+NEXT_PUBLIC_COGNITO_REGION=eu-west-1
+```
+
+### **Production (AWS Amplify)**
+```env
+NEXT_PUBLIC_API_URL=https://api.execute-api.eu-west-1.amazonaws.com/prod
 NEXT_PUBLIC_COGNITO_USER_POOL_ID=eu-west-1_XXXXXXX
 NEXT_PUBLIC_COGNITO_CLIENT_ID=XXXXXXXXXXXXXX
 NEXT_PUBLIC_COGNITO_REGION=eu-west-1
@@ -61,14 +125,21 @@ pnpm dev
 
 ## 📤 Déploiement
 
-### Option 1 : avec AWS Amplify
-Connecte ton dépôt GitHub à AWS Amplify
+### **AWS Amplify (Recommandé)**
+1. Connecter le dépôt GitHub à AWS Amplify
+2. Configurer les branches :
+   - `main` → Production
+   - `staging` → Staging  
+   - `develop` → Développement
+3. Renseigner les variables d'environnement par environnement
+4. Amplify s'occupe de la build, du hosting et du cache
 
-Renseigne les variables d'environnement dans le dashboard Amplify
+### **Configuration Amplify par branche :**
+- **main** : Build automatique, déploiement en production
+- **staging** : Build automatique, déploiement en staging
+- **develop** : Build automatique, déploiement en développement
 
-Amplify s'occupe de la build, du hosting et du cache
-
-### Option 2 : auto-hébergé sur EC2 ou autre
+### **Option 2 : auto-hébergé sur EC2 ou autre**
 Build : npm build
 Lancer en prod : npm start
 
