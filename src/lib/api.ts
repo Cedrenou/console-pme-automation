@@ -45,4 +45,13 @@ export async function updateLambda(lambdaId: string, config: Record<string, stri
   const responseData = await res.json();
   console.log("updateLambda - Success Response:", responseData);
   return responseData;
+}
+
+export async function fetchLambdaLogs(lambdaId: string) {
+  console.log("fetchLambdaLogs pour lambda:", lambdaId);
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL}/clients/clientA/lambdas/${lambdaId}/logs`
+  );
+  if (!res.ok) throw new Error("Erreur lors de la récupération des logs de la lambda");
+  return res.json();
 } 

@@ -1,8 +1,14 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { fetchLambdaDetails, updateLambda } from "@/lib/api";
+import { fetchLambdaDetails, updateLambda, fetchLambdaLogs } from "@/lib/api";
 import type { LambdaDetails } from "@/lib/lambdas.mock";
+import LogItem from "@/components/LogItem";
+
+type LogEntry = {
+  timestamp: number;
+  message: string;
+};
 
 const LambdaConfigPage = () => {
   const router = useRouter();
@@ -10,6 +16,7 @@ const LambdaConfigPage = () => {
   const id = params.id as string;
   const [lambda, setLambda] = useState<LambdaDetails | null>(null);
   const [config, setConfig] = useState<Record<string, string>>({});
+  const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -20,6 +27,8 @@ const LambdaConfigPage = () => {
         const data = await fetchLambdaDetails(id);
         setLambda(data);
         setConfig(data.config || {});
+        const logsData = await fetchLambdaLogs(id);
+        setLogs(logsData);
       } catch (err) {
         setError("Erreur lors du chargement des détails de la lambda");
         console.error('Erreur fetchLambdaDetails:', err);
@@ -115,6 +124,19 @@ const LambdaConfigPage = () => {
             )}
           </form>
         </div>
+
+        <div className="bg-[#23263A] rounded-2xl shadow-lg px-8 py-10 mt-8">
+            <h2 className="text-xl font-semibold mb-4">Logs d'exécution</h2>
+            <div className="bg-[#151826] rounded-lg p-4 h-96 overflow-y-auto font-mono text-sm">
+              {logs.length > 0 ? (
+                logs.map((log, index) => (
+                  <LogItem key={index} log={log} />
+                ))
+              ) : (
+                <p className="text-gray-500">Aucun log disponible.</p>
+              )}
+            </div>
+          </div>
       </div>
     </div>
   );
