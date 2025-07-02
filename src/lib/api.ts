@@ -36,7 +36,18 @@ export async function fetchLambdas() {
     console.log("Utilisation des mocks pour fetchLambdas");
     // Simuler un délai réseau
     await new Promise(resolve => setTimeout(resolve, 300));
-    return lambdas;
+    
+    // Transformer les données mock pour correspondre au format attendu par l'interface
+    return lambdas.map(lambda => ({
+      clientId: 'clientA',
+      lambdaName: lambda.id,
+      displayName: lambda.name,
+      description: lambda.description,
+      parameters: lambda.variables.reduce((acc, variable) => {
+        acc[variable.key] = variable.value;
+        return acc;
+      }, {} as Record<string, string | number | boolean>)
+    }));
   }
   
   const res = await fetch(
