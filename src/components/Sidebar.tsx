@@ -33,7 +33,7 @@ const Sidebar = () => (
       <div className="flex items-center gap-3 mb-4">
         <FaUserCircle className="text-3xl text-blue-400" />
         <div>
-          <div className="font-semibold">John Carter</div>
+          <div className="font-semibold">Sunset Rider</div>
           <div className="text-xs text-gray-400">Account settings</div>
         </div>
       </div>
