@@ -85,7 +85,7 @@ const LambdaConfigPage = () => {
                   <textarea
                     value={value}
                     onChange={e => handleChange(key, e.target.value)}
-                    className="w-full px-3 py-2 rounded bg-[#151826] text-white border border-[#23263A] focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px]"
+                    className="w-full px-3 py-2 rounded bg-[#151826] text-white border border-[#23263A] focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[400px]"
                     placeholder={`Valeur pour ${key}`}
                   />
                 </div>
