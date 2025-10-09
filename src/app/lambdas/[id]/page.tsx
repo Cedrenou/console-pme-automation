@@ -40,12 +40,6 @@ const LambdaConfigPage = () => {
     setConfig(config => ({ ...config, [key]: value }));
   };
 
-  const handleTextareaResize = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const textarea = e.target;
-    textarea.style.height = 'auto';
-    textarea.style.height = textarea.scrollHeight + 'px';
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSuccess(false);
@@ -99,12 +93,8 @@ const LambdaConfigPage = () => {
                   </label>
                   <textarea
                     value={value}
-                    onChange={e => {
-                      handleChange(key, e.target.value);
-                      handleTextareaResize(e);
-                    }}
-                    onInput={handleTextareaResize}
-                    className="w-full px-3 py-2 rounded bg-[#151826] text-white border border-[#23263A] focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[80px] resize-none overflow-hidden"
+                    onChange={e => handleChange(key, e.target.value)}
+                    className="w-full px-3 py-2 rounded bg-[#151826] text-white border border-[#23263A] focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[500px]"
                     placeholder={`Valeur pour ${key}`}
                     rows={1}
                   />
