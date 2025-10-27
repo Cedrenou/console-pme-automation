@@ -1,11 +1,10 @@
 import React from "react";
 import Link from "next/link";
-import { FaTachometerAlt, FaFileAlt, FaEnvelope, FaUserCircle } from "react-icons/fa";
+import { FaTachometerAlt, FaFileAlt, FaUserCircle } from "react-icons/fa";
 
 const links = [
   { href: "/", label: "Dashboard", icon: <FaTachometerAlt /> },
-  { href: "/factures", label: "Factures", icon: <FaFileAlt /> },
-  { href: "/emails", label: "Emails", icon: <FaEnvelope /> }
+  { href: "/renouvellement-annonces", label: "Renouvellement Annonces", icon: <FaFileAlt /> }
 ];
 
 const Sidebar = () => (
