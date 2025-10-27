@@ -20,10 +20,10 @@ const RenouvellementAnnoncesPage = () => {
     setError(null);
     try {
       const data = await fetchImageBatches();
-      console.log('Lots d\'images reçus:', data);
+      console.log('Lots d&apos;images reçus:', data);
       setBatches(data);
     } catch (e) {
-      setError("Erreur lors du chargement des lots d'images.");
+      setError("Erreur lors du chargement des lots d&apos;images.");
       console.error('Erreur fetchImageBatches:', e);
     } finally {
       setLoading(false);
@@ -79,14 +79,14 @@ const RenouvellementAnnoncesPage = () => {
     <div className="min-h-screen bg-[#151826] text-white p-8">
       <div className="mb-10">
         <h1 className="text-3xl font-bold mb-2">Renouvellement Annonces</h1>
-        <p className="text-gray-400">Consultez et téléchargez vos lots d'images depuis S3.</p>
+        <p className="text-gray-400">Consultez et téléchargez vos lots d&apos;images depuis S3.</p>
       </div>
 
       <div className="grid grid-cols-1 gap-6">
         {batches.length === 0 ? (
           <div className="bg-[#23263A] rounded-2xl shadow-lg p-8 text-center">
             <FaImages className="text-6xl text-gray-600 mx-auto mb-4" />
-            <p className="text-gray-400 text-lg">Aucun lot d'images disponible</p>
+            <p className="text-gray-400 text-lg">Aucun lot d&apos;images disponible</p>
           </div>
         ) : (
           batches.map(batch => (

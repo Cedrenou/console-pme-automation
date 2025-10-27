@@ -57,10 +57,14 @@ export type ImageBatch = {
 export async function fetchImageBatches(): Promise<ImageBatch[]> {
   console.log("fetchImageBatches");
   
+  // TODO: Remplacer cette URL par votre route API existante
+  // Exemple: const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/images/folders`;
+  const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/s3/list-folders-images`;
+  
   // Mode développement avec données mock
   if (process.env.NODE_ENV === 'development') {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/s3/image-batches`);
+      const res = await fetch(apiUrl);
       if (res.ok) return res.json();
     } catch {
       console.log('Serveur non disponible, utilisation des données mock');
@@ -71,7 +75,7 @@ export async function fetchImageBatches(): Promise<ImageBatch[]> {
     return mockImageBatches;
   }
   
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/s3/image-batches`);
+  const res = await fetch(apiUrl);
   if (!res.ok) throw new Error("Erreur lors de la récupération des lots d'images");
   return res.json();
 }
@@ -82,7 +86,7 @@ export async function downloadImageBatch(batchId: string): Promise<Blob> {
   // Mode développement avec données mock
   if (process.env.NODE_ENV === 'development') {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/s3/download-batch/${batchId}`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/s3/download-images-batch/${batchId}`);
       if (res.ok) return res.blob();
     } catch {
       console.log('Serveur non disponible, simulation du téléchargement');
@@ -92,7 +96,7 @@ export async function downloadImageBatch(batchId: string): Promise<Blob> {
     return new Blob(['Mock ZIP file for batch: ' + batchId], { type: 'application/zip' });
   }
   
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/s3/download-batch/${batchId}`);
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/s3/download-images-batch/${batchId}`);
   if (!res.ok) throw new Error("Erreur lors du téléchargement du lot");
   return res.blob();
 }
@@ -103,7 +107,7 @@ export async function getBatchPreview(batchId: string): Promise<string[]> {
   // Mode développement avec données mock
   if (process.env.NODE_ENV === 'development') {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/s3/batch-preview/${batchId}`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/s3/preview-images-batch/${batchId}`);
       if (res.ok) return res.json();
     } catch {
       console.log('Serveur non disponible, utilisation des URLs mock');
@@ -114,7 +118,7 @@ export async function getBatchPreview(batchId: string): Promise<string[]> {
     return mockPreviewUrls[batchId] || [];
   }
   
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/s3/batch-preview/${batchId}`);
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/s3/preview-images-batch/${batchId}`);
   if (!res.ok) throw new Error("Erreur lors de la récupération de l'aperçu");
   return res.json();
 } 
