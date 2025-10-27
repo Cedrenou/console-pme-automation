@@ -45,4 +45,76 @@ export async function updateLambda(lambdaId: string, config: Record<string, stri
   const responseData = await res.json();
   console.log("updateLambda - Success Response:", responseData);
   return responseData;
+}
+
+export type ImageBatch = {
+  batchId: string;
+  prefix: string;
+  count: number;
+  lastModified?: string;
+};
+
+export async function fetchImageBatches(): Promise<ImageBatch[]> {
+  console.log("fetchImageBatches");
+  
+  // Mode développement avec données mock
+  if (process.env.NODE_ENV === 'development') {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/s3/image-batches`);
+      if (res.ok) return res.json();
+    } catch {
+      console.log('Serveur non disponible, utilisation des données mock');
+    }
+    
+    // Fallback vers les données mock
+    const { mockImageBatches } = await import('./s3.mock');
+    return mockImageBatches;
+  }
+  
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/s3/image-batches`);
+  if (!res.ok) throw new Error("Erreur lors de la récupération des lots d'images");
+  return res.json();
+}
+
+export async function downloadImageBatch(batchId: string): Promise<Blob> {
+  console.log("downloadImageBatch pour lot:", batchId);
+  
+  // Mode développement avec données mock
+  if (process.env.NODE_ENV === 'development') {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/s3/download-batch/${batchId}`);
+      if (res.ok) return res.blob();
+    } catch {
+      console.log('Serveur non disponible, simulation du téléchargement');
+    }
+    
+    // Créer un blob mock (fichier zip vide)
+    return new Blob(['Mock ZIP file for batch: ' + batchId], { type: 'application/zip' });
+  }
+  
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/s3/download-batch/${batchId}`);
+  if (!res.ok) throw new Error("Erreur lors du téléchargement du lot");
+  return res.blob();
+}
+
+export async function getBatchPreview(batchId: string): Promise<string[]> {
+  console.log("getBatchPreview pour lot:", batchId);
+  
+  // Mode développement avec données mock
+  if (process.env.NODE_ENV === 'development') {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/s3/batch-preview/${batchId}`);
+      if (res.ok) return res.json();
+    } catch {
+      console.log('Serveur non disponible, utilisation des URLs mock');
+    }
+    
+    // Fallback vers les données mock
+    const { mockPreviewUrls } = await import('./s3.mock');
+    return mockPreviewUrls[batchId] || [];
+  }
+  
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/s3/batch-preview/${batchId}`);
+  if (!res.ok) throw new Error("Erreur lors de la récupération de l'aperçu");
+  return res.json();
 } 
