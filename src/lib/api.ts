@@ -57,15 +57,17 @@ export type ImageBatch = {
 export async function fetchImageBatches(): Promise<ImageBatch[]> {
   console.log("fetchImageBatches");
   
-  // TODO: Remplacer cette URL par votre route API existante
-  // Exemple: const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/images/folders`;
   const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/s3/list-folders-images`;
   
   // Mode développement avec données mock
   if (process.env.NODE_ENV === 'development') {
     try {
       const res = await fetch(apiUrl);
-      if (res.ok) return res.json();
+      if (res.ok) {
+        const data = await res.json();
+        // Transformer la réponse {"folders": [...]} en format attendu
+        return transformFoldersResponse(data);
+      }
     } catch {
       console.log('Serveur non disponible, utilisation des données mock');
     }
@@ -77,7 +79,40 @@ export async function fetchImageBatches(): Promise<ImageBatch[]> {
   
   const res = await fetch(apiUrl);
   if (!res.ok) throw new Error("Erreur lors de la récupération des lots d'images");
-  return res.json();
+  const data = await res.json();
+  
+  // Transformer la réponse {"folders": [...]} en format attendu
+  return transformFoldersResponse(data);
+}
+
+/**
+ * Transforme la réponse API {"folders": ["path1", "path2"]} 
+ * en format ImageBatch[]
+ */
+function transformFoldersResponse(data: ImageBatch[] | { folders: string[] }): ImageBatch[] {
+  // Si la réponse est déjà au bon format, la retourner telle quelle
+  if (Array.isArray(data)) {
+    return data;
+  }
+  
+  // Sinon, extraire le tableau folders
+  if (data.folders && Array.isArray(data.folders)) {
+    return data.folders.map((folder: string, index: number) => {
+      // Extraire un batchId propre (ex: "renouvellement-annonce-vinted" -> "announce-vinted")
+      const batchId = folder.split('/').filter(Boolean).pop() || `batch-${index}`;
+      
+      return {
+        batchId: batchId,
+        prefix: folder,
+        count: 0, // Peut être rempli par l'API backend si disponible
+        lastModified: undefined
+      };
+    });
+  }
+  
+  // Si le format n'est pas reconnu, retourner un tableau vide
+  console.warn('Format de réponse API non reconnu:', data);
+  return [];
 }
 
 export async function downloadImageBatch(batchId: string): Promise<Blob> {
