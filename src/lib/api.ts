@@ -80,9 +80,13 @@ export async function fetchImageBatches(): Promise<ImageBatch[]> {
   const res = await fetch(apiUrl);
   if (!res.ok) throw new Error("Erreur lors de la récupération des lots d'images");
   const data = await res.json();
+  console.log('Réponse API brute:', data);
   
   // Transformer la réponse {"folders": [...]} en format attendu
-  return transformFoldersResponse(data);
+  const transformed = transformFoldersResponse(data);
+  console.log('Données transformées:', transformed);
+  
+  return transformed;
 }
 
 /**

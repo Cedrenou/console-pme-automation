@@ -20,11 +20,21 @@ const RenouvellementAnnoncesPage = () => {
     setError(null);
     try {
       const data = await fetchImageBatches();
-      console.log('Lots d&apos;images reçus:', data);
-      setBatches(data);
+      console.log('Lots d\'images reçus:', data);
+      console.log('Type de data:', typeof data, 'Est un tableau?', Array.isArray(data));
+      
+      // S'assurer que data est un tableau
+      if (Array.isArray(data)) {
+        setBatches(data);
+      } else {
+        console.error('Les données ne sont pas un tableau:', data);
+        setBatches([]);
+        setError("Format de données invalide reçu de l'API.");
+      }
     } catch (e) {
-      setError("Erreur lors du chargement des lots d&apos;images.");
+      setError("Erreur lors du chargement des lots d'images.");
       console.error('Erreur fetchImageBatches:', e);
+      setBatches([]);
     } finally {
       setLoading(false);
     }
