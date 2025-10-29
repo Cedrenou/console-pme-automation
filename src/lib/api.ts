@@ -215,7 +215,7 @@ export async function fetchImageBatches(): Promise<ImageBatch[]> {
     try {
       const res = await fetch(apiUrl);
       if (res.ok) {
-        const data = await res.json();
+        const data = await parseApiResponse<{ folders: string[] }>(res);
         // Transformer la réponse {"folders": [...]} en format attendu
         return transformFoldersResponse(data);
       }
@@ -230,7 +230,7 @@ export async function fetchImageBatches(): Promise<ImageBatch[]> {
   
   const res = await fetch(apiUrl);
   if (!res.ok) throw new Error("Erreur lors de la récupération des lots d'images");
-  const data = await res.json();
+  const data = await parseApiResponse<{ folders: string[] }>(res);
   console.log('Réponse API brute:', data);
   
   // Transformer la réponse {"folders": [...]} en format attendu
@@ -244,14 +244,14 @@ export async function fetchImageBatches(): Promise<ImageBatch[]> {
  * Transforme la réponse API {"folders": ["path1", "path2"]} 
  * en format ImageBatch[]
  */
-function transformFoldersResponse(data: ImageBatch[] | { folders: string[] }): ImageBatch[] {
+function transformFoldersResponse(data: ImageBatch[] | { folders: string[] } | any): ImageBatch[] {
   // Si la réponse est déjà au bon format, la retourner telle quelle
   if (Array.isArray(data)) {
     return data;
   }
   
   // Sinon, extraire le tableau folders
-  if (data.folders && Array.isArray(data.folders)) {
+  if (data && typeof data === 'object' && 'folders' in data && Array.isArray(data.folders)) {
     return data.folders.map((folder: string, index: number) => {
       // Extraire un batchId propre (ex: "renouvellement-annonce-vinted" -> "announce-vinted")
       const batchId = folder.split('/').filter(Boolean).pop() || `batch-${index}`;
