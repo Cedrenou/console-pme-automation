@@ -9,8 +9,7 @@ Cette application front-end est une interface d'administration permettant à des
 - [Next.js](https://nextjs.org/)
 - [TailwindCSS](https://tailwindcss.com/)
 - [Shadcn UI](https://ui.shadcn.com/)
-- [AWS Amplify Hosting](https://docs.amplify.aws/)
-- [Amazon Cognito](https://docs.aws.amazon.com/cognito/) pour l'authentification
+- [AWS Amplify](https://docs.amplify.aws/) pour le hosting et les services
 - Communication avec l'API via **API Gateway + Lambda**
 
 ---
@@ -21,15 +20,15 @@ Cette application front-end est une interface d'administration permettant à des
 
 - **`main`** → **Production** (stable, déployé automatiquement)
   - URL : `https://console-pme-automation.amplifyapp.com`
-  - Variables d'environnement : Production
+  - Variables d'environnement : Gérées dans AWS Amplify
   
 - **`staging`** → **Staging/Pré-production** (tests avant prod)
   - URL : `https://staging.console-pme-automation.amplifyapp.com`
-  - Variables d'environnement : Staging
+  - Variables d'environnement : Gérées dans AWS Amplify
   
 - **`develop`** → **Développement** (intégration des features)
   - URL : `https://dev.console-pme-automation.amplifyapp.com`
-  - Variables d'environnement : Développement
+  - Variables d'environnement : Gérées dans AWS Amplify
 
 ### **Workflow de développement :**
 
@@ -64,10 +63,13 @@ git push origin main
 
 ## 🔐 Authentification
 
-L'application utilise **Amazon Cognito** :
-- Connexion via formulaire personnalisé ou Hosted UI
-- Authentification via **JWT**, stocké dans `localStorage` ou `cookie` sécurisé
-- Le token est automatiquement utilisé pour authentifier les appels à l'API Gateway
+L'authentification sera implémentée avec **Supabase** dans le cadre de la migration en cours.
+
+**Fonctionnalités prévues :**
+- Connexion via email/password
+- Gestion des sessions sécurisées
+- Protection des routes par client
+- Interface d'administration intégrée
 
 ---
 
@@ -80,36 +82,23 @@ console-pme-automation/
 ├── lib/ # Fonctions d'appel API, auth, etc.
 ├── pages/ # (si utilisation de Pages Router)
 ├── styles/ # Fichier Tailwind config
-└── .env.local # Variables d'environnement
+└── .env.local # Variables d'environnement (développement local uniquement)
 ```
 
 ---
 
 ## ⚙️ Variables d'environnement
 
-### **Développement (`.env.local`)**
+### **Développement local (`.env.local`)**
 ```env
-NEXT_PUBLIC_API_URL=https://dev-api.execute-api.eu-west-1.amazonaws.com/dev
-NEXT_PUBLIC_COGNITO_USER_POOL_ID=eu-west-1_XXXXXXX
-NEXT_PUBLIC_COGNITO_CLIENT_ID=XXXXXXXXXXXXXX
-NEXT_PUBLIC_COGNITO_REGION=eu-west-1
+NEXT_PUBLIC_ENVIRONMENT=development
 ```
 
-### **Staging (AWS Amplify)**
-```env
-NEXT_PUBLIC_API_URL=https://staging-api.execute-api.eu-west-1.amazonaws.com/staging
-NEXT_PUBLIC_COGNITO_USER_POOL_ID=eu-west-1_XXXXXXX
-NEXT_PUBLIC_COGNITO_CLIENT_ID=XXXXXXXXXXXXXX
-NEXT_PUBLIC_COGNITO_REGION=eu-west-1
-```
-
-### **Production (AWS Amplify)**
-```env
-NEXT_PUBLIC_API_URL=https://api.execute-api.eu-west-1.amazonaws.com/prod
-NEXT_PUBLIC_COGNITO_USER_POOL_ID=eu-west-1_XXXXXXX
-NEXT_PUBLIC_COGNITO_CLIENT_ID=XXXXXXXXXXXXXX
-NEXT_PUBLIC_COGNITO_REGION=eu-west-1
-```
+### **Staging et Production (AWS Amplify)**
+Les variables d'environnement sont configurées directement dans la console AWS Amplify pour chaque branche :
+- `NEXT_PUBLIC_API_URL` : URL de l'API Gateway
+- `NEXT_PUBLIC_ENVIRONMENT` : Environnement (staging/production)
+- Autres variables sensibles (clés API, etc.)
 
 ## 📦 Installation
 
@@ -131,7 +120,7 @@ pnpm dev
    - `main` → Production
    - `staging` → Staging  
    - `develop` → Développement
-3. Renseigner les variables d'environnement par environnement
+3. Renseigner les variables d'environnement par environnement dans la console Amplify
 4. Amplify s'occupe de la build, du hosting et du cache
 
 ### **Configuration Amplify par branche :**
@@ -145,7 +134,7 @@ Lancer en prod : npm start
 
 ## ✨ Fonctionnalités prévues
 
-- 🔐 Connexion / Déconnexion via Cognito
+- 🔐 Connexion / Déconnexion via Supabase
 - 📄 Affichage des Lambdas disponibles
 - 📝 Formulaire dynamique de configuration (clé / valeur)
 - 💾 Enregistrement des paramètres via appel REST API (AWS Gateway + Lambda)

@@ -42,8 +42,8 @@ const HomePage = () => {
         <p className="text-gray-400">Retrouvez vos services automatisés et leur état en un coup d&apos;œil.</p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        {services.map(service => (
-          <div key={service.lambdaName} className="bg-[#23263A] rounded-2xl shadow-lg p-6 flex flex-col gap-2 border border-[#23263A] hover:border-blue-600 transition-colors">
+        {services.map((service, index) => (
+          <div key={index} className="bg-[#23263A] rounded-2xl shadow-lg p-6 flex flex-col gap-2 border border-[#23263A] hover:border-blue-600 transition-colors">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold mb-1">{service.displayName}</h2>
             </div>
