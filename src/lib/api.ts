@@ -15,6 +15,33 @@ function shouldUseMock(): boolean {
   return false;
 }
 
+// Fonction utilitaire pour normaliser les réponses de l'API
+// Gère le cas où l'API retourne un format Lambda avec statusCode, headers, body
+async function parseApiResponse<T>(response: Response): Promise<T> {
+  const data = await response.json();
+  
+  // Si la réponse est au format Lambda (contient statusCode et body)
+  if (data && typeof data === 'object' && 'statusCode' in data && 'body' in data) {
+    // Si le body est une string JSON, le parser
+    if (typeof data.body === 'string') {
+      try {
+        const parsedBody = JSON.parse(data.body);
+        // Si le body contient une propriété 'folders' ou autre structure attendue
+        // on peut extraire directement la donnée utile
+        return parsedBody as T;
+      } catch (e) {
+        console.error('Erreur lors du parsing du body:', e);
+        throw new Error('Format de réponse API non valide: body n\'est pas un JSON valide');
+      }
+    }
+    // Si le body est déjà un objet, le retourner directement
+    return data.body as T;
+  }
+  
+  // Sinon, retourner la réponse telle quelle
+  return data as T;
+}
+
 // Mock des logs pour les lambdas
 const mockLogs = {
   emailing: [
@@ -54,7 +81,7 @@ export async function fetchLambdas() {
     `${process.env.NEXT_PUBLIC_API_URL}/clients/clientA/lambdas` // TODO: get clientId from url or from the auth context
   );
   if (!res.ok) throw new Error("Erreur lors de la récupération des lambdas");
-  return res.json();
+  return parseApiResponse(res);
 }
 
 export async function fetchLambdaDetails(lambdaId: string) {
@@ -91,7 +118,7 @@ export async function fetchLambdaDetails(lambdaId: string) {
     `${process.env.NEXT_PUBLIC_API_URL}/clients/clientA/lambdas/${lambdaId}`
   );
   if (!res.ok) throw new Error("Erreur lors de la récupération des détails de la lambda");
-  return res.json();
+  return parseApiResponse(res);
 }
 
 export async function updateLambda(lambdaId: string, config: Record<string, string>) {
@@ -147,7 +174,7 @@ export async function updateLambda(lambdaId: string, config: Record<string, stri
     throw new Error(`Erreur lors de la mise à jour de la lambda: ${errorText}`);
   }
   
-  const responseData = await res.json();
+  const responseData = await parseApiResponse(res);
   console.log("updateLambda - Success Response:", responseData);
   return responseData;
 }
@@ -168,5 +195,5 @@ export async function fetchLambdaLogs(lambdaId: string) {
     `${process.env.NEXT_PUBLIC_API_URL}/clients/clientA/lambdas/${lambdaId}/logs`
   );
   if (!res.ok) throw new Error("Erreur lors de la récupération des logs de la lambda");
-  return res.json();
+  return parseApiResponse(res);
 } 
