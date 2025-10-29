@@ -179,21 +179,117 @@ export async function updateLambda(lambdaId: string, config: Record<string, stri
   return responseData;
 }
 
-export async function fetchLambdaLogs(lambdaId: string) {
-  console.log("fetchLambdaLogs pour lambda:", lambdaId);
+export type ImageBatch = {
+  batchId: string;
+  prefix: string;
+  count: number;
+  lastModified?: string;
+};
+
+export async function fetchImageBatches(): Promise<ImageBatch[]> {
+  console.log("fetchImageBatches");
   
-  if (shouldUseMock()) {
-    console.log("Utilisation des mocks pour fetchLambdaLogs");
-    // Simuler un délai réseau
-    await new Promise(resolve => setTimeout(resolve, 400));
+  const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/s3/list-folders-images`;
+  
+  // Mode développement avec données mock
+  if (process.env.NODE_ENV === 'development') {
+    try {
+      const res = await fetch(apiUrl);
+      if (res.ok) {
+        const data = await res.json();
+        // Transformer la réponse {"folders": [...]} en format attendu
+        return transformFoldersResponse(data);
+      }
+    } catch {
+      console.log('Serveur non disponible, utilisation des données mock');
+    }
     
-    const logs = mockLogs[lambdaId as keyof typeof mockLogs] || [];
-    return logs;
+    // Fallback vers les données mock
+    const { mockImageBatches } = await import('./s3.mock');
+    return mockImageBatches;
   }
   
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/clients/clientA/lambdas/${lambdaId}/logs`
-  );
-  if (!res.ok) throw new Error("Erreur lors de la récupération des logs de la lambda");
-  return parseApiResponse(res);
+  const res = await fetch(apiUrl);
+  if (!res.ok) throw new Error("Erreur lors de la récupération des lots d'images");
+  const data = await res.json();
+  console.log('Réponse API brute:', data);
+  
+  // Transformer la réponse {"folders": [...]} en format attendu
+  const transformed = transformFoldersResponse(data);
+  console.log('Données transformées:', transformed);
+  
+  return transformed;
+}
+
+/**
+ * Transforme la réponse API {"folders": ["path1", "path2"]} 
+ * en format ImageBatch[]
+ */
+function transformFoldersResponse(data: ImageBatch[] | { folders: string[] }): ImageBatch[] {
+  // Si la réponse est déjà au bon format, la retourner telle quelle
+  if (Array.isArray(data)) {
+    return data;
+  }
+  
+  // Sinon, extraire le tableau folders
+  if (data.folders && Array.isArray(data.folders)) {
+    return data.folders.map((folder: string, index: number) => {
+      // Extraire un batchId propre (ex: "renouvellement-annonce-vinted" -> "announce-vinted")
+      const batchId = folder.split('/').filter(Boolean).pop() || `batch-${index}`;
+      
+      return {
+        batchId: batchId,
+        prefix: folder,
+        count: 0, // Peut être rempli par l'API backend si disponible
+        lastModified: undefined
+      };
+    });
+  }
+  
+  // Si le format n'est pas reconnu, retourner un tableau vide
+  console.warn('Format de réponse API non reconnu:', data);
+  return [];
+}
+
+export async function downloadImageBatch(batchId: string): Promise<Blob> {
+  console.log("downloadImageBatch pour lot:", batchId);
+  
+  // Mode développement avec données mock
+  if (process.env.NODE_ENV === 'development') {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/s3/download-images-batch/${batchId}`);
+      if (res.ok) return res.blob();
+    } catch {
+      console.log('Serveur non disponible, simulation du téléchargement');
+    }
+    
+    // Créer un blob mock (fichier zip vide)
+    return new Blob(['Mock ZIP file for batch: ' + batchId], { type: 'application/zip' });
+  }
+  
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/s3/download-images-batch/${batchId}`);
+  if (!res.ok) throw new Error("Erreur lors du téléchargement du lot");
+  return res.blob();
+}
+
+export async function getBatchPreview(batchId: string): Promise<string[]> {
+  console.log("getBatchPreview pour lot:", batchId);
+  
+  // Mode développement avec données mock
+  if (process.env.NODE_ENV === 'development') {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/s3/preview-images-batch/${batchId}`);
+      if (res.ok) return res.json();
+    } catch {
+      console.log('Serveur non disponible, utilisation des URLs mock');
+    }
+    
+    // Fallback vers les données mock
+    const { mockPreviewUrls } = await import('./s3.mock');
+    return mockPreviewUrls[batchId] || [];
+  }
+  
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/s3/preview-images-batch/${batchId}`);
+  if (!res.ok) throw new Error("Erreur lors de la récupération de l'aperçu");
+  return res.json();
 } 
