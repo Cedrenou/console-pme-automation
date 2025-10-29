@@ -149,7 +149,7 @@ const LambdaConfigPage = () => {
         </div>
 
         <div className="bg-[#23263A] rounded-2xl shadow-lg px-8 py-10 mt-8">
-            <h2 className="text-xl font-semibold mb-4">Logs d'exécution</h2>
+            <h2 className="text-xl font-semibold mb-4">Logs d&apos;exécution</h2>
             <div className="bg-[#151826] rounded-lg p-4 h-96 overflow-y-auto font-mono text-sm">
               {logs.length > 0 ? (
                 logs.map((log, index) => (
