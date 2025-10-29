@@ -26,28 +26,17 @@ const LambdaConfigPage = () => {
     const loadLambdaDetails = async () => {
       try {
         const data = await fetchLambdaDetails(id);
-        setLambda(data);
-        setConfig(data.config || {});
+        setLambda(data as LambdaDetails);
+        setConfig((data as LambdaDetails).config);
         const logsData = await fetchLambdaLogs(id);
-        setLogs(logsData);
+        setLogs(logsData as LogEntry[]);
       } catch (err) {
         setError("Erreur lors du chargement des détails de la lambda");
         console.error('Erreur fetchLambdaDetails:', err);
-      } finally {
-        setLoading(false);
-      }
+      } 
     };
-
     loadLambdaDetails();
   }, [id]);
-
-  if (loading) return <div className="text-white p-8">Chargement...</div>;
-  if (error) return <div className="text-red-400 p-8">{error}</div>;
-  if (!lambda) return <div className="text-white p-8">Service introuvable.</div>;
-
-  const handleChange = (key: string, value: string) => {
-    setConfig(config => ({ ...config, [key]: value }));
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,12 +45,14 @@ const LambdaConfigPage = () => {
     setSaving(true);
     
     try {
-      await updateLambda(lambda.lambdaName, config);
+      await updateLambda(lambda?.lambdaName || '', config);
       setSuccess(true);
       // Rafraîchir les données après la mise à jour
-      const updatedData = await fetchLambdaDetails(lambda.lambdaName);
-      setLambda(updatedData);
-      setConfig(updatedData.config || {});
+      const updatedData = await fetchLambdaDetails(lambda?.lambdaName || '');
+      setLambda(updatedData as LambdaDetails);
+      setConfig((updatedData as LambdaDetails).config);
+      const logsData = await fetchLambdaLogs(lambda?.lambdaName || '');
+      setLogs(logsData as LogEntry[]);
       
       // Masquer le message de succès après 3 secondes
       setTimeout(() => {
@@ -82,12 +73,12 @@ const LambdaConfigPage = () => {
         <div className="bg-[#23263A] rounded-2xl shadow-lg px-8 py-10">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-3xl font-bold mb-2">{lambda.displayName}</h1>
-              <p className="text-gray-400">{lambda.description}</p>
+              <h1 className="text-3xl font-bold mb-2">{lambda?.displayName}</h1>
+              <p className="text-gray-400">{lambda?.description}</p>
             </div>
             <div className="flex items-center gap-2">
-              <span className={`px-3 py-1 rounded-full text-sm ${lambda.active ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-                {lambda.active ? 'Actif' : 'Inactif'}
+              <span className={`px-3 py-1 rounded-full text-sm ${lambda?.active ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`} title={lambda?.active ? 'Actif' : 'Inactif'}>
+                {lambda?.active ? 'Actif' : 'Inactif'}
               </span>
             </div>
           </div>
@@ -102,7 +93,7 @@ const LambdaConfigPage = () => {
                   </label>
                   <textarea
                     value={value}
-                    onChange={e => handleChange(key, e.target.value)}
+                    onChange={e => setConfig(prev => ({ ...prev, [key]: e.target.value }))}
                     className="w-full px-3 py-2 rounded bg-[#151826] text-white border border-[#23263A] focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[400px]"
                     placeholder={`Valeur pour ${key}`}
                   />

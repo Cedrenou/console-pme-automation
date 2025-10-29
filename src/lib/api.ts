@@ -179,6 +179,25 @@ export async function updateLambda(lambdaId: string, config: Record<string, stri
   return responseData;
 }
 
+export async function fetchLambdaLogs(lambdaId: string) {
+  console.log("fetchLambdaLogs pour lambda:", lambdaId);
+  
+  if (shouldUseMock()) {
+    console.log("Utilisation des mocks pour fetchLambdaLogs");
+    // Simuler un délai réseau
+    await new Promise(resolve => setTimeout(resolve, 400));
+    
+    const logs = mockLogs[lambdaId as keyof typeof mockLogs] || [];
+    return logs;
+  }
+  
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL}/clients/clientA/lambdas/${lambdaId}/logs`
+  );
+  if (!res.ok) throw new Error("Erreur lors de la récupération des logs de la lambda");
+  return parseApiResponse(res);
+}
+
 export type ImageBatch = {
   batchId: string;
   prefix: string;
