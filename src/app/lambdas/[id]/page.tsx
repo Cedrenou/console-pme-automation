@@ -17,7 +17,6 @@ const LambdaConfigPage = () => {
   const [lambda, setLambda] = useState<LambdaDetails | null>(null);
   const [config, setConfig] = useState<Record<string, string>>({});
   const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [saving, setSaving] = useState(false);

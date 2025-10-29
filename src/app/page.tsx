@@ -20,7 +20,7 @@ const HomePage = () => {
     fetchLambdas()
       .then(data => {
         console.log('Lambdas reçues:', data);
-        setServices(data);
+        setServices(data as unknown as Service[]);
       })
       .catch((e) => {
         setError("Erreur lors du chargement des services.");
