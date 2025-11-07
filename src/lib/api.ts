@@ -270,21 +270,60 @@ function transformFoldersResponse(data: ImageBatch[] | { folders: string[] } | a
   return [];
 }
 
-export async function downloadImageBatch(batchId: string): Promise<void> {
-  const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/s3/download-images-batch/${batchId}`;
-
-  const res = await fetch(apiUrl, { method: "POST", headers: { "Content-Type": "application/json" } });
+export async function downloadImageBatch(batch: ImageBatch): Promise<Blob> {
+  console.log("downloadImageBatch pour lot:", batch.batchId, "prefix:", batch.prefix);
+  
+  // TODO: Remplacer par le nom réel de votre bucket S3
+  const bucket = process.env.NEXT_PUBLIC_S3_BUCKET || "sunset-s3";
+  
+  const payload = {
+    bucket: bucket,
+    prefix: batch.prefix,
+    zipName: `${batch.batchId}.zip`
+  };
+  
+  console.log("Payload envoyé à la lambda:", payload);
+  
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/s3/download-images-batch/${batch.batchId}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+  
+  console.log("Status HTTP:", res.status);
+  console.log("Content-Type:", res.headers.get('Content-Type'));
+  console.log("Content-Length:", res.headers.get('Content-Length'));
+  
   if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`API ${res.status} – ${txt}`);
+    const errorText = await res.text();
+    console.error("Erreur API:", errorText);
+    throw new Error(`Erreur ${res.status}: ${errorText}`);
   }
-
-  // 1) La Lambda renvoie { downloadUrl, zipKey, ... }
-  const { downloadUrl } = await res.json();
-  if (!downloadUrl) throw new Error("downloadUrl manquant dans la réponse");
-
-  // 2a) Le plus simple pour un client non-tech : rediriger le navigateur
-  window.location.href = downloadUrl;
+  
+  // La lambda retourne un JSON avec downloadUrl
+  const response = await res.json();
+  console.log("Réponse de la lambda:", response);
+  
+  if (!response.downloadUrl) {
+    throw new Error("downloadUrl manquant dans la réponse de la lambda");
+  }
+  
+  // Télécharger le fichier depuis l'URL pré-signée
+  const fileRes = await fetch(response.downloadUrl);
+  if (!fileRes.ok) {
+    throw new Error(`Erreur lors du téléchargement du fichier: ${fileRes.status}`);
+  }
+  
+  const blob = await fileRes.blob();
+  console.log("Taille du blob reçu:", blob.size, "bytes");
+  
+  if (blob.size === 0) {
+    console.error("⚠️ Le blob est vide ! Problème côté Lambda ou S3");
+  }
+  
+  return blob;
 }
 
 export async function getBatchPreview(batchId: string): Promise<string[]> {

@@ -43,8 +43,8 @@ const RenouvellementAnnoncesPage = () => {
   const handleDownload = async (batch: ImageBatch) => {
     setDownloadingBatch(batch.batchId);
     try {
-      console.log(batch)
-      const blob = await downloadImageBatch(batch.batchId);
+      console.log("Téléchargement du lot:", batch)
+      const blob = await downloadImageBatch(batch);
       
       // Créer un lien de téléchargement
       const url = window.URL.createObjectURL(blob);
