@@ -270,55 +270,21 @@ function transformFoldersResponse(data: ImageBatch[] | { folders: string[] } | a
   return [];
 }
 
-export async function downloadImageBatch(batchId: string): Promise<Blob> {
-  console.log("downloadImageBatch pour lot:", batchId);
-  
+export async function downloadImageBatch(batchId: string): Promise<void> {
   const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/s3/download-images-batch/${batchId}`;
-  console.log("URL de téléchargement:", apiUrl);
-  
-  // Mode développement avec données mock
-  if (process.env.NODE_ENV === 'development') {
-    try {
-      const res = await fetch(apiUrl);
-      if (res.ok) {
-        const blob = await res.blob();
-        console.log("✅ Blob reçu en dev, taille:", blob.size, "bytes");
-        if (blob.size === 0) {
-          console.error("⚠️ Blob vide ! Problème côté Lambda ou API Gateway");
-        }
-        return blob;
-      }
-    } catch (error) {
-      console.log('Serveur non disponible, simulation du téléchargement', error);
-    }
-    
-    // Créer un blob mock (fichier zip vide)
-    return new Blob(['Mock ZIP file for batch: ' + batchId], { type: 'application/zip' });
-  }
-  
-  const res = await fetch(apiUrl);
-  console.log("Status HTTP:", res.status);
-  console.log("Content-Type:", res.headers.get('Content-Type'));
-  console.log("Content-Length:", res.headers.get('Content-Length'));
-  
+
+  const res = await fetch(apiUrl, { method: "POST", headers: { "Content-Type": "application/json" } });
   if (!res.ok) {
-    const errorText = await res.text();
-    console.error("Erreur API:", errorText);
-    throw new Error(`Erreur ${res.status}: ${errorText}`);
+    const txt = await res.text();
+    throw new Error(`API ${res.status} – ${txt}`);
   }
-  
-  const blob = await res.blob();
-  console.log("✅ Blob reçu, taille:", blob.size, "bytes");
-  
-  if (blob.size === 0) {
-    console.error("⚠️ Le blob est vide ! Vérifiez les logs CloudWatch de la Lambda.");
-    console.error("Vérifiez que:");
-    console.error("  1. Le prefix S3 correspond au batchId");
-    console.error("  2. Des fichiers sont trouvés dans S3");
-    console.error("  3. La Lambda ajoute bien les fichiers au ZIP");
-  }
-  
-  return blob;
+
+  // 1) La Lambda renvoie { downloadUrl, zipKey, ... }
+  const { downloadUrl } = await res.json();
+  if (!downloadUrl) throw new Error("downloadUrl manquant dans la réponse");
+
+  // 2a) Le plus simple pour un client non-tech : rediriger le navigateur
+  window.location.href = downloadUrl;
 }
 
 export async function getBatchPreview(batchId: string): Promise<string[]> {
