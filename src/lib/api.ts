@@ -304,14 +304,36 @@ export async function downloadImageBatch(batch: ImageBatch): Promise<Blob> {
   
   // La lambda retourne un JSON avec downloadUrl
   const response = await res.json();
-  console.log("Réponse de la lambda:", response);
+  console.log("🔍 DEBUG - Réponse complète de la lambda:", JSON.stringify(response, null, 2));
+  console.log("🔍 DEBUG - Type de response:", typeof response);
+  console.log("🔍 DEBUG - Clés disponibles:", Object.keys(response));
   
-  if (!response.downloadUrl) {
+  // API Gateway retourne { statusCode, headers, body } - extraire le body
+  let downloadUrl;
+  if (response.body) {
+    // La réponse est au format API Gateway
+    try {
+      const body = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+      console.log("🔍 DEBUG - Body parsé:", body);
+      downloadUrl = body.downloadUrl;
+    } catch (e) {
+      console.error("Erreur parsing body:", e);
+    }
+  } else {
+    // Réponse directe (pas d'encapsulation API Gateway)
+    downloadUrl = response.downloadUrl;
+  }
+  
+  console.log("🔍 DEBUG - downloadUrl final:", downloadUrl);
+  
+  if (!downloadUrl) {
+    console.error("❌ downloadUrl manquant dans la réponse");
+    console.error("Response reçue:", response);
     throw new Error("downloadUrl manquant dans la réponse de la lambda");
   }
   
   // Télécharger le fichier depuis l'URL pré-signée
-  const fileRes = await fetch(response.downloadUrl);
+  const fileRes = await fetch(downloadUrl);
   if (!fileRes.ok) {
     throw new Error(`Erreur lors du téléchargement du fichier: ${fileRes.status}`);
   }
