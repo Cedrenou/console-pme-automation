@@ -1,15 +1,13 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { fetchImageBatches, downloadImageBatch, getBatchPreview, type ImageBatch } from "@/lib/api";
-import { FaDownload, FaImages, FaCalendar, FaEye } from "react-icons/fa";
+import { fetchImageBatches, downloadImageBatch, type ImageBatch } from "@/lib/api";
+import { FaDownload, FaImages, FaCalendar } from "react-icons/fa";
 
 const RenouvellementAnnoncesPage = () => {
   const [batches, setBatches] = useState<ImageBatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [downloadingBatch, setDownloadingBatch] = useState<string | null>(null);
-  const [previewBatches, setPreviewBatches] = useState<Record<string, string[]>>({});
-  const [previewLoading, setPreviewLoading] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     loadBatches();
@@ -40,12 +38,18 @@ const RenouvellementAnnoncesPage = () => {
     }
   };
 
+  // Extrait le dernier dossier de l'arborescence
+  const getLastFolderName = (prefix: string): string => {
+    const parts = prefix.split('/').filter(Boolean);
+    return parts.length > 0 ? parts[parts.length - 1] : prefix;
+  };
+
   const handleDownload = async (batch: ImageBatch) => {
     setDownloadingBatch(batch.batchId);
     try {
       console.log("Téléchargement du lot:", batch)
       const blob = await downloadImageBatch(batch);
-      
+
       // Créer un lien de téléchargement
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -55,31 +59,13 @@ const RenouvellementAnnoncesPage = () => {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      
+
       console.log('Téléchargement réussi pour le lot:', batch.batchId);
     } catch (e) {
       console.error('Erreur téléchargement:', e);
       alert('Erreur lors du téléchargement du lot');
     } finally {
       setDownloadingBatch(null);
-    }
-  };
-
-  const handlePreview = async (batch: ImageBatch) => {
-    if (previewBatches[batch.batchId]) {
-      // L'aperçu existe déjà, ne rien faire
-      return;
-    }
-
-    setPreviewLoading(prev => ({ ...prev, [batch.batchId]: true }));
-    try {
-      const previewUrls = await getBatchPreview(batch.batchId);
-      setPreviewBatches(prev => ({ ...prev, [batch.batchId]: previewUrls }));
-    } catch (e) {
-      console.error('Erreur lors de la récupération de l\'aperçu:', e);
-      alert('Erreur lors de la récupération de l\'aperçu');
-    } finally {
-      setPreviewLoading(prev => ({ ...prev, [batch.batchId]: false }));
     }
   };
 
@@ -104,7 +90,7 @@ const RenouvellementAnnoncesPage = () => {
             <div key={batch.batchId} className="bg-[#23263A] rounded-2xl shadow-lg p-6 border border-[#23263A] hover:border-blue-600 transition-colors">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
-                  <h3 className="text-xl font-semibold mb-2">{batch.prefix}</h3>
+                  <h3 className="text-xl font-semibold mb-2">{getLastFolderName(batch.prefix)}</h3>
                   <div className="flex flex-wrap gap-4 text-sm text-gray-400">
                     <div className="flex items-center gap-2">
                       <FaImages />
@@ -119,26 +105,6 @@ const RenouvellementAnnoncesPage = () => {
                   </div>
                 </div>
                 <div className="flex gap-3">
-                  <button
-                    onClick={() => handlePreview(batch)}
-                    disabled={previewLoading[batch.batchId]}
-                    className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-semibold transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {previewLoading[batch.batchId] ? (
-                      <>
-                        <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Chargement...
-                      </>
-                    ) : (
-                      <>
-                        <FaEye />
-                        Aperçu
-                      </>
-                    )}
-                  </button>
                   <button
                     onClick={() => handleDownload(batch)}
                     disabled={downloadingBatch === batch.batchId}
@@ -161,23 +127,6 @@ const RenouvellementAnnoncesPage = () => {
                   </button>
                 </div>
               </div>
-
-              {previewBatches[batch.batchId] && previewBatches[batch.batchId].length > 0 && (
-                <div className="mt-4 border-t border-[#151826] pt-4">
-                  <h4 className="text-sm font-semibold mb-3 text-gray-300">Aperçu des images</h4>
-                  <div className="grid grid-cols-4 gap-3">
-                    {previewBatches[batch.batchId].map((url, idx) => (
-                      <div key={idx} className="relative overflow-hidden rounded-lg bg-[#151826] aspect-square">
-                        <img
-                          src={url}
-                          alt={`Aperçu ${idx + 1}`}
-                          className="w-full h-full object-cover hover:scale-105 transition-transform"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           ))
         )}

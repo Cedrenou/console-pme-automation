@@ -332,20 +332,12 @@ export async function downloadImageBatch(batch: ImageBatch): Promise<Blob> {
     throw new Error("downloadUrl manquant dans la réponse de la lambda");
   }
   
-  // Télécharger le fichier depuis l'URL pré-signée
-  const fileRes = await fetch(downloadUrl);
-  if (!fileRes.ok) {
-    throw new Error(`Erreur lors du téléchargement du fichier: ${fileRes.status}`);
-  }
+  // Redirection directe vers l'URL pré-signée (évite les problèmes CORS)
+  console.log("🔗 Redirection vers:", downloadUrl);
+  window.location.href = downloadUrl;
   
-  const blob = await fileRes.blob();
-  console.log("Taille du blob reçu:", blob.size, "bytes");
-  
-  if (blob.size === 0) {
-    console.error("⚠️ Le blob est vide ! Problème côté Lambda ou S3");
-  }
-  
-  return blob;
+  // Retourner un blob vide car le téléchargement se fait via redirection
+  return new Blob();
 }
 
 export async function getBatchPreview(batchId: string): Promise<string[]> {
