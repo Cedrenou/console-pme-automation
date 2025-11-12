@@ -208,12 +208,16 @@ export type ImageBatch = {
 export async function fetchImageBatches(): Promise<ImageBatch[]> {
   console.log("fetchImageBatches");
   
-  const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/s3/list-folders-images`;
+  // Ajouter un timestamp pour éviter le cache du navigateur
+  const timestamp = Date.now();
+  const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/s3/list-folders-images?t=${timestamp}`;
   
   // Mode développement avec données mock
   if (process.env.NODE_ENV === 'development') {
     try {
-      const res = await fetch(apiUrl);
+      const res = await fetch(apiUrl, {
+        cache: 'no-store', // Désactiver le cache
+      });
       if (res.ok) {
         const data = await parseApiResponse<{ folders: string[] }>(res);
         // Transformer la réponse {"folders": [...]} en format attendu
@@ -228,7 +232,9 @@ export async function fetchImageBatches(): Promise<ImageBatch[]> {
     return mockImageBatches;
   }
   
-  const res = await fetch(apiUrl);
+  const res = await fetch(apiUrl, {
+    cache: 'no-store', // Désactiver le cache
+  });
   if (!res.ok) throw new Error("Erreur lors de la récupération des lots d'images");
   const data = await parseApiResponse<{ folders: string[] }>(res);
   console.log('Réponse API brute:', data);
