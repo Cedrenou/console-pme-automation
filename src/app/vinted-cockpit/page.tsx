@@ -1,10 +1,11 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import {
-  fetchVintedStats, fetchVintedEvents, fetchVintedTimeline, fetchVintedBordereau,
-  type VintedStats, type VintedEvent, type VintedTimeline
+  fetchVintedStats, fetchVintedTimeline,
+  type VintedStats, type VintedTimeline
 } from "@/lib/api";
-import { FaCalendarAlt, FaEuroSign, FaShoppingBag, FaRocket, FaUniversity, FaUndo, FaUser, FaFileDownload } from "react-icons/fa";
+import { FaCalendarAlt, FaEuroSign, FaShoppingBag, FaRocket, FaUniversity, FaUndo, FaArrowRight } from "react-icons/fa";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
 } from "recharts";
@@ -43,7 +44,6 @@ const formatDate = (iso: string): string => {
 const VintedCockpitPage = () => {
   const [period, setPeriod] = useState<PeriodId>("30d");
   const [stats, setStats] = useState<VintedStats | null>(null);
-  const [recentSales, setRecentSales] = useState<VintedEvent[]>([]);
   const [timeline, setTimeline] = useState<VintedTimeline | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -57,13 +57,11 @@ const VintedCockpitPage = () => {
         // La timeline charge toujours les 24 derniers mois (saisonnalité indépendante du sélecteur).
         const now = new Date();
         const timelineFrom = new Date(now.getFullYear() - 2, now.getMonth(), 1).toISOString();
-        const [s, e, tl] = await Promise.all([
+        const [s, tl] = await Promise.all([
           fetchVintedStats(from, to),
-          fetchVintedEvents({ type: "vente", from, to, limit: 20 }),
           fetchVintedTimeline({ type: "transaction", granularity: "month", from: timelineFrom })
         ]);
         setStats(s);
-        setRecentSales(e.items);
         setTimeline(tl);
       } catch (err) {
         console.error(err);
@@ -195,22 +193,16 @@ const VintedCockpitPage = () => {
             </div>
           )}
 
-          <div className="bg-[#23263A] rounded-2xl shadow-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold">Dernières ventes</h2>
-              <span className="text-sm text-gray-400">{recentSales.length} affichées</span>
+          <Link
+            href="/vinted-ventes"
+            className="bg-[#23263A] hover:bg-[#2c3048] rounded-2xl shadow-lg p-6 flex items-center justify-between transition-colors group"
+          >
+            <div>
+              <div className="text-lg font-semibold">Voir le détail des ventes</div>
+              <div className="text-sm text-gray-400 mt-1">Liste complète, recherche, téléchargement des bordereaux d&apos;envoi</div>
             </div>
-
-            {recentSales.length === 0 ? (
-              <p className="text-gray-500 italic">Aucune vente sur la période sélectionnée.</p>
-            ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                {recentSales.map(sale => (
-                  <SaleRow key={sale.gmailMessageId} sale={sale} />
-                ))}
-              </div>
-            )}
-          </div>
+            <FaArrowRight className="text-blue-400 text-xl group-hover:translate-x-1 transition-transform" />
+          </Link>
         </>
       )}
     </div>
@@ -312,102 +304,5 @@ const KpiCard: React.FC<KpiCardProps> = ({ icon, label, value, hint, accent }) =
     {hint && <div className="text-xs text-gray-500 mt-1">{hint}</div>}
   </div>
 );
-
-const SaleRow: React.FC<{ sale: VintedEvent }> = ({ sale }) => {
-  const p = sale.payload as {
-    acheteur_username?: string;
-    article_titre?: string;
-    prix_vente?: number;
-    article_image_url?: string;
-    conversation_url?: string;
-    vinted_pro?: boolean;
-  };
-
-  const [bordereauLoading, setBordereauLoading] = useState(false);
-  const [bordereauError, setBordereauError] = useState<string | null>(null);
-
-  const handleDownloadBordereau = async () => {
-    setBordereauLoading(true);
-    setBordereauError(null);
-    try {
-      const { filename, pdfBase64 } = await fetchVintedBordereau(sale.gmailMessageId);
-      // base64 → Blob → download
-      const byteChars = atob(pdfBase64);
-      const byteNums = new Uint8Array(byteChars.length);
-      for (let i = 0; i < byteChars.length; i++) byteNums[i] = byteChars.charCodeAt(i);
-      const blob = new Blob([byteNums], { type: "application/pdf" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error(err);
-      setBordereauError(err instanceof Error ? err.message : "Erreur");
-    } finally {
-      setBordereauLoading(false);
-    }
-  };
-
-  return (
-    <div className="bg-[#1c1f2e] rounded-lg p-4 flex gap-3 items-start">
-      {p.article_image_url ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={p.article_image_url}
-          alt={p.article_titre ?? "article"}
-          className="w-16 h-20 object-cover rounded flex-shrink-0"
-          loading="lazy"
-        />
-      ) : (
-        <div className="w-16 h-20 bg-[#23263A] rounded flex items-center justify-center text-gray-600 text-xs flex-shrink-0">
-          —
-        </div>
-      )}
-      <div className="flex-1 min-w-0">
-        <div className="font-semibold text-sm leading-tight line-clamp-2">
-          {p.article_titre ?? "Article sans titre"}
-        </div>
-        <div className="text-xs text-gray-400 mt-1 flex items-center gap-1">
-          <FaUser className="text-[10px]" />
-          {p.conversation_url ? (
-            <a
-              href={p.conversation_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-400 hover:underline"
-            >
-              {p.acheteur_username ?? "?"}
-            </a>
-          ) : (
-            <span>{p.acheteur_username ?? "?"}</span>
-          )}
-        </div>
-        <div className="text-xs text-gray-500 mt-1">{formatDate(sale.eventDate)}</div>
-        <button
-          type="button"
-          onClick={handleDownloadBordereau}
-          disabled={bordereauLoading}
-          className="mt-2 inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded bg-blue-600/20 text-blue-300 hover:bg-blue-600/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          aria-label="Télécharger le bordereau d'envoi"
-        >
-          <FaFileDownload className="text-[11px]" />
-          {bordereauLoading ? "Récupération…" : "Bordereau"}
-        </button>
-        {bordereauError && (
-          <div className="text-xs text-red-400 mt-1">{bordereauError}</div>
-        )}
-      </div>
-      <div className="text-right flex-shrink-0">
-        <div className="text-lg font-bold text-green-400">
-          {p.prix_vente !== undefined ? formatEur(p.prix_vente) : "—"}
-        </div>
-      </div>
-    </div>
-  );
-};
 
 export default VintedCockpitPage;

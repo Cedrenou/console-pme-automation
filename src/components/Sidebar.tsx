@@ -1,10 +1,11 @@
 import React from "react";
 import Link from "next/link";
-import { FaTachometerAlt, FaFileAlt, FaUserCircle, FaChartLine } from "react-icons/fa";
+import { FaTachometerAlt, FaFileAlt, FaUserCircle, FaChartLine, FaShoppingBag } from "react-icons/fa";
 
 const links = [
   { href: "/", label: "Dashboard", icon: <FaTachometerAlt /> },
   { href: "/vinted-cockpit", label: "Cockpit Vinted", icon: <FaChartLine /> },
+  { href: "/vinted-ventes", label: "Ventes Vinted", icon: <FaShoppingBag /> },
   { href: "/renouvellement-annonces", label: "Renouvellement Annonces", icon: <FaFileAlt /> }
 ];
 

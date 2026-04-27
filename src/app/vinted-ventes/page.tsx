@@ -1,0 +1,281 @@
+"use client";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  fetchVintedEvents, fetchVintedBordereau,
+  type VintedEvent
+} from "@/lib/api";
+import {
+  FaCalendarAlt, FaUser, FaFileDownload, FaSearch
+} from "react-icons/fa";
+
+type PeriodId = "30d" | "90d" | "month" | "year" | "all";
+
+const PERIODS: { id: PeriodId; label: string }[] = [
+  { id: "30d", label: "30 jours" },
+  { id: "90d", label: "90 jours" },
+  { id: "month", label: "Ce mois" },
+  { id: "year", label: "Cette année" },
+  { id: "all", label: "Tout" }
+];
+
+const PAGE_SIZE = 50;
+
+const periodToDates = (id: PeriodId): { from?: string; to?: string } => {
+  const now = new Date();
+  const to = now.toISOString();
+  if (id === "all") return {};
+  if (id === "30d") return { from: new Date(now.getTime() - 30 * 86400_000).toISOString(), to };
+  if (id === "90d") return { from: new Date(now.getTime() - 90 * 86400_000).toISOString(), to };
+  if (id === "month") return { from: new Date(now.getFullYear(), now.getMonth(), 1).toISOString(), to };
+  if (id === "year") return { from: new Date(now.getFullYear(), 0, 1).toISOString(), to };
+  return {};
+};
+
+const formatEur = (n: number): string =>
+  n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+
+const formatDate = (iso: string): string => {
+  const d = new Date(iso);
+  return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+};
+
+const VintedVentesPage = () => {
+  const [period, setPeriod] = useState<PeriodId>("30d");
+  const [search, setSearch] = useState<string>("");
+  const [items, setItems] = useState<VintedEvent[]>([]);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const requestId = useRef(0);
+
+  // Reset + chargement initial à chaque changement de période
+  useEffect(() => {
+    const myId = ++requestId.current;
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      setItems([]);
+      setCursor(null);
+      try {
+        const { from, to } = periodToDates(period);
+        const res = await fetchVintedEvents({ type: "vente", from, to, limit: PAGE_SIZE });
+        if (requestId.current !== myId) return; // une autre requête a démarré
+        setItems(res.items);
+        setCursor(res.nextCursor);
+      } catch (err) {
+        if (requestId.current !== myId) return;
+        console.error(err);
+        setError("Erreur lors du chargement des ventes.");
+      } finally {
+        if (requestId.current === myId) setLoading(false);
+      }
+    };
+    load();
+  }, [period]);
+
+  const handleLoadMore = async () => {
+    if (!cursor || loadingMore) return;
+    setLoadingMore(true);
+    setError(null);
+    try {
+      const { from, to } = periodToDates(period);
+      const res = await fetchVintedEvents({ type: "vente", from, to, limit: PAGE_SIZE, cursor });
+      setItems(prev => [...prev, ...res.items]);
+      setCursor(res.nextCursor);
+    } catch (err) {
+      console.error(err);
+      setError("Erreur lors du chargement de la suite.");
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  const filteredItems = search.trim().length === 0
+    ? items
+    : items.filter(it => {
+        const p = it.payload as { article_titre?: string; acheteur_username?: string };
+        const haystack = `${p.article_titre ?? ""} ${p.acheteur_username ?? ""}`.toLowerCase();
+        return haystack.includes(search.toLowerCase());
+      });
+
+  return (
+    <div className="min-h-screen bg-[#151826] text-white p-8">
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Ventes Vinted</h1>
+          <p className="text-gray-400">Consulte tes ventes et télécharge les bordereaux d&apos;envoi.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {PERIODS.map(p => (
+            <button
+              key={p.id}
+              onClick={() => setPeriod(p.id)}
+              aria-pressed={period === p.id}
+              className={`px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 ${
+                period === p.id
+                  ? "bg-blue-600 text-white"
+                  : "bg-[#23263A] text-gray-300 hover:bg-[#2c3048]"
+              }`}
+            >
+              <FaCalendarAlt className="text-sm" />
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-[#23263A] rounded-2xl shadow-lg p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl font-bold">Liste des ventes</h2>
+            <span className="text-sm text-gray-400">
+              {loading ? "Chargement…" : `${filteredItems.length}${cursor ? "+" : ""} affichées`}
+            </span>
+          </div>
+          <div className="relative">
+            <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm" />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Filtrer par titre ou acheteur..."
+              className="pl-9 pr-3 py-2 rounded-lg bg-[#1c1f2e] border border-[#2c3048] text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64"
+            />
+          </div>
+        </div>
+
+        {error && (
+          <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 mb-4 text-red-400 text-sm">
+            {error}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="text-gray-400 italic py-8 text-center">Chargement des ventes…</div>
+        ) : filteredItems.length === 0 ? (
+          <div className="text-gray-500 italic py-8 text-center">
+            {search ? "Aucune vente ne matche ce filtre." : "Aucune vente sur la période sélectionnée."}
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              {filteredItems.map(sale => (
+                <SaleRow key={sale.gmailMessageId} sale={sale} />
+              ))}
+            </div>
+            {cursor && (
+              <div className="flex justify-center mt-6">
+                <button
+                  type="button"
+                  onClick={handleLoadMore}
+                  disabled={loadingMore}
+                  className="px-6 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loadingMore ? "Chargement…" : "Charger plus"}
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const SaleRow: React.FC<{ sale: VintedEvent }> = ({ sale }) => {
+  const p = sale.payload as {
+    acheteur_username?: string;
+    article_titre?: string;
+    prix_vente?: number;
+    article_image_url?: string;
+    conversation_url?: string;
+  };
+
+  const [bordereauLoading, setBordereauLoading] = useState(false);
+  const [bordereauError, setBordereauError] = useState<string | null>(null);
+
+  const handleDownloadBordereau = async () => {
+    setBordereauLoading(true);
+    setBordereauError(null);
+    try {
+      const { filename, pdfBase64 } = await fetchVintedBordereau(sale.gmailMessageId);
+      const byteChars = atob(pdfBase64);
+      const byteNums = new Uint8Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) byteNums[i] = byteChars.charCodeAt(i);
+      const blob = new Blob([byteNums], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      setBordereauError(err instanceof Error ? err.message : "Erreur");
+    } finally {
+      setBordereauLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-[#1c1f2e] rounded-lg p-4 flex gap-3 items-start">
+      {p.article_image_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={p.article_image_url}
+          alt={p.article_titre ?? "article"}
+          className="w-16 h-20 object-cover rounded flex-shrink-0"
+          loading="lazy"
+        />
+      ) : (
+        <div className="w-16 h-20 bg-[#23263A] rounded flex items-center justify-center text-gray-600 text-xs flex-shrink-0">
+          —
+        </div>
+      )}
+      <div className="flex-1 min-w-0">
+        <div className="font-semibold text-sm leading-tight line-clamp-2">
+          {p.article_titre ?? "Article sans titre"}
+        </div>
+        <div className="text-xs text-gray-400 mt-1 flex items-center gap-1">
+          <FaUser className="text-[10px]" />
+          {p.conversation_url ? (
+            <a
+              href={p.conversation_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-400 hover:underline"
+            >
+              {p.acheteur_username ?? "?"}
+            </a>
+          ) : (
+            <span>{p.acheteur_username ?? "?"}</span>
+          )}
+        </div>
+        <div className="text-xs text-gray-500 mt-1">{formatDate(sale.eventDate)}</div>
+        <button
+          type="button"
+          onClick={handleDownloadBordereau}
+          disabled={bordereauLoading}
+          className="mt-2 inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded bg-blue-600/20 text-blue-300 hover:bg-blue-600/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          aria-label="Télécharger le bordereau d'envoi"
+        >
+          <FaFileDownload className="text-[11px]" />
+          {bordereauLoading ? "Récupération…" : "Bordereau"}
+        </button>
+        {bordereauError && (
+          <div className="text-xs text-red-400 mt-1">{bordereauError}</div>
+        )}
+      </div>
+      <div className="text-right flex-shrink-0">
+        <div className="text-lg font-bold text-green-400">
+          {p.prix_vente !== undefined ? formatEur(p.prix_vente) : "—"}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default VintedVentesPage;
