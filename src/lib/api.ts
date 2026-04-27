@@ -366,4 +366,135 @@ export async function getBatchPreview(batchId: string): Promise<string[]> {
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/s3/preview-images-batch/${batchId}`);
   if (!res.ok) throw new Error("Erreur lors de la récupération de l'aperçu");
   return res.json();
-} 
+}
+
+// === Vinted cockpit ===
+// Note : la donnée DynamoDB est keyée sous clientId="sunset" (CLIENT_NAME env var de l'ingest lambda).
+// Le reste du repo utilise "clientA" en hardcodé — à unifier le jour où l'auth Supabase arrivera.
+const VINTED_CLIENT_ID = 'sunset';
+
+export type VintedStats = {
+  period: { from: string | null; to: string | null };
+  sales: { count: number; total_revenue: number; avg_price: number };
+  transactions: {
+    count: number;
+    total_revenue: number;
+    total_frais_port_acheteur: number;
+    total_net_recu: number;
+    total_frais_vinted: number;
+  };
+  purchases: { count: number; total_spent: number };
+  boosts: { count: number; total_cost: number; total_articles: number; total_days: number };
+  vitrines: { count: number; total_cost: number; total_days: number };
+  transferts: { count: number; total_amount: number };
+  refunds: {
+    count: number;
+    total_amount: number;
+    sunset_acheteur: { count: number; total: number };
+    sunset_vendeur: { count: number; total: number };
+  };
+};
+
+export type VintedEvent = {
+  clientId: string;
+  gmailMessageId: string;
+  eventType: 'achat' | 'vente' | 'boost' | 'vitrine' | 'transfert' | 'refund' | 'transaction';
+  eventDate: string;
+  eventTypeIndex: string;
+  payload: Record<string, unknown>;
+  sourceLabel?: string;
+  createdAt?: string;
+};
+
+export type VintedEventsResponse = {
+  items: VintedEvent[];
+  nextCursor: string | null;
+  count: number;
+};
+
+export async function fetchVintedStats(from?: string, to?: string): Promise<VintedStats> {
+  if (shouldUseMock()) {
+    await new Promise(r => setTimeout(r, 200));
+    return mockVintedStats(from, to);
+  }
+  const params = new URLSearchParams();
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  const url = `${process.env.NEXT_PUBLIC_API_URL}/clients/${VINTED_CLIENT_ID}/vinted/stats${params.toString() ? `?${params}` : ''}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Erreur lors de la récupération des stats Vinted");
+  return parseApiResponse<VintedStats>(res);
+}
+
+export async function fetchVintedEvents(opts: {
+  type: VintedEvent['eventType'];
+  from?: string;
+  to?: string;
+  limit?: number;
+  cursor?: string;
+}): Promise<VintedEventsResponse> {
+  if (shouldUseMock()) {
+    await new Promise(r => setTimeout(r, 200));
+    return mockVintedEvents(opts);
+  }
+  const params = new URLSearchParams();
+  params.set('type', opts.type);
+  if (opts.from) params.set('from', opts.from);
+  if (opts.to) params.set('to', opts.to);
+  if (opts.limit) params.set('limit', String(opts.limit));
+  if (opts.cursor) params.set('cursor', opts.cursor);
+  const url = `${process.env.NEXT_PUBLIC_API_URL}/clients/${VINTED_CLIENT_ID}/vinted/events?${params}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Erreur lors de la récupération des events Vinted");
+  return parseApiResponse<VintedEventsResponse>(res);
+}
+
+function mockVintedStats(from?: string, to?: string): VintedStats {
+  return {
+    period: { from: from ?? null, to: to ?? null },
+    sales: { count: 234, total_revenue: 26408.99, avg_price: 112.86 },
+    transactions: {
+      count: 220,
+      total_revenue: 24850.00,
+      total_frais_port_acheteur: 658.00,
+      total_net_recu: 24962.30,
+      total_frais_vinted: 545.70
+    },
+    purchases: { count: 187, total_spent: 5851.64 },
+    boosts: { count: 10, total_cost: 1129.93, total_articles: 326, total_days: 66 },
+    vitrines: { count: 4, total_cost: 33.16, total_days: 28 },
+    transferts: { count: 70, total_amount: 20243.32 },
+    refunds: {
+      count: 22,
+      total_amount: 1888.90,
+      sunset_acheteur: { count: 22, total: 1888.90 },
+      sunset_vendeur: { count: 0, total: 0 }
+    }
+  };
+}
+
+function mockVintedEvents(opts: { type: VintedEvent['eventType']; limit?: number }): VintedEventsResponse {
+  if (opts.type !== 'vente') return { items: [], nextCursor: null, count: 0 };
+  const now = Date.now();
+  const titles = [
+    'Casque AGV K3 Taille M Noir Mat',
+    'Blouson cuir Dainese Avro D2 Homme L',
+    'Gants moto Alpinestars GP Pro R3 XL',
+    'Bottes Sidi Mag-1 Air Noires 43',
+    'Veste Rev\'it Ignition 4 H2O Femme S'
+  ];
+  const items: VintedEvent[] = Array.from({ length: opts.limit ?? 20 }, (_, i) => ({
+    clientId: VINTED_CLIENT_ID,
+    gmailMessageId: `mock-${i}`,
+    eventType: 'vente',
+    eventDate: new Date(now - i * 1.5 * 3600_000).toISOString(),
+    eventTypeIndex: `${VINTED_CLIENT_ID}#vente`,
+    payload: {
+      acheteur_username: `acheteur_${i + 1}`,
+      article_titre: titles[i % titles.length],
+      prix_vente: Math.round((40 + Math.random() * 250) * 100) / 100,
+      vinted_pro: true
+    }
+  }));
+  return { items, nextCursor: null, count: items.length };
+}
