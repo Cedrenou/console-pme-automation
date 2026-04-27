@@ -435,6 +435,27 @@ export type VintedTimeline = {
   buckets: VintedTimelineBucket[];
 };
 
+export type VintedBordereau = {
+  filename: string;
+  subject: string;
+  sizeBytes: number;
+  pdfBase64: string;
+};
+
+export async function fetchVintedBordereau(venteId: string): Promise<VintedBordereau> {
+  if (shouldUseMock()) {
+    await new Promise(r => setTimeout(r, 400));
+    throw new Error("Bordereau non disponible en mode mock — passe sur l'API prod pour tester");
+  }
+  const url = `${process.env.NEXT_PUBLIC_API_URL}/clients/${VINTED_CLIENT_ID}/vinted/bordereau?venteId=${encodeURIComponent(venteId)}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Bordereau introuvable: ${txt}`);
+  }
+  return parseApiResponse<VintedBordereau>(res);
+}
+
 export async function fetchVintedTimeline(opts: {
   type?: VintedEvent['eventType'];
   from?: string;

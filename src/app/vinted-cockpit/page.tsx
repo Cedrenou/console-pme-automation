@@ -1,10 +1,10 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import {
-  fetchVintedStats, fetchVintedEvents, fetchVintedTimeline,
+  fetchVintedStats, fetchVintedEvents, fetchVintedTimeline, fetchVintedBordereau,
   type VintedStats, type VintedEvent, type VintedTimeline
 } from "@/lib/api";
-import { FaCalendarAlt, FaEuroSign, FaShoppingBag, FaRocket, FaUniversity, FaUndo, FaUser } from "react-icons/fa";
+import { FaCalendarAlt, FaEuroSign, FaShoppingBag, FaRocket, FaUniversity, FaUndo, FaUser, FaFileDownload } from "react-icons/fa";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
 } from "recharts";
@@ -323,6 +323,35 @@ const SaleRow: React.FC<{ sale: VintedEvent }> = ({ sale }) => {
     vinted_pro?: boolean;
   };
 
+  const [bordereauLoading, setBordereauLoading] = useState(false);
+  const [bordereauError, setBordereauError] = useState<string | null>(null);
+
+  const handleDownloadBordereau = async () => {
+    setBordereauLoading(true);
+    setBordereauError(null);
+    try {
+      const { filename, pdfBase64 } = await fetchVintedBordereau(sale.gmailMessageId);
+      // base64 → Blob → download
+      const byteChars = atob(pdfBase64);
+      const byteNums = new Uint8Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) byteNums[i] = byteChars.charCodeAt(i);
+      const blob = new Blob([byteNums], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      setBordereauError(err instanceof Error ? err.message : "Erreur");
+    } finally {
+      setBordereauLoading(false);
+    }
+  };
+
   return (
     <div className="bg-[#1c1f2e] rounded-lg p-4 flex gap-3 items-start">
       {p.article_image_url ? (
@@ -358,6 +387,19 @@ const SaleRow: React.FC<{ sale: VintedEvent }> = ({ sale }) => {
           )}
         </div>
         <div className="text-xs text-gray-500 mt-1">{formatDate(sale.eventDate)}</div>
+        <button
+          type="button"
+          onClick={handleDownloadBordereau}
+          disabled={bordereauLoading}
+          className="mt-2 inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded bg-blue-600/20 text-blue-300 hover:bg-blue-600/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          aria-label="Télécharger le bordereau d'envoi"
+        >
+          <FaFileDownload className="text-[11px]" />
+          {bordereauLoading ? "Récupération…" : "Bordereau"}
+        </button>
+        {bordereauError && (
+          <div className="text-xs text-red-400 mt-1">{bordereauError}</div>
+        )}
       </div>
       <div className="text-right flex-shrink-0">
         <div className="text-lg font-bold text-green-400">
