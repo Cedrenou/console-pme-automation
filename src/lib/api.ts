@@ -1,4 +1,18 @@
 import { lambdas } from './lambdas.mock';
+import { createClient } from '@/utils/supabase/client';
+
+// Récupère le JWT Supabase de la session active pour l'envoyer en header.
+// Côté API Gateway, un Lambda Authorizer le valide via JWKS Supabase.
+async function authHeader(): Promise<HeadersInit> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const supabase = createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
+  } catch {
+    return {};
+  }
+}
 
 // Fonction utilitaire pour déterminer si on utilise les mocks
 function shouldUseMock(): boolean {
@@ -421,7 +435,7 @@ export async function fetchVintedStats(from?: string, to?: string): Promise<Vint
   if (from) params.set('from', from);
   if (to) params.set('to', to);
   const url = `${process.env.NEXT_PUBLIC_API_URL}/clients/${VINTED_CLIENT_ID}/vinted/stats${params.toString() ? `?${params}` : ''}`;
-  const res = await fetch(url);
+  const res = await fetch(url, { headers: await authHeader() });
   if (!res.ok) throw new Error("Erreur lors de la récupération des stats Vinted");
   return parseApiResponse<VintedStats>(res);
 }
@@ -448,7 +462,7 @@ export async function fetchVintedBordereau(venteId: string): Promise<VintedBorde
     throw new Error("Bordereau non disponible en mode mock — passe sur l'API prod pour tester");
   }
   const url = `${process.env.NEXT_PUBLIC_API_URL}/clients/${VINTED_CLIENT_ID}/vinted/bordereau?venteId=${encodeURIComponent(venteId)}`;
-  const res = await fetch(url);
+  const res = await fetch(url, { headers: await authHeader() });
   if (!res.ok) {
     const txt = await res.text();
     throw new Error(`Bordereau introuvable: ${txt}`);
@@ -472,7 +486,7 @@ export async function fetchVintedTimeline(opts: {
   if (opts.to) params.set('to', opts.to);
   if (opts.granularity) params.set('granularity', opts.granularity);
   const url = `${process.env.NEXT_PUBLIC_API_URL}/clients/${VINTED_CLIENT_ID}/vinted/timeline?${params}`;
-  const res = await fetch(url);
+  const res = await fetch(url, { headers: await authHeader() });
   if (!res.ok) throw new Error("Erreur lors de la récupération de la timeline Vinted");
   return parseApiResponse<VintedTimeline>(res);
 }
@@ -495,7 +509,7 @@ export async function fetchVintedEvents(opts: {
   if (opts.limit) params.set('limit', String(opts.limit));
   if (opts.cursor) params.set('cursor', opts.cursor);
   const url = `${process.env.NEXT_PUBLIC_API_URL}/clients/${VINTED_CLIENT_ID}/vinted/events?${params}`;
-  const res = await fetch(url);
+  const res = await fetch(url, { headers: await authHeader() });
   if (!res.ok) throw new Error("Erreur lors de la récupération des events Vinted");
   return parseApiResponse<VintedEventsResponse>(res);
 }
