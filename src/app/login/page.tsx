@@ -1,10 +1,12 @@
 "use client";
-import React, { useState } from "react";
+import React, { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { FaSignInAlt } from "react-icons/fa";
 
-const LoginPage = () => {
+// Sous-composant qui consomme useSearchParams. Doit être wrappé dans <Suspense>
+// car Next 15 force le prerender à attendre les query params côté client.
+const LoginForm = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next") || "/";
@@ -95,5 +97,11 @@ const LoginPage = () => {
     </div>
   );
 };
+
+const LoginPage = () => (
+  <Suspense fallback={<div className="min-h-screen bg-[#151826]" />}>
+    <LoginForm />
+  </Suspense>
+);
 
 export default LoginPage;
