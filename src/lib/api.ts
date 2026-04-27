@@ -426,6 +426,36 @@ export async function fetchVintedStats(from?: string, to?: string): Promise<Vint
   return parseApiResponse<VintedStats>(res);
 }
 
+export type VintedTimelineBucket = { date: string; count: number; total: number };
+
+export type VintedTimeline = {
+  type: VintedEvent['eventType'];
+  granularity: 'day' | 'week' | 'month';
+  period: { from: string | null; to: string | null };
+  buckets: VintedTimelineBucket[];
+};
+
+export async function fetchVintedTimeline(opts: {
+  type?: VintedEvent['eventType'];
+  from?: string;
+  to?: string;
+  granularity?: 'day' | 'week' | 'month';
+} = {}): Promise<VintedTimeline> {
+  if (shouldUseMock()) {
+    await new Promise(r => setTimeout(r, 200));
+    return mockVintedTimeline(opts);
+  }
+  const params = new URLSearchParams();
+  if (opts.type) params.set('type', opts.type);
+  if (opts.from) params.set('from', opts.from);
+  if (opts.to) params.set('to', opts.to);
+  if (opts.granularity) params.set('granularity', opts.granularity);
+  const url = `${process.env.NEXT_PUBLIC_API_URL}/clients/${VINTED_CLIENT_ID}/vinted/timeline?${params}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Erreur lors de la récupération de la timeline Vinted");
+  return parseApiResponse<VintedTimeline>(res);
+}
+
 export async function fetchVintedEvents(opts: {
   type: VintedEvent['eventType'];
   from?: string;
@@ -470,6 +500,25 @@ function mockVintedStats(from?: string, to?: string): VintedStats {
       sunset_acheteur: { count: 22, total: 1888.90 },
       sunset_vendeur: { count: 0, total: 0 }
     }
+  };
+}
+
+function mockVintedTimeline(opts: { granularity?: 'day' | 'week' | 'month' }): VintedTimeline {
+  const granularity = opts.granularity ?? 'month';
+  const now = new Date();
+  const buckets: VintedTimelineBucket[] = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+    const seasonality = 1 + Math.sin((d.getMonth() + 9) / 12 * 2 * Math.PI) * 0.4;
+    const total = Math.round(15000 * seasonality + Math.random() * 2000);
+    buckets.push({ date: key, count: Math.round(total / 90), total });
+  }
+  return {
+    type: 'transaction',
+    granularity,
+    period: { from: null, to: null },
+    buckets
   };
 }
 

@@ -1,7 +1,13 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { fetchVintedStats, fetchVintedEvents, type VintedStats, type VintedEvent } from "@/lib/api";
+import {
+  fetchVintedStats, fetchVintedEvents, fetchVintedTimeline,
+  type VintedStats, type VintedEvent, type VintedTimeline
+} from "@/lib/api";
 import { FaCalendarAlt, FaEuroSign, FaShoppingBag, FaRocket, FaUniversity, FaUndo, FaUser } from "react-icons/fa";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
+} from "recharts";
 
 type PeriodId = "30d" | "90d" | "month" | "year" | "all";
 
@@ -38,6 +44,7 @@ const VintedCockpitPage = () => {
   const [period, setPeriod] = useState<PeriodId>("30d");
   const [stats, setStats] = useState<VintedStats | null>(null);
   const [recentSales, setRecentSales] = useState<VintedEvent[]>([]);
+  const [timeline, setTimeline] = useState<VintedTimeline | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,12 +54,17 @@ const VintedCockpitPage = () => {
       setError(null);
       try {
         const { from, to } = periodToDates(period);
-        const [s, e] = await Promise.all([
+        // La timeline charge toujours les 24 derniers mois (saisonnalité indépendante du sélecteur).
+        const now = new Date();
+        const timelineFrom = new Date(now.getFullYear() - 2, now.getMonth(), 1).toISOString();
+        const [s, e, tl] = await Promise.all([
           fetchVintedStats(from, to),
-          fetchVintedEvents({ type: "vente", from, to, limit: 20 })
+          fetchVintedEvents({ type: "vente", from, to, limit: 20 }),
+          fetchVintedTimeline({ type: "transaction", granularity: "month", from: timelineFrom })
         ]);
         setStats(s);
         setRecentSales(e.items);
+        setTimeline(tl);
       } catch (err) {
         console.error(err);
         setError("Erreur lors du chargement des données Vinted.");
@@ -171,6 +183,18 @@ const VintedCockpitPage = () => {
             />
           </div>
 
+          {timeline && timeline.buckets.length > 0 && (
+            <div className="bg-[#23263A] rounded-2xl shadow-lg p-6 mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-xl font-bold">Saisonnalité du CA — 24 derniers mois</h2>
+                  <p className="text-sm text-gray-400">Chiffre d&apos;affaires mensuel basé sur les transactions finalisées</p>
+                </div>
+              </div>
+              <SeasonalityChart buckets={timeline.buckets} />
+            </div>
+          )}
+
           <div className="bg-[#23263A] rounded-2xl shadow-lg p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold">Dernières ventes</h2>
@@ -189,6 +213,83 @@ const VintedCockpitPage = () => {
           </div>
         </>
       )}
+    </div>
+  );
+};
+
+type SeasonalityChartProps = {
+  buckets: { date: string; count: number; total: number }[];
+};
+
+const MONTH_LABELS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+
+const SeasonalityChart: React.FC<SeasonalityChartProps> = ({ buckets }) => {
+  const data = buckets.map(b => {
+    const d = new Date(b.date);
+    const month = MONTH_LABELS[d.getMonth()];
+    const year = String(d.getFullYear()).slice(2);
+    return {
+      label: `${month} ${year}`,
+      monthIdx: d.getMonth(),
+      total: b.total,
+      count: b.count
+    };
+  });
+
+  // Couleur saisonnière : printemps/été en chaud (orange), automne/hiver en froid (bleu).
+  const colorFor = (monthIdx: number): string => {
+    if (monthIdx >= 2 && monthIdx <= 8) return "#f97316"; // mars-sept
+    return "#3b82f6"; // oct-fév
+  };
+
+  return (
+    <div className="w-full h-72">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#2c3048" vertical={false} />
+          <XAxis
+            dataKey="label"
+            stroke="#9ca3af"
+            tick={{ fontSize: 11 }}
+            tickLine={false}
+            axisLine={{ stroke: "#2c3048" }}
+          />
+          <YAxis
+            stroke="#9ca3af"
+            tick={{ fontSize: 11 }}
+            tickLine={false}
+            axisLine={{ stroke: "#2c3048" }}
+            tickFormatter={(v: number) => `${Math.round(v / 1000)}k €`}
+          />
+          <Tooltip
+            cursor={{ fill: "rgba(255,255,255,0.04)" }}
+            contentStyle={{
+              backgroundColor: "#1c1f2e",
+              border: "1px solid #2c3048",
+              borderRadius: "0.5rem",
+              fontSize: "0.875rem"
+            }}
+            labelStyle={{ color: "#e5e7eb", fontWeight: "600", marginBottom: "0.25rem" }}
+            formatter={(value, name) => {
+              if (name === "total" && typeof value === "number") return [formatEur(value), "CA"];
+              return [String(value ?? ""), String(name ?? "")];
+            }}
+          />
+          <Bar dataKey="total" radius={[6, 6, 0, 0]}>
+            {data.map((d, i) => <Cell key={i} fill={colorFor(d.monthIdx)} />)}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+      <div className="flex items-center justify-end gap-4 text-xs text-gray-400 mt-2">
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block w-3 h-3 rounded-sm" style={{ background: "#f97316" }} />
+          Saison haute (mars-sept.)
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block w-3 h-3 rounded-sm" style={{ background: "#3b82f6" }} />
+          Saison basse
+        </span>
+      </div>
     </div>
   );
 };
