@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
 import { fetchVintedEvents, type VintedEvent } from "@/lib/api";
-import { FaCalendarAlt, FaUser, FaSearch, FaShoppingCart, FaExternalLinkAlt } from "react-icons/fa";
+import { FaCalendarAlt, FaUser, FaSearch, FaShoppingCart, FaRegCopy, FaCheck } from "react-icons/fa";
 
 type PeriodId = "30d" | "90d" | "month" | "year" | "all";
 
@@ -243,6 +243,32 @@ const VintedAchatsPage = () => {
   );
 };
 
+const InlineCopyButton: React.FC<{ text: string; label: string }> = ({ text, label }) => {
+  const [copied, setCopied] = useState(false);
+  const handle = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (err) {
+      console.error("Clipboard write failed", err);
+    }
+  };
+  return (
+    <button
+      type="button"
+      onClick={handle}
+      aria-label={`Copier ${label}`}
+      title={copied ? "Copié !" : `Copier ${label}`}
+      className={`cursor-pointer ml-0.5 p-1 rounded transition-colors ${
+        copied ? "text-green-400 bg-green-500/15" : "text-gray-500 hover:text-blue-300 hover:bg-blue-600/15"
+      }`}
+    >
+      {copied ? <FaCheck className="text-[10px]" /> : <FaRegCopy className="text-[10px]" />}
+    </button>
+  );
+};
+
 const AchatRow: React.FC<{ achat: VintedEvent }> = ({ achat }) => {
   const p = achat.payload as {
     beneficiaire?: string;
@@ -256,8 +282,6 @@ const AchatRow: React.FC<{ achat: VintedEvent }> = ({ achat }) => {
     mode_paiement?: string;
   };
 
-  const vendeurUrl = p.beneficiaire ? `https://www.vinted.fr/member/${encodeURIComponent(p.beneficiaire)}` : null;
-
   return (
     <div className="bg-[#1c1f2e] rounded-lg p-4 flex gap-3 items-start">
       <div className="w-12 h-12 bg-[#23263A] rounded flex items-center justify-center text-gray-600 flex-shrink-0">
@@ -270,20 +294,8 @@ const AchatRow: React.FC<{ achat: VintedEvent }> = ({ achat }) => {
 
         <div className="text-xs text-gray-400 mt-1 flex items-center gap-1">
           <FaUser className="text-[10px]" />
-          {vendeurUrl ? (
-            <a
-              href={vendeurUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-400 hover:underline inline-flex items-center gap-1"
-              title="Voir le profil Vinted du vendeur"
-            >
-              {p.beneficiaire ?? "?"}
-              <FaExternalLinkAlt className="text-[8px]" />
-            </a>
-          ) : (
-            <span>{p.beneficiaire ?? "?"}</span>
-          )}
+          <span className="text-gray-300">{p.beneficiaire ?? "?"}</span>
+          {p.beneficiaire && <InlineCopyButton text={p.beneficiaire} label="le pseudo vendeur" />}
         </div>
 
         <div className="text-xs text-gray-500 mt-1">{formatDate(achat.eventDate)}</div>
