@@ -1,7 +1,42 @@
 "use client";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { fetchVintedEvents, fetchVintedEmail, type VintedEvent } from "@/lib/api";
 import { FaCalendarAlt, FaSearch, FaRegCopy, FaCheck, FaPrint } from "react-icons/fa";
+
+// Hook qui persiste un Set d'IDs en localStorage. Utilisé pour la case à cocher
+// "achat validé" — c'est un marqueur perso, pas besoin de DynamoDB.
+const VALIDATED_STORAGE_KEY = "vinted-achats:validated";
+
+const useValidatedSet = () => {
+  const [validated, setValidated] = useState<Set<string>>(new Set());
+
+  // Hydrate depuis localStorage au mount (seul useEffect garantit qu'on n'accède pas
+  // à window pendant le SSR)
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(VALIDATED_STORAGE_KEY);
+      if (stored) setValidated(new Set(JSON.parse(stored)));
+    } catch (e) {
+      console.error("Failed to load validated set", e);
+    }
+  }, []);
+
+  const toggle = useCallback((id: string) => {
+    setValidated(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      try {
+        localStorage.setItem(VALIDATED_STORAGE_KEY, JSON.stringify([...next]));
+      } catch (e) {
+        console.error("Failed to save validated set", e);
+      }
+      return next;
+    });
+  }, []);
+
+  return { validated, toggle };
+};
 
 type PeriodId = "30d" | "90d" | "month" | "year" | "all";
 
@@ -73,6 +108,7 @@ const VintedAchatsPage = () => {
   const [loadedCount, setLoadedCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const requestId = useRef(0);
+  const { validated, toggle: toggleValidated } = useValidatedSet();
 
   const effectiveDates = monthFilter ? monthToDates(monthFilter) : periodToDates(period);
 
@@ -131,6 +167,8 @@ const VintedAchatsPage = () => {
     return acc + (typeof p.montant_total === "number" ? p.montant_total : 0);
   }, 0);
 
+  const validatedCount = filteredItems.filter(it => validated.has(it.gmailMessageId)).length;
+
   return (
     <div className="min-h-screen bg-[#151826] text-white p-8">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
@@ -180,9 +218,17 @@ const VintedAchatsPage = () => {
               {loading ? `Chargement… (${loadedCount})` : `${filteredItems.length} achats`}
             </span>
             {!loading && filteredItems.length > 0 && (
-              <span className="text-sm bg-blue-600/15 text-blue-300 px-3 py-1 rounded-full">
-                Total : {formatEur(totalSpent)}
-              </span>
+              <>
+                <span className="text-sm bg-blue-600/15 text-blue-300 px-3 py-1 rounded-full">
+                  Total : {formatEur(totalSpent)}
+                </span>
+                <span
+                  className="text-sm bg-green-600/15 text-green-300 px-3 py-1 rounded-full"
+                  title="Achats que tu as marqués comme validés"
+                >
+                  ✓ {validatedCount} / {filteredItems.length} validés
+                </span>
+              </>
             )}
           </div>
           <div className="relative">
@@ -210,6 +256,7 @@ const VintedAchatsPage = () => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs text-gray-400 border-b border-[#2c3048]">
+                  <th className="py-2 px-2 font-semibold w-8" aria-label="Validé"></th>
                   <th className="py-2 px-3 font-semibold whitespace-nowrap">Date</th>
                   <th className="py-2 px-3 font-semibold">Article</th>
                   <th className="py-2 px-3 font-semibold whitespace-nowrap">Vendeur</th>
@@ -222,7 +269,12 @@ const VintedAchatsPage = () => {
               </thead>
               <tbody>
                 {filteredItems.map(achat => (
-                  <AchatTableRow key={achat.gmailMessageId} achat={achat} />
+                  <AchatTableRow
+                    key={achat.gmailMessageId}
+                    achat={achat}
+                    isValidated={validated.has(achat.gmailMessageId)}
+                    onToggleValidated={() => toggleValidated(achat.gmailMessageId)}
+                  />
                 ))}
               </tbody>
             </table>
@@ -259,7 +311,11 @@ const InlineCopyButton: React.FC<{ text: string; label: string }> = ({ text, lab
   );
 };
 
-const AchatTableRow: React.FC<{ achat: VintedEvent }> = ({ achat }) => {
+const AchatTableRow: React.FC<{
+  achat: VintedEvent;
+  isValidated: boolean;
+  onToggleValidated: () => void;
+}> = ({ achat, isValidated, onToggleValidated }) => {
   const p = achat.payload as {
     beneficiaire?: string;
     article?: string;
@@ -307,20 +363,42 @@ const AchatTableRow: React.FC<{ achat: VintedEvent }> = ({ achat }) => {
     }
   };
 
+  // Style "validé" : ligne légèrement teintée vert + texte estompé + total barré
+  const rowClass = isValidated
+    ? "border-b border-[#2c3048]/60 bg-green-500/5 hover:bg-green-500/10 transition-colors"
+    : "border-b border-[#2c3048]/60 hover:bg-[#1c1f2e]/60 transition-colors";
+  const textMutedClass = isValidated ? "opacity-60" : "";
+
   return (
-    <tr className="border-b border-[#2c3048]/60 hover:bg-[#1c1f2e]/60 transition-colors">
-      <td className="py-2.5 px-3 text-xs text-gray-400 whitespace-nowrap tabular-nums">{formatDate(achat.eventDate)}</td>
-      <td className="py-2.5 px-3 max-w-md">
-        <div className="text-sm leading-tight line-clamp-2" title={p.article}>{p.article ?? "—"}</div>
+    <tr className={rowClass}>
+      <td className="py-2.5 px-2 text-center">
+        <button
+          type="button"
+          onClick={onToggleValidated}
+          aria-label={isValidated ? "Marquer comme non validé" : "Marquer comme validé"}
+          aria-pressed={isValidated}
+          title={isValidated ? "Cliquer pour décocher" : "Marquer cet achat comme validé"}
+          className={`cursor-pointer w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+            isValidated
+              ? "bg-green-500 border-green-500 text-white hover:bg-green-600 hover:border-green-600"
+              : "bg-transparent border-gray-500 text-transparent hover:border-green-400"
+          }`}
+        >
+          <FaCheck className="text-[10px]" />
+        </button>
       </td>
-      <td className="py-2.5 px-3 whitespace-nowrap">
+      <td className={`py-2.5 px-3 text-xs whitespace-nowrap tabular-nums ${isValidated ? "text-gray-500" : "text-gray-400"}`}>{formatDate(achat.eventDate)}</td>
+      <td className={`py-2.5 px-3 max-w-md ${textMutedClass}`}>
+        <div className={`text-sm leading-tight line-clamp-2 ${isValidated ? "line-through text-gray-400" : ""}`} title={p.article}>{p.article ?? "—"}</div>
+      </td>
+      <td className={`py-2.5 px-3 whitespace-nowrap ${textMutedClass}`}>
         <span className="text-sm text-gray-300">{p.beneficiaire ?? "—"}</span>
         {p.beneficiaire && <InlineCopyButton text={p.beneficiaire} label="le pseudo vendeur" />}
       </td>
-      <td className="py-2.5 px-3 text-right text-xs text-gray-300 tabular-nums whitespace-nowrap">{formatEur(p.montant_commande)}</td>
-      <td className="py-2.5 px-3 text-right text-xs text-gray-400 tabular-nums whitespace-nowrap">{formatEur(p.frais_port)}</td>
-      <td className="py-2.5 px-3 text-right text-xs text-gray-400 tabular-nums whitespace-nowrap">{formatEur(p.frais_protection)}</td>
-      <td className="py-2.5 px-3 text-right text-sm font-bold text-orange-400 tabular-nums whitespace-nowrap">{formatEur(p.montant_total)}</td>
+      <td className={`py-2.5 px-3 text-right text-xs text-gray-300 tabular-nums whitespace-nowrap ${textMutedClass}`}>{formatEur(p.montant_commande)}</td>
+      <td className={`py-2.5 px-3 text-right text-xs text-gray-400 tabular-nums whitespace-nowrap ${textMutedClass}`}>{formatEur(p.frais_port)}</td>
+      <td className={`py-2.5 px-3 text-right text-xs text-gray-400 tabular-nums whitespace-nowrap ${textMutedClass}`}>{formatEur(p.frais_protection)}</td>
+      <td className={`py-2.5 px-3 text-right text-sm font-bold tabular-nums whitespace-nowrap ${isValidated ? "text-gray-500 line-through" : "text-orange-400"}`}>{formatEur(p.montant_total)}</td>
       <td className="py-2.5 px-3 text-right whitespace-nowrap">
         <button
           type="button"
