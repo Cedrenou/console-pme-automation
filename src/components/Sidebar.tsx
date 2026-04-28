@@ -3,15 +3,15 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  FaTachometerAlt, FaFileAlt, FaUserCircle, FaChartLine, FaShoppingBag, FaSignOutAlt,
+  FaCogs, FaFileAlt, FaUserCircle, FaChartLine, FaShoppingBag, FaSignOutAlt,
 } from "react-icons/fa";
 import { createClient } from "@/utils/supabase/client";
 
 const links = [
-  { href: "/", label: "Dashboard", icon: <FaTachometerAlt /> },
-  { href: "/vinted-cockpit", label: "Cockpit Vinted", icon: <FaChartLine /> },
+  { href: "/", label: "Cockpit Vinted", icon: <FaChartLine /> },
   { href: "/vinted-ventes", label: "Ventes Vinted", icon: <FaShoppingBag /> },
   { href: "/renouvellement-annonces", label: "Renouvellement Annonces", icon: <FaFileAlt /> },
+  { href: "/automatisations", label: "Automatisations", icon: <FaCogs /> },
 ];
 
 const Sidebar = () => {
