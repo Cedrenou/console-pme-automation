@@ -92,7 +92,8 @@ export async function fetchLambdas() {
   }
   
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/clients/clientA/lambdas` // TODO: get clientId from url or from the auth context
+    `${process.env.NEXT_PUBLIC_API_URL}/clients/clientA/lambdas`, // TODO: get clientId from url or from the auth context
+    { headers: await authHeader() }
   );
   if (!res.ok) throw new Error("Erreur lors de la récupération des lambdas");
   return parseApiResponse(res);
@@ -129,7 +130,8 @@ export async function fetchLambdaDetails(lambdaId: string) {
   }
   
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/clients/clientA/lambdas/${lambdaId}`
+    `${process.env.NEXT_PUBLIC_API_URL}/clients/clientA/lambdas/${lambdaId}`,
+    { headers: await authHeader() }
   );
   if (!res.ok) throw new Error("Erreur lors de la récupération des détails de la lambda");
   return parseApiResponse(res);
@@ -173,6 +175,7 @@ export async function updateLambda(lambdaId: string, config: Record<string, stri
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
+        ...(await authHeader()),
       },
       body: JSON.stringify(requestBody),
     }
@@ -206,7 +209,8 @@ export async function fetchLambdaLogs(lambdaId: string) {
   }
   
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/clients/clientA/lambdas/${lambdaId}/logs`
+    `${process.env.NEXT_PUBLIC_API_URL}/clients/clientA/lambdas/${lambdaId}/logs`,
+    { headers: await authHeader() }
   );
   if (!res.ok) throw new Error("Erreur lors de la récupération des logs de la lambda");
   return parseApiResponse(res);
@@ -231,6 +235,7 @@ export async function fetchImageBatches(): Promise<ImageBatch[]> {
     try {
       const res = await fetch(apiUrl, {
         cache: 'no-store', // Désactiver le cache
+        headers: await authHeader(),
       });
       if (res.ok) {
         const data = await parseApiResponse<{ folders: string[] }>(res);
@@ -307,7 +312,8 @@ export async function downloadImageBatch(batch: ImageBatch): Promise<Blob> {
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/s3/download-images-batch/${batch.batchId}`, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      ...(await authHeader()),
     },
     body: JSON.stringify(payload)
   });
