@@ -639,20 +639,33 @@ const SalesHeatmap: React.FC<SalesHeatmapProps> = ({ patterns }) => {
           state={hover}
           totalCount={totalCount}
           max={max}
+          byHour={patterns.by_hour_of_day}
         />
       )}
     </div>
   );
 };
 
-const HeatmapTooltip: React.FC<{ state: HoverState; totalCount: number; max: number }> = ({ state, totalCount, max }) => {
+const HeatmapTooltip: React.FC<{
+  state: HoverState;
+  totalCount: number;
+  max: number;
+  byHour: VintedPatterns["by_hour_of_day"];
+}> = ({ state, totalCount, max, byHour }) => {
   const pct = (state.count / totalCount) * 100;
   const intensity = state.count / max;
   // Position le tooltip à droite du curseur, mais à gauche s'il déborde de l'écran
-  const tooltipWidth = 240;
+  const tooltipWidth = 260;
   const overflowsRight = typeof window !== "undefined" && state.x + tooltipWidth + 24 > window.innerWidth;
   const left = overflowsRight ? state.x - tooltipWidth - 12 : state.x + 14;
   const top = state.y - 8;
+
+  // Panier moyen sur la tranche horaire (toutes journées confondues) — plus
+  // statistiquement parlant que la moyenne d'une seule case (souvent N=1).
+  const hourBucket = byHour.find(b => b.hour === state.hour);
+  const hourAvg = hourBucket && hourBucket.count > 0 ? hourBucket.total_revenue / hourBucket.count : null;
+  // Panier moyen de la case précise (ce jour-là à cette heure) — affiché en complément si N >= 2
+  const cellAvg = state.count >= 2 ? state.revenue / state.count : null;
 
   return (
     <div
@@ -670,7 +683,23 @@ const HeatmapTooltip: React.FC<{ state: HoverState; totalCount: number; max: num
       {state.revenue > 0 && (
         <div className="text-xs text-green-400 mb-1.5">{formatEur(state.revenue)}</div>
       )}
-      <div className="border-t border-[#2c3048] pt-1.5 mt-1.5 flex items-center justify-between text-xs">
+      {(hourAvg !== null || cellAvg !== null) && (
+        <div className="border-t border-[#2c3048] pt-1.5 mt-1.5 mb-1.5 space-y-0.5 text-[11px]">
+          {hourAvg !== null && (
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400">Panier moyen sur la tranche</span>
+              <span className="text-white font-medium">{formatEur(hourAvg)}</span>
+            </div>
+          )}
+          {cellAvg !== null && cellAvg !== hourAvg && (
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400">Panier moyen sur cette case</span>
+              <span className="text-white font-medium">{formatEur(cellAvg)}</span>
+            </div>
+          )}
+        </div>
+      )}
+      <div className="border-t border-[#2c3048] pt-1.5 flex items-center justify-between text-xs">
         <span className="text-gray-400">{pct.toFixed(1)}% de la période</span>
         <span className="text-gray-500">{intensity >= 0.8 ? "🔥 pic" : intensity >= 0.5 ? "fort" : intensity >= 0.2 ? "modéré" : state.count > 0 ? "faible" : "—"}</span>
       </div>
