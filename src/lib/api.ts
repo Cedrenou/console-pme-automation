@@ -515,6 +515,28 @@ export type VintedBordereau = {
   pdfBase64: string;
 };
 
+export type VintedEmail = {
+  messageId: string;
+  eventType: string;
+  subject: string;
+  date: string;
+  html: string;
+};
+
+export async function fetchVintedEmail(messageId: string): Promise<VintedEmail> {
+  if (shouldUseMock()) {
+    await new Promise(r => setTimeout(r, 300));
+    throw new Error("Email non disponible en mode mock");
+  }
+  const url = `${process.env.NEXT_PUBLIC_API_URL}/clients/${VINTED_CLIENT_ID}/vinted/email?messageId=${encodeURIComponent(messageId)}`;
+  const res = await fetch(url, { headers: await authHeader() });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Mail introuvable: ${txt}`);
+  }
+  return parseApiResponse<VintedEmail>(res);
+}
+
 export async function fetchVintedBordereau(venteId: string): Promise<VintedBordereau> {
   if (shouldUseMock()) {
     await new Promise(r => setTimeout(r, 400));

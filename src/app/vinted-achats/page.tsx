@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
-import { fetchVintedEvents, type VintedEvent } from "@/lib/api";
-import { FaCalendarAlt, FaUser, FaSearch, FaShoppingCart, FaRegCopy, FaCheck } from "react-icons/fa";
+import { fetchVintedEvents, fetchVintedEmail, type VintedEvent } from "@/lib/api";
+import { FaCalendarAlt, FaUser, FaSearch, FaShoppingCart, FaRegCopy, FaCheck, FaPrint } from "react-icons/fa";
 
 type PeriodId = "30d" | "90d" | "month" | "year" | "all";
 
@@ -282,6 +282,55 @@ const AchatRow: React.FC<{ achat: VintedEvent }> = ({ achat }) => {
     mode_paiement?: string;
   };
 
+  const [printLoading, setPrintLoading] = useState(false);
+  const [printError, setPrintError] = useState<string | null>(null);
+
+  // Récupère le HTML du mail Vinted et déclenche le print dialog du browser via une iframe.
+  // Pratique pour imprimer la facture officielle Vinted (qui sert de justif comptable).
+  const handlePrintInvoice = async () => {
+    setPrintLoading(true);
+    setPrintError(null);
+    try {
+      const { html, subject } = await fetchVintedEmail(achat.gmailMessageId);
+      const wrapped = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>${subject || "Facture Vinted"}</title>
+  <style>
+    @page { margin: 1.5cm; }
+    body { font-family: Helvetica, Arial, sans-serif; }
+  </style>
+</head>
+<body>${html}</body>
+</html>`;
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "fixed";
+      iframe.style.left = "-9999px";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.srcdoc = wrapped;
+      document.body.appendChild(iframe);
+      iframe.onload = () => {
+        // Petit délai pour laisser les images du mail charger avant le print
+        setTimeout(() => {
+          try {
+            iframe.contentWindow?.focus();
+            iframe.contentWindow?.print();
+          } catch (err) {
+            console.error("Print failed", err);
+          }
+          setTimeout(() => document.body.removeChild(iframe), 60_000);
+        }, 500);
+      };
+    } catch (err) {
+      console.error(err);
+      setPrintError(err instanceof Error ? err.message : "Erreur");
+    } finally {
+      setPrintLoading(false);
+    }
+  };
+
   return (
     <div className="bg-[#1c1f2e] rounded-lg p-4 flex gap-3 items-start">
       <div className="w-12 h-12 bg-[#23263A] rounded flex items-center justify-center text-gray-600 flex-shrink-0">
@@ -323,6 +372,23 @@ const AchatRow: React.FC<{ achat: VintedEvent }> = ({ achat }) => {
             )}
           </div>
         )}
+
+        {/* Imprimer la facture (le mail Vinted) */}
+        <div className="mt-3">
+          <button
+            type="button"
+            onClick={handlePrintInvoice}
+            disabled={printLoading}
+            className="cursor-pointer inline-flex items-center gap-2 text-sm font-medium px-3.5 py-2 rounded-md bg-orange-600 text-white hover:bg-orange-700 active:bg-orange-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+            aria-label="Imprimer la facture Vinted (mail original)"
+          >
+            <FaPrint className="text-sm" />
+            {printLoading ? "Préparation…" : "Imprimer facture"}
+          </button>
+          {printError && (
+            <div className="text-xs text-red-400 mt-1">{printError}</div>
+          )}
+        </div>
       </div>
       <div className="text-right flex-shrink-0">
         <div className="text-lg font-bold text-orange-400">
