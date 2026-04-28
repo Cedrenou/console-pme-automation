@@ -5,7 +5,7 @@ import {
   fetchVintedStats, fetchVintedTimeline, fetchVintedPatterns, fetchVintedTopArticles,
   type VintedStats, type VintedTimeline, type VintedPatterns, type VintedTopArticles
 } from "@/lib/api";
-import { FaCalendarAlt, FaEuroSign, FaShoppingBag, FaRocket, FaUniversity, FaUndo, FaArrowRight, FaClock, FaTrophy, FaTshirt } from "react-icons/fa";
+import { FaCalendarAlt, FaEuroSign, FaShoppingBag, FaRocket, FaUniversity, FaUndo, FaArrowRight, FaClock, FaTrophy, FaTshirt, FaLightbulb } from "react-icons/fa";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
 } from "recharts";
@@ -225,6 +225,7 @@ const VintedCockpitPage = () => {
                 <PatternsInsights patterns={patterns} />
               </div>
               <SalesHeatmap patterns={patterns} />
+              <BestPostingTimes patterns={patterns} />
             </div>
           )}
 
@@ -427,6 +428,97 @@ const CategoryRow: React.FC<{ label: string; count: number; total: number; pct: 
     </div>
   </div>
 );
+
+// Détecte les "créneaux chauds" : heures où le volume de ventes dépasse un seuil,
+// puis groupe les heures consécutives sur le même jour en fenêtres ("Vendredi 19h-22h").
+type PostingWindow = {
+  day: number;
+  startHour: number;
+  endHour: number; // inclusive
+  count: number;
+  totalRevenue: number;
+};
+
+function computeTopPostingWindows(patterns: VintedPatterns, limit = 5): PostingWindow[] {
+  // Matrice [day][hour] et seuil "chaud"
+  const matrix: { count: number; total_revenue: number }[][] = Array.from({ length: 7 }, () =>
+    Array.from({ length: 24 }, () => ({ count: 0, total_revenue: 0 })),
+  );
+  for (const c of patterns.heatmap) {
+    matrix[c.day][c.hour] = { count: c.count, total_revenue: c.total_revenue };
+  }
+  const max = Math.max(...patterns.heatmap.map(c => c.count), 1);
+  // Seuil = 35% du max — capture les vrais pics, ignore le bruit
+  const threshold = Math.max(max * 0.35, 1);
+
+  const windows: PostingWindow[] = [];
+  for (let d = 0; d < 7; d++) {
+    let current: PostingWindow | null = null;
+    for (let h = 0; h < 24; h++) {
+      const cell = matrix[d][h];
+      if (cell.count >= threshold) {
+        if (current && h === current.endHour + 1) {
+          current.endHour = h;
+          current.count += cell.count;
+          current.totalRevenue += cell.total_revenue;
+        } else {
+          if (current) windows.push(current);
+          current = { day: d, startHour: h, endHour: h, count: cell.count, totalRevenue: cell.total_revenue };
+        }
+      } else if (current) {
+        windows.push(current);
+        current = null;
+      }
+    }
+    if (current) windows.push(current);
+  }
+  return windows.sort((a, b) => b.count - a.count).slice(0, limit);
+}
+
+const BestPostingTimes: React.FC<{ patterns: VintedPatterns }> = ({ patterns }) => {
+  const windows = computeTopPostingWindows(patterns, 5);
+  if (windows.length === 0) return null;
+  const totalCount = patterns.ventes_count || 1;
+
+  return (
+    <div className="mt-6 pt-6 border-t border-[#2c3048]">
+      <h3 className="text-base font-semibold mb-3 flex items-center gap-2">
+        <FaLightbulb className="text-amber-400" />
+        <span>Quand poster tes annonces pour qu&apos;elles tombent au pic</span>
+      </h3>
+      <p className="text-xs text-gray-400 mb-4">
+        Les annonces fraîches remontent dans le fil Vinted. Poste sur ces créneaux pour qu&apos;elles soient visibles
+        au moment où tes acheteurs sont les plus actifs.
+      </p>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        {windows.map((w, i) => {
+          const pct = (w.count / totalCount) * 100;
+          const dayLabel = DAY_LABELS_FULL[w.day];
+          const slot = w.startHour === w.endHour
+            ? `${w.startHour}h–${w.startHour + 1}h`
+            : `${w.startHour}h–${w.endHour + 1}h`;
+          return (
+            <div
+              key={i}
+              className="bg-[#1c1f2e] rounded-lg p-3 flex items-center gap-3 border border-[#2c3048]/60"
+            >
+              <div className="text-amber-400 font-bold text-base w-6 flex-shrink-0">#{i + 1}</div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold text-white">
+                  {dayLabel} <span className="text-orange-300">{slot}</span>
+                </div>
+                <div className="text-[11px] text-gray-400 mt-0.5">
+                  {w.count} ventes · {pct.toFixed(1)}% du total
+                  {w.totalRevenue > 0 && <span> · {formatEur(w.totalRevenue)}</span>}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
 type SalesHeatmapProps = { patterns: VintedPatterns };
 
