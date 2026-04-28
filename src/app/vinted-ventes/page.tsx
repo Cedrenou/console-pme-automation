@@ -5,7 +5,7 @@ import {
   type VintedEvent
 } from "@/lib/api";
 import {
-  FaCalendarAlt, FaUser, FaFileDownload, FaSearch, FaPrint
+  FaCalendarAlt, FaUser, FaFileDownload, FaSearch, FaPrint, FaMapMarkerAlt, FaEnvelope, FaRegCopy, FaCheck
 } from "react-icons/fa";
 
 type PeriodId = "30d" | "90d" | "month" | "year" | "all";
@@ -183,14 +183,64 @@ const VintedVentesPage = () => {
   );
 };
 
+const CopyableField: React.FC<{
+  label: string;
+  value: string;
+  icon: React.ReactNode;
+}> = ({ label, value, icon }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (err) {
+      console.error("Clipboard write failed", err);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2 text-xs">
+      <span className="text-gray-500 flex-shrink-0 w-3">{icon}</span>
+      <span className="flex-1 truncate text-gray-300" title={value}>{value}</span>
+      <button
+        type="button"
+        onClick={handleCopy}
+        className={`cursor-pointer p-1.5 rounded transition-colors flex-shrink-0 ${
+          copied
+            ? "bg-green-500/20 text-green-400"
+            : "text-gray-500 hover:text-blue-300 hover:bg-blue-600/15"
+        }`}
+        aria-label={`Copier ${label}`}
+        title={copied ? "Copié !" : `Copier ${label}`}
+      >
+        {copied ? <FaCheck className="text-[11px]" /> : <FaRegCopy className="text-[11px]" />}
+      </button>
+    </div>
+  );
+};
+
 const SaleRow: React.FC<{ sale: VintedEvent }> = ({ sale }) => {
   const p = sale.payload as {
     acheteur_username?: string;
+    acheteur_email?: string;
     article_titre?: string;
     prix_vente?: number;
     article_image_url?: string;
     conversation_url?: string;
+    nom?: string;
+    rue?: string;
+    ville?: string;
+    code_postal?: string;
+    pays?: string;
+    pays_texte?: string;
   };
+
+  const fullAddress = [p.rue, [p.code_postal, p.ville].filter(Boolean).join(" "), p.pays_texte || p.pays]
+    .filter(Boolean)
+    .join(", ");
+  const hasContact = p.nom || fullAddress || p.acheteur_email;
 
   const [bordereauLoading, setBordereauLoading] = useState<"none" | "print" | "download">("none");
   const [bordereauError, setBordereauError] = useState<string | null>(null);
@@ -295,6 +345,33 @@ const SaleRow: React.FC<{ sale: VintedEvent }> = ({ sale }) => {
           )}
         </div>
         <div className="text-xs text-gray-500 mt-1">{formatDate(sale.eventDate)}</div>
+
+        {hasContact && (
+          <div className="mt-3 pt-3 border-t border-[#2c3048] space-y-1.5">
+            {p.nom && (
+              <CopyableField
+                label="le nom"
+                value={p.nom}
+                icon={<FaUser className="text-[10px]" />}
+              />
+            )}
+            {fullAddress && (
+              <CopyableField
+                label="l'adresse"
+                value={fullAddress}
+                icon={<FaMapMarkerAlt className="text-[10px]" />}
+              />
+            )}
+            {p.acheteur_email && (
+              <CopyableField
+                label="l'email"
+                value={p.acheteur_email}
+                icon={<FaEnvelope className="text-[10px]" />}
+              />
+            )}
+          </div>
+        )}
+
         <div className="mt-3 flex items-center gap-2">
           <button
             type="button"
