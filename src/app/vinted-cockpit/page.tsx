@@ -307,15 +307,26 @@ const SeasonalityChart: React.FC<SeasonalityChartProps> = ({ buckets }) => {
 type SalesHeatmapProps = { patterns: VintedPatterns };
 
 const DAY_LABELS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+const DAY_LABELS_FULL = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+
+type HoverState = {
+  day: number;
+  hour: number;
+  count: number;
+  revenue: number;
+  x: number;
+  y: number;
+};
 
 const SalesHeatmap: React.FC<SalesHeatmapProps> = ({ patterns }) => {
   const max = Math.max(...patterns.heatmap.map(c => c.count), 1);
+  const totalCount = patterns.ventes_count || 1;
+  const [hover, setHover] = useState<HoverState | null>(null);
 
   // Color scale : transparent → bleu → orange chaud, échelle racine carrée pour révéler aussi les petits volumes.
   const colorFor = (count: number): string => {
     if (count === 0) return "rgba(255,255,255,0.03)";
     const t = Math.sqrt(count / max); // 0..1
-    // gradient from bleu (240°) à orange (25°), saturation 70%, luminosité variable
     const hue = 240 - t * 215;
     const lum = 30 + t * 25;
     return `hsl(${hue}, 70%, ${lum}%)`;
@@ -330,7 +341,7 @@ const SalesHeatmap: React.FC<SalesHeatmapProps> = ({ patterns }) => {
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto relative">
       <div className="min-w-[700px]">
         {/* Header heures */}
         <div className="grid gap-0.5 mb-1" style={{ gridTemplateColumns: "32px repeat(24, minmax(0, 1fr))" }}>
@@ -351,9 +362,11 @@ const SalesHeatmap: React.FC<SalesHeatmapProps> = ({ patterns }) => {
               return (
                 <div
                   key={h}
-                  className="aspect-square rounded-sm transition-all hover:ring-2 hover:ring-white/40"
+                  className="aspect-square rounded-sm transition-all hover:ring-2 hover:ring-white/60 cursor-default"
                   style={{ backgroundColor: colorFor(count), minHeight: 18 }}
-                  title={`${label} ${h}h–${h + 1}h : ${count} vente${count !== 1 ? 's' : ''}${rev > 0 ? ` · ${formatEur(rev)}` : ''}`}
+                  onMouseEnter={(e) => setHover({ day: d, hour: h, count, revenue: rev, x: e.clientX, y: e.clientY })}
+                  onMouseMove={(e) => setHover(prev => prev ? { ...prev, x: e.clientX, y: e.clientY } : null)}
+                  onMouseLeave={() => setHover(null)}
                 />
               );
             })}
@@ -369,6 +382,47 @@ const SalesHeatmap: React.FC<SalesHeatmapProps> = ({ patterns }) => {
           </div>
           <span>Élevé</span>
         </div>
+      </div>
+
+      {hover && (
+        <HeatmapTooltip
+          state={hover}
+          totalCount={totalCount}
+          max={max}
+        />
+      )}
+    </div>
+  );
+};
+
+const HeatmapTooltip: React.FC<{ state: HoverState; totalCount: number; max: number }> = ({ state, totalCount, max }) => {
+  const pct = (state.count / totalCount) * 100;
+  const intensity = state.count / max;
+  // Position le tooltip à droite du curseur, mais à gauche s'il déborde de l'écran
+  const tooltipWidth = 240;
+  const overflowsRight = typeof window !== "undefined" && state.x + tooltipWidth + 24 > window.innerWidth;
+  const left = overflowsRight ? state.x - tooltipWidth - 12 : state.x + 14;
+  const top = state.y - 8;
+
+  return (
+    <div
+      className="fixed z-50 pointer-events-none bg-[#1c1f2e]/95 backdrop-blur-sm border border-[#2c3048] rounded-lg shadow-2xl px-3.5 py-2.5 text-sm"
+      style={{ left, top, width: tooltipWidth }}
+    >
+      <div className="font-semibold text-white mb-1.5 flex items-center justify-between">
+        <span>{DAY_LABELS_FULL[state.day]}</span>
+        <span className="text-orange-400 text-xs">{state.hour.toString().padStart(2, '0')}h – {(state.hour + 1).toString().padStart(2, '0')}h</span>
+      </div>
+      <div className="flex items-baseline gap-1.5 mb-1">
+        <span className="text-2xl font-bold text-white">{state.count}</span>
+        <span className="text-xs text-gray-400">vente{state.count !== 1 ? 's' : ''}</span>
+      </div>
+      {state.revenue > 0 && (
+        <div className="text-xs text-green-400 mb-1.5">{formatEur(state.revenue)}</div>
+      )}
+      <div className="border-t border-[#2c3048] pt-1.5 mt-1.5 flex items-center justify-between text-xs">
+        <span className="text-gray-400">{pct.toFixed(1)}% de la période</span>
+        <span className="text-gray-500">{intensity >= 0.8 ? "🔥 pic" : intensity >= 0.5 ? "fort" : intensity >= 0.2 ? "modéré" : state.count > 0 ? "faible" : "—"}</span>
       </div>
     </div>
   );
