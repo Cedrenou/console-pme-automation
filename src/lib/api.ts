@@ -446,6 +446,32 @@ export async function fetchVintedStats(from?: string, to?: string): Promise<Vint
   return parseApiResponse<VintedStats>(res);
 }
 
+export type VintedPatternsBucket = { day: number; hour: number; count: number; total_revenue: number };
+export type VintedPatternsDayBucket = { day: number; label: string; count: number; total_revenue: number };
+export type VintedPatternsHourBucket = { hour: number; count: number; total_revenue: number };
+
+export type VintedPatterns = {
+  period: { from: string | null; to: string | null };
+  ventes_count: number;
+  by_day_of_week: VintedPatternsDayBucket[];
+  by_hour_of_day: VintedPatternsHourBucket[];
+  heatmap: VintedPatternsBucket[];
+};
+
+export async function fetchVintedPatterns(opts: { from?: string; to?: string } = {}): Promise<VintedPatterns> {
+  if (shouldUseMock()) {
+    await new Promise(r => setTimeout(r, 200));
+    return mockVintedPatterns();
+  }
+  const params = new URLSearchParams();
+  if (opts.from) params.set('from', opts.from);
+  if (opts.to) params.set('to', opts.to);
+  const url = `${process.env.NEXT_PUBLIC_API_URL}/clients/${VINTED_CLIENT_ID}/vinted/patterns?${params}`;
+  const res = await fetch(url, { headers: await authHeader() });
+  if (!res.ok) throw new Error("Erreur lors de la récupération des patterns Vinted");
+  return parseApiResponse<VintedPatterns>(res);
+}
+
 export type VintedTimelineBucket = { date: string; count: number; total: number };
 
 export type VintedTimeline = {
@@ -541,6 +567,44 @@ function mockVintedStats(from?: string, to?: string): VintedStats {
       sunset_acheteur: { count: 22, total: 1888.90 },
       sunset_vendeur: { count: 0, total: 0 }
     }
+  };
+}
+
+function mockVintedPatterns(): VintedPatterns {
+  const DAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+  const heatmap: VintedPatternsBucket[] = [];
+  for (let d = 0; d < 7; d++) {
+    for (let h = 0; h < 24; h++) {
+      // Pic le soir 19-22h, jour de semaine plus que week-end
+      const hourFactor = Math.max(0, Math.cos((h - 20) / 6));
+      const dayFactor = d < 5 ? 1 : 0.6;
+      const count = Math.round(20 * hourFactor * dayFactor + Math.random() * 2);
+      heatmap.push({ day: d, hour: h, count, total_revenue: count * 90 });
+    }
+  }
+  const by_day_of_week = DAYS.map((label, day) => {
+    const dayItems = heatmap.filter(b => b.day === day);
+    return {
+      day,
+      label,
+      count: dayItems.reduce((a, b) => a + b.count, 0),
+      total_revenue: dayItems.reduce((a, b) => a + b.total_revenue, 0),
+    };
+  });
+  const by_hour_of_day = Array.from({ length: 24 }, (_, hour) => {
+    const items = heatmap.filter(b => b.hour === hour);
+    return {
+      hour,
+      count: items.reduce((a, b) => a + b.count, 0),
+      total_revenue: items.reduce((a, b) => a + b.total_revenue, 0),
+    };
+  });
+  return {
+    period: { from: null, to: null },
+    ventes_count: heatmap.reduce((a, b) => a + b.count, 0),
+    by_day_of_week,
+    by_hour_of_day,
+    heatmap,
   };
 }
 

@@ -2,10 +2,10 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  fetchVintedStats, fetchVintedTimeline,
-  type VintedStats, type VintedTimeline
+  fetchVintedStats, fetchVintedTimeline, fetchVintedPatterns,
+  type VintedStats, type VintedTimeline, type VintedPatterns
 } from "@/lib/api";
-import { FaCalendarAlt, FaEuroSign, FaShoppingBag, FaRocket, FaUniversity, FaUndo, FaArrowRight } from "react-icons/fa";
+import { FaCalendarAlt, FaEuroSign, FaShoppingBag, FaRocket, FaUniversity, FaUndo, FaArrowRight, FaClock } from "react-icons/fa";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
 } from "recharts";
@@ -45,6 +45,7 @@ const VintedCockpitPage = () => {
   const [period, setPeriod] = useState<PeriodId>("30d");
   const [stats, setStats] = useState<VintedStats | null>(null);
   const [timeline, setTimeline] = useState<VintedTimeline | null>(null);
+  const [patterns, setPatterns] = useState<VintedPatterns | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -57,12 +58,14 @@ const VintedCockpitPage = () => {
         // La timeline charge toujours les 24 derniers mois (saisonnalité indépendante du sélecteur).
         const now = new Date();
         const timelineFrom = new Date(now.getFullYear() - 2, now.getMonth(), 1).toISOString();
-        const [s, tl] = await Promise.all([
+        const [s, tl, p] = await Promise.all([
           fetchVintedStats(from, to),
-          fetchVintedTimeline({ type: "transaction", granularity: "month", from: timelineFrom })
+          fetchVintedTimeline({ type: "transaction", granularity: "month", from: timelineFrom }),
+          fetchVintedPatterns({ from, to })
         ]);
         setStats(s);
         setTimeline(tl);
+        setPatterns(p);
       } catch (err) {
         console.error(err);
         setError("Erreur lors du chargement des données Vinted.");
@@ -193,6 +196,21 @@ const VintedCockpitPage = () => {
             </div>
           )}
 
+          {patterns && patterns.ventes_count > 0 && (
+            <div className="bg-[#23263A] rounded-2xl shadow-lg p-6 mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-xl font-bold flex items-center gap-2"><FaClock className="text-blue-400" /> Quand mes acheteurs achètent</h2>
+                  <p className="text-sm text-gray-400">
+                    {formatInt(patterns.ventes_count)} ventes — heure et jour de la semaine en heure de Paris
+                  </p>
+                </div>
+                <PatternsInsights patterns={patterns} />
+              </div>
+              <SalesHeatmap patterns={patterns} />
+            </div>
+          )}
+
           <Link
             href="/vinted-ventes"
             className="bg-[#23263A] hover:bg-[#2c3048] rounded-2xl shadow-lg p-6 flex items-center justify-between transition-colors group"
@@ -280,6 +298,95 @@ const SeasonalityChart: React.FC<SeasonalityChartProps> = ({ buckets }) => {
         <span className="flex items-center gap-1.5">
           <span className="inline-block w-3 h-3 rounded-sm" style={{ background: "#3b82f6" }} />
           Saison basse
+        </span>
+      </div>
+    </div>
+  );
+};
+
+type SalesHeatmapProps = { patterns: VintedPatterns };
+
+const DAY_LABELS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+
+const SalesHeatmap: React.FC<SalesHeatmapProps> = ({ patterns }) => {
+  const max = Math.max(...patterns.heatmap.map(c => c.count), 1);
+
+  // Color scale : transparent → bleu → orange chaud, échelle racine carrée pour révéler aussi les petits volumes.
+  const colorFor = (count: number): string => {
+    if (count === 0) return "rgba(255,255,255,0.03)";
+    const t = Math.sqrt(count / max); // 0..1
+    // gradient from bleu (240°) à orange (25°), saturation 70%, luminosité variable
+    const hue = 240 - t * 215;
+    const lum = 30 + t * 25;
+    return `hsl(${hue}, 70%, ${lum}%)`;
+  };
+
+  // Construit une matrice [day][hour] pour accès rapide
+  const matrix: number[][] = Array.from({ length: 7 }, () => new Array(24).fill(0));
+  const matrixRev: number[][] = Array.from({ length: 7 }, () => new Array(24).fill(0));
+  for (const c of patterns.heatmap) {
+    matrix[c.day][c.hour] = c.count;
+    matrixRev[c.day][c.hour] = c.total_revenue;
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <div className="min-w-[700px]">
+        {/* Header heures */}
+        <div className="grid gap-0.5 mb-1" style={{ gridTemplateColumns: "32px repeat(24, minmax(0, 1fr))" }}>
+          <div></div>
+          {Array.from({ length: 24 }).map((_, h) => (
+            <div key={h} className="text-[10px] text-gray-500 text-center">
+              {h % 3 === 0 ? `${h}h` : ''}
+            </div>
+          ))}
+        </div>
+        {/* Lignes jours */}
+        {DAY_LABELS.map((label, d) => (
+          <div key={d} className="grid gap-0.5 mb-0.5" style={{ gridTemplateColumns: "32px repeat(24, minmax(0, 1fr))" }}>
+            <div className="text-xs text-gray-400 flex items-center">{label}</div>
+            {Array.from({ length: 24 }).map((_, h) => {
+              const count = matrix[d][h];
+              const rev = matrixRev[d][h];
+              return (
+                <div
+                  key={h}
+                  className="aspect-square rounded-sm transition-all hover:ring-2 hover:ring-white/40"
+                  style={{ backgroundColor: colorFor(count), minHeight: 18 }}
+                  title={`${label} ${h}h–${h + 1}h : ${count} vente${count !== 1 ? 's' : ''}${rev > 0 ? ` · ${formatEur(rev)}` : ''}`}
+                />
+              );
+            })}
+          </div>
+        ))}
+        {/* Légende */}
+        <div className="flex items-center justify-end gap-2 mt-3 text-xs text-gray-400">
+          <span>Faible</span>
+          <div className="flex gap-0.5">
+            {[0, 0.15, 0.35, 0.6, 0.85, 1].map((t, i) => (
+              <div key={i} className="w-4 h-4 rounded-sm" style={{ backgroundColor: colorFor(Math.round(max * t)) }} />
+            ))}
+          </div>
+          <span>Élevé</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const PatternsInsights: React.FC<{ patterns: VintedPatterns }> = ({ patterns }) => {
+  const topDay = [...patterns.by_day_of_week].sort((a, b) => b.count - a.count)[0];
+  const topHourBucket = [...patterns.by_hour_of_day].sort((a, b) => b.count - a.count)[0];
+  return (
+    <div className="text-right text-sm">
+      <div>
+        <span className="text-gray-400">Meilleur jour : </span>
+        <span className="font-semibold text-orange-400">{topDay.label} ({formatInt(topDay.count)})</span>
+      </div>
+      <div className="mt-1">
+        <span className="text-gray-400">Meilleure heure : </span>
+        <span className="font-semibold text-orange-400">
+          {topHourBucket.hour}h–{topHourBucket.hour + 1}h ({formatInt(topHourBucket.count)})
         </span>
       </div>
     </div>
