@@ -5,7 +5,7 @@ import {
   type VintedEvent
 } from "@/lib/api";
 import {
-  FaCalendarAlt, FaUser, FaFileDownload, FaSearch
+  FaCalendarAlt, FaUser, FaFileDownload, FaSearch, FaPrint
 } from "react-icons/fa";
 
 type PeriodId = "30d" | "90d" | "month" | "year" | "all";
@@ -192,19 +192,59 @@ const SaleRow: React.FC<{ sale: VintedEvent }> = ({ sale }) => {
     conversation_url?: string;
   };
 
-  const [bordereauLoading, setBordereauLoading] = useState(false);
+  const [bordereauLoading, setBordereauLoading] = useState<"none" | "print" | "download">("none");
   const [bordereauError, setBordereauError] = useState<string | null>(null);
 
-  const handleDownloadBordereau = async () => {
-    setBordereauLoading(true);
+  // Convertit la réponse API en blob PDF + URL utilisable.
+  const fetchBordereauBlob = async (): Promise<{ blob: Blob; filename: string; url: string }> => {
+    const { filename, pdfBase64 } = await fetchVintedBordereau(sale.gmailMessageId);
+    const byteChars = atob(pdfBase64);
+    const byteNums = new Uint8Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) byteNums[i] = byteChars.charCodeAt(i);
+    const blob = new Blob([byteNums], { type: "application/pdf" });
+    return { blob, filename, url: URL.createObjectURL(blob) };
+  };
+
+  // Ouvre le print dialog du browser sur le PDF, sans passer par le download.
+  // Astuce : iframe cachée avec le blob PDF en src, on déclenche print() au load.
+  const handlePrintBordereau = async () => {
+    setBordereauLoading("print");
     setBordereauError(null);
     try {
-      const { filename, pdfBase64 } = await fetchVintedBordereau(sale.gmailMessageId);
-      const byteChars = atob(pdfBase64);
-      const byteNums = new Uint8Array(byteChars.length);
-      for (let i = 0; i < byteChars.length; i++) byteNums[i] = byteChars.charCodeAt(i);
-      const blob = new Blob([byteNums], { type: "application/pdf" });
-      const url = URL.createObjectURL(blob);
+      const { url } = await fetchBordereauBlob();
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "fixed";
+      iframe.style.left = "-9999px";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.src = url;
+      document.body.appendChild(iframe);
+      iframe.onload = () => {
+        try {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+        } catch (err) {
+          console.error("Print failed", err);
+        }
+        // On nettoie après un délai pour laisser le dialog s'ouvrir
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+          URL.revokeObjectURL(url);
+        }, 60_000);
+      };
+    } catch (err) {
+      console.error(err);
+      setBordereauError(err instanceof Error ? err.message : "Erreur");
+    } finally {
+      setBordereauLoading("none");
+    }
+  };
+
+  const handleDownloadBordereau = async () => {
+    setBordereauLoading("download");
+    setBordereauError(null);
+    try {
+      const { filename, url } = await fetchBordereauBlob();
       const a = document.createElement("a");
       a.href = url;
       a.download = filename;
@@ -216,7 +256,7 @@ const SaleRow: React.FC<{ sale: VintedEvent }> = ({ sale }) => {
       console.error(err);
       setBordereauError(err instanceof Error ? err.message : "Erreur");
     } finally {
-      setBordereauLoading(false);
+      setBordereauLoading("none");
     }
   };
 
@@ -255,16 +295,29 @@ const SaleRow: React.FC<{ sale: VintedEvent }> = ({ sale }) => {
           )}
         </div>
         <div className="text-xs text-gray-500 mt-1">{formatDate(sale.eventDate)}</div>
-        <button
-          type="button"
-          onClick={handleDownloadBordereau}
-          disabled={bordereauLoading}
-          className="mt-2 inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded bg-blue-600/20 text-blue-300 hover:bg-blue-600/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          aria-label="Télécharger le bordereau d'envoi"
-        >
-          <FaFileDownload className="text-[11px]" />
-          {bordereauLoading ? "Récupération…" : "Bordereau"}
-        </button>
+        <div className="mt-2 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handlePrintBordereau}
+            disabled={bordereauLoading !== "none"}
+            className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-label="Imprimer le bordereau d'envoi"
+          >
+            <FaPrint className="text-[11px]" />
+            {bordereauLoading === "print" ? "Préparation…" : "Imprimer"}
+          </button>
+          <button
+            type="button"
+            onClick={handleDownloadBordereau}
+            disabled={bordereauLoading !== "none"}
+            className="inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded text-gray-400 hover:text-blue-300 hover:bg-blue-600/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-label="Télécharger le bordereau d'envoi"
+            title="Télécharger le PDF"
+          >
+            <FaFileDownload className="text-[11px]" />
+            {bordereauLoading === "download" ? "…" : ""}
+          </button>
+        </div>
         {bordereauError && (
           <div className="text-xs text-red-400 mt-1">{bordereauError}</div>
         )}
