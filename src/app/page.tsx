@@ -456,29 +456,38 @@ const SalesHeatmap: React.FC<SalesHeatmapProps> = ({ patterns }) => {
     return `hsl(${hue}, 70%, ${lum}%)`;
   };
 
-  // Construit une matrice [day][hour] pour accès rapide
+  // Construit une matrice [day][hour] pour accès rapide + totaux par jour et par heure
   const matrix: number[][] = Array.from({ length: 7 }, () => new Array(24).fill(0));
   const matrixRev: number[][] = Array.from({ length: 7 }, () => new Array(24).fill(0));
+  const dayTotals: number[] = new Array(7).fill(0);
+  const hourTotals: number[] = new Array(24).fill(0);
   for (const c of patterns.heatmap) {
     matrix[c.day][c.hour] = c.count;
     matrixRev[c.day][c.hour] = c.total_revenue;
+    dayTotals[c.day] += c.count;
+    hourTotals[c.hour] += c.count;
   }
+  const maxDayTotal = Math.max(...dayTotals, 1);
+  const maxHourTotal = Math.max(...hourTotals, 1);
+
+  const gridTemplate = "32px repeat(24, minmax(0, 1fr)) 56px";
 
   return (
     <div className="overflow-x-auto relative">
-      <div className="min-w-[700px]">
+      <div className="min-w-[760px]">
         {/* Header heures */}
-        <div className="grid gap-0.5 mb-1" style={{ gridTemplateColumns: "32px repeat(24, minmax(0, 1fr))" }}>
+        <div className="grid gap-0.5 mb-1" style={{ gridTemplateColumns: gridTemplate }}>
           <div></div>
           {Array.from({ length: 24 }).map((_, h) => (
             <div key={h} className="text-[10px] text-gray-500 text-center">
               {h % 3 === 0 ? `${h}h` : ''}
             </div>
           ))}
+          <div className="text-[10px] text-gray-400 text-center font-semibold">Total</div>
         </div>
         {/* Lignes jours */}
         {DAY_LABELS.map((label, d) => (
-          <div key={d} className="grid gap-0.5 mb-0.5" style={{ gridTemplateColumns: "32px repeat(24, minmax(0, 1fr))" }}>
+          <div key={d} className="grid gap-0.5 mb-0.5" style={{ gridTemplateColumns: gridTemplate }}>
             <div className="text-xs text-gray-400 flex items-center">{label}</div>
             {Array.from({ length: 24 }).map((_, h) => {
               const count = matrix[d][h];
@@ -494,8 +503,33 @@ const SalesHeatmap: React.FC<SalesHeatmapProps> = ({ patterns }) => {
                 />
               );
             })}
+            {/* Total du jour */}
+            <div
+              className="text-xs font-semibold text-orange-300 flex items-center justify-end pr-1.5 rounded-sm tabular-nums"
+              style={{ background: `rgba(249, 115, 22, ${0.06 + 0.18 * (dayTotals[d] / maxDayTotal)})` }}
+              title={`${DAY_LABELS_FULL[d]} : ${dayTotals[d]} ventes au total`}
+            >
+              {dayTotals[d]}
+            </div>
           </div>
         ))}
+        {/* Ligne totaux par heure */}
+        <div className="grid gap-0.5 mt-2 pt-2 border-t border-[#2c3048]" style={{ gridTemplateColumns: gridTemplate }}>
+          <div className="text-[10px] text-gray-400 font-semibold flex items-center">Total</div>
+          {Array.from({ length: 24 }).map((_, h) => (
+            <div
+              key={h}
+              className="text-[10px] font-semibold text-orange-300 text-center tabular-nums rounded-sm"
+              style={{ background: `rgba(249, 115, 22, ${0.06 + 0.18 * (hourTotals[h] / maxHourTotal)})`, minHeight: 18, lineHeight: '18px' }}
+              title={`${h}h–${h + 1}h : ${hourTotals[h]} ventes`}
+            >
+              {hourTotals[h] > 0 ? hourTotals[h] : ''}
+            </div>
+          ))}
+          <div className="text-[10px] font-bold text-orange-300 flex items-center justify-end pr-1.5 tabular-nums" title="Total ventes sur la période">
+            {totalCount}
+          </div>
+        </div>
         {/* Légende */}
         <div className="flex items-center justify-end gap-2 mt-3 text-xs text-gray-400">
           <span>Faible</span>
