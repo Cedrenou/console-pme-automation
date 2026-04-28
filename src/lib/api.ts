@@ -446,6 +446,33 @@ export async function fetchVintedStats(from?: string, to?: string): Promise<Vint
   return parseApiResponse<VintedStats>(res);
 }
 
+export type VintedTopCategory = { category: string; count: number; total_revenue: number; share_pct: number };
+export type VintedTopGender = { gender: string; count: number; total_revenue: number; share_pct: number };
+export type VintedTopTitle = { title: string; count: number; total_revenue: number; avg_price: number };
+
+export type VintedTopArticles = {
+  period: { from: string | null; to: string | null };
+  total_count: number;
+  total_revenue: number;
+  by_category: VintedTopCategory[];
+  by_gender: VintedTopGender[];
+  top_titles: VintedTopTitle[];
+};
+
+export async function fetchVintedTopArticles(opts: { from?: string; to?: string } = {}): Promise<VintedTopArticles> {
+  if (shouldUseMock()) {
+    await new Promise(r => setTimeout(r, 200));
+    return mockVintedTopArticles();
+  }
+  const params = new URLSearchParams();
+  if (opts.from) params.set('from', opts.from);
+  if (opts.to) params.set('to', opts.to);
+  const url = `${process.env.NEXT_PUBLIC_API_URL}/clients/${VINTED_CLIENT_ID}/vinted/top-articles?${params}`;
+  const res = await fetch(url, { headers: await authHeader() });
+  if (!res.ok) throw new Error("Erreur lors de la récupération des top articles Vinted");
+  return parseApiResponse<VintedTopArticles>(res);
+}
+
 export type VintedPatternsBucket = { day: number; hour: number; count: number; total_revenue: number };
 export type VintedPatternsDayBucket = { day: number; label: string; count: number; total_revenue: number };
 export type VintedPatternsHourBucket = { hour: number; count: number; total_revenue: number };
@@ -567,6 +594,31 @@ function mockVintedStats(from?: string, to?: string): VintedStats {
       sunset_acheteur: { count: 22, total: 1888.90 },
       sunset_vendeur: { count: 0, total: 0 }
     }
+  };
+}
+
+function mockVintedTopArticles(): VintedTopArticles {
+  return {
+    period: { from: null, to: null },
+    total_count: 234,
+    total_revenue: 26408.99,
+    by_category: [
+      { category: "Veste/Blouson", count: 110, total_revenue: 12300, share_pct: 47 },
+      { category: "Bottes/Chaussures", count: 51, total_revenue: 5230, share_pct: 21.8 },
+      { category: "Pantalon", count: 30, total_revenue: 2850, share_pct: 12.8 },
+      { category: "Gants", count: 18, total_revenue: 580, share_pct: 7.7 },
+      { category: "Dorsale/Protection", count: 12, total_revenue: 540, share_pct: 5.1 },
+      { category: "Autre", count: 13, total_revenue: 908.99, share_pct: 5.6 },
+    ],
+    by_gender: [
+      { gender: "Homme", count: 134, total_revenue: 14200, share_pct: 57.3 },
+      { gender: "Femme", count: 78, total_revenue: 9050, share_pct: 33.3 },
+      { gender: "Mixte", count: 22, total_revenue: 3158.99, share_pct: 9.4 },
+    ],
+    top_titles: [
+      { title: "Alpinestars Tech 5 Motorradstiefel Enduro", count: 8, total_revenue: 920, avg_price: 115 },
+      { title: "Veste moto Segura Nygma L Femme", count: 5, total_revenue: 540, avg_price: 108 },
+    ]
   };
 }
 

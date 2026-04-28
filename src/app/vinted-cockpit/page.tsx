@@ -2,10 +2,10 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  fetchVintedStats, fetchVintedTimeline, fetchVintedPatterns,
-  type VintedStats, type VintedTimeline, type VintedPatterns
+  fetchVintedStats, fetchVintedTimeline, fetchVintedPatterns, fetchVintedTopArticles,
+  type VintedStats, type VintedTimeline, type VintedPatterns, type VintedTopArticles
 } from "@/lib/api";
-import { FaCalendarAlt, FaEuroSign, FaShoppingBag, FaRocket, FaUniversity, FaUndo, FaArrowRight, FaClock } from "react-icons/fa";
+import { FaCalendarAlt, FaEuroSign, FaShoppingBag, FaRocket, FaUniversity, FaUndo, FaArrowRight, FaClock, FaTrophy, FaTshirt } from "react-icons/fa";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
 } from "recharts";
@@ -46,6 +46,7 @@ const VintedCockpitPage = () => {
   const [stats, setStats] = useState<VintedStats | null>(null);
   const [timeline, setTimeline] = useState<VintedTimeline | null>(null);
   const [patterns, setPatterns] = useState<VintedPatterns | null>(null);
+  const [topArticles, setTopArticles] = useState<VintedTopArticles | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,14 +59,16 @@ const VintedCockpitPage = () => {
         // La timeline charge toujours les 24 derniers mois (saisonnalité indépendante du sélecteur).
         const now = new Date();
         const timelineFrom = new Date(now.getFullYear() - 2, now.getMonth(), 1).toISOString();
-        const [s, tl, p] = await Promise.all([
+        const [s, tl, p, ta] = await Promise.all([
           fetchVintedStats(from, to),
           fetchVintedTimeline({ type: "transaction", granularity: "month", from: timelineFrom }),
-          fetchVintedPatterns({ from, to })
+          fetchVintedPatterns({ from, to }),
+          fetchVintedTopArticles({ from, to }),
         ]);
         setStats(s);
         setTimeline(tl);
         setPatterns(p);
+        setTopArticles(ta);
       } catch (err) {
         console.error(err);
         setError("Erreur lors du chargement des données Vinted.");
@@ -196,6 +199,20 @@ const VintedCockpitPage = () => {
             </div>
           )}
 
+          {topArticles && topArticles.total_count > 0 && (
+            <div className="bg-[#23263A] rounded-2xl shadow-lg p-6 mb-8">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-xl font-bold flex items-center gap-2"><FaTshirt className="text-blue-400" /> Top articles vendus</h2>
+                  <p className="text-sm text-gray-400">
+                    {formatInt(topArticles.total_count)} ventes finalisées — répartition par catégorie, genre et modèle
+                  </p>
+                </div>
+              </div>
+              <TopArticlesView data={topArticles} />
+            </div>
+          )}
+
           {patterns && patterns.ventes_count > 0 && (
             <div className="bg-[#23263A] rounded-2xl shadow-lg p-6 mb-8">
               <div className="flex items-center justify-between mb-4">
@@ -303,6 +320,113 @@ const SeasonalityChart: React.FC<SeasonalityChartProps> = ({ buckets }) => {
     </div>
   );
 };
+
+type TopArticlesViewProps = { data: VintedTopArticles };
+
+const CATEGORY_COLORS: Record<string, string> = {
+  "Veste/Blouson": "#f97316",
+  "Bottes/Chaussures": "#3b82f6",
+  "Pantalon": "#10b981",
+  "Gants": "#a855f7",
+  "Casque": "#ec4899",
+  "Dorsale/Protection": "#14b8a6",
+  "Cuir (combinaison/ensemble)": "#eab308",
+  "Sac/Bagagerie": "#6366f1",
+  "Accessoire": "#94a3b8",
+  "Autre": "#64748b",
+};
+
+const GENDER_COLORS: Record<string, string> = {
+  "Homme": "#3b82f6",
+  "Femme": "#ec4899",
+  "Mixte": "#94a3b8",
+};
+
+const TopArticlesView: React.FC<TopArticlesViewProps> = ({ data }) => {
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Catégorie */}
+      <div>
+        <h3 className="text-sm font-semibold text-gray-300 mb-3">Par catégorie</h3>
+        <div className="space-y-2">
+          {data.by_category.map(c => (
+            <CategoryRow
+              key={c.category}
+              label={c.category}
+              count={c.count}
+              total={c.total_revenue}
+              pct={c.share_pct}
+              color={CATEGORY_COLORS[c.category] || "#64748b"}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Genre */}
+      <div>
+        <h3 className="text-sm font-semibold text-gray-300 mb-3">Par audience</h3>
+        <div className="space-y-2 mb-6">
+          {data.by_gender.map(g => (
+            <CategoryRow
+              key={g.gender}
+              label={g.gender}
+              count={g.count}
+              total={g.total_revenue}
+              pct={g.share_pct}
+              color={GENDER_COLORS[g.gender] || "#94a3b8"}
+            />
+          ))}
+        </div>
+
+        {/* Top titres */}
+        <h3 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
+          <FaTrophy className="text-amber-400 text-xs" /> Top modèles (≥ 2 ventes)
+        </h3>
+        {data.top_titles.length === 0 ? (
+          <p className="text-xs text-gray-500 italic">Pas encore assez de répétitions pour identifier des modèles récurrents.</p>
+        ) : (
+          <div className="space-y-1.5 max-h-72 overflow-y-auto pr-2">
+            {data.top_titles.slice(0, 10).map((t, i) => (
+              <div
+                key={i}
+                className="flex items-start gap-3 p-2.5 rounded bg-[#1c1f2e] hover:bg-[#252839] transition-colors"
+                title={t.title}
+              >
+                <div className="text-amber-400 font-bold text-sm w-5 flex-shrink-0">#{i + 1}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-medium leading-tight line-clamp-2">{t.title}</div>
+                  <div className="text-[11px] text-gray-500 mt-0.5">
+                    {t.count} ventes · {formatEur(t.avg_price)} / vente
+                  </div>
+                </div>
+                <div className="text-sm font-bold text-green-400 flex-shrink-0">{formatEur(t.total_revenue)}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const CategoryRow: React.FC<{ label: string; count: number; total: number; pct: number; color: string }> = ({ label, count, total, pct, color }) => (
+  <div>
+    <div className="flex items-center justify-between text-sm mb-1">
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: color }} />
+        <span className="truncate">{label}</span>
+      </div>
+      <div className="flex items-baseline gap-2 flex-shrink-0">
+        <span className="font-semibold">{formatInt(count)}</span>
+        <span className="text-xs text-gray-500">({pct.toFixed(1)}%)</span>
+        <span className="text-xs text-green-400 font-medium tabular-nums">{formatEur(total)}</span>
+      </div>
+    </div>
+    <div className="h-1.5 bg-[#1c1f2e] rounded overflow-hidden">
+      <div className="h-full transition-all" style={{ width: `${pct}%`, background: color }} />
+    </div>
+  </div>
+);
 
 type SalesHeatmapProps = { patterns: VintedPatterns };
 
