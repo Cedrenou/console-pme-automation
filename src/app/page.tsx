@@ -61,7 +61,7 @@ const VintedCockpitPage = () => {
         const timelineFrom = new Date(now.getFullYear() - 2, now.getMonth(), 1).toISOString();
         const [s, tl, p, ta] = await Promise.all([
           fetchVintedStats(from, to),
-          fetchVintedTimeline({ type: "transaction", granularity: "month", from: timelineFrom }),
+          fetchVintedTimeline({ type: "revenue", granularity: "month", from: timelineFrom }),
           fetchVintedPatterns({ from, to }),
           fetchVintedTopArticles({ from, to }),
         ]);
@@ -80,7 +80,7 @@ const VintedCockpitPage = () => {
   }, [period]);
 
   const roiBoost = stats && stats.boosts.total_cost > 0
-    ? (stats.transactions.total_revenue / stats.boosts.total_cost).toFixed(1) + "x"
+    ? (stats.sales.total_revenue / stats.boosts.total_cost).toFixed(1) + "x"
     : "—";
 
   const margeNetteEstimee = stats
@@ -134,8 +134,8 @@ const VintedCockpitPage = () => {
             <KpiCard
               icon={<FaEuroSign />}
               label="Chiffre d'affaires"
-              value={formatEur(stats.transactions.total_revenue)}
-              hint={`${formatInt(stats.transactions.count)} ventes finalisées`}
+              value={formatEur(stats.sales.total_revenue)}
+              hint={`${formatInt(stats.sales.count)} ventes${stats.sales.count !== stats.transactions.count ? ` (dont ${formatInt(stats.transactions.count)} finalisées)` : ""}`}
               accent="text-green-400"
             />
             <KpiCard

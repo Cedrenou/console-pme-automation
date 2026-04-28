@@ -223,7 +223,7 @@ const VINTED_CLIENT_ID = 'sunset';
 
 export type VintedStats = {
   period: { from: string | null; to: string | null };
-  sales: { count: number; total_revenue: number; avg_price: number };
+  sales: { count: number; priced_count?: number; total_revenue: number; avg_price: number };
   transactions: {
     count: number;
     total_revenue: number;
@@ -332,7 +332,7 @@ export async function fetchVintedPatterns(opts: { from?: string; to?: string } =
 export type VintedTimelineBucket = { date: string; count: number; total: number };
 
 export type VintedTimeline = {
-  type: VintedEvent['eventType'];
+  type: VintedEvent['eventType'] | 'revenue';
   granularity: 'day' | 'week' | 'month';
   period: { from: string | null; to: string | null };
   buckets: VintedTimelineBucket[];
@@ -405,7 +405,7 @@ export async function fetchVintedBordereau(venteId: string): Promise<VintedBorde
 }
 
 export async function fetchVintedTimeline(opts: {
-  type?: VintedEvent['eventType'];
+  type?: VintedEvent['eventType'] | 'revenue';
   from?: string;
   to?: string;
   granularity?: 'day' | 'week' | 'month';
