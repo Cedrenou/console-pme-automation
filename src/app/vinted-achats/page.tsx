@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
 import { fetchVintedEvents, fetchVintedEmail, type VintedEvent } from "@/lib/api";
-import { FaCalendarAlt, FaUser, FaSearch, FaShoppingCart, FaRegCopy, FaCheck, FaPrint } from "react-icons/fa";
+import { FaCalendarAlt, FaSearch, FaRegCopy, FaCheck, FaPrint } from "react-icons/fa";
 
 type PeriodId = "30d" | "90d" | "month" | "year" | "all";
 
@@ -13,7 +13,7 @@ const PERIODS: { id: PeriodId; label: string }[] = [
   { id: "all", label: "Tout" },
 ];
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 200;
 
 const periodToDates = (id: PeriodId): { from?: string; to?: string } => {
   const now = new Date();
@@ -26,8 +26,6 @@ const periodToDates = (id: PeriodId): { from?: string; to?: string } => {
   return {};
 };
 
-// Génère la liste des mois disponibles depuis le démarrage Sunset (janv. 2025) jusqu'à
-// aujourd'hui, ordre décroissant (le plus récent en premier).
 const MONTH_NAMES_FR = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
 
 const generateMonthOptions = (): { value: string; label: string }[] => {
@@ -46,7 +44,6 @@ const generateMonthOptions = (): { value: string; label: string }[] => {
   return result;
 };
 
-// Donne la fenêtre [from, to[ correspondant à un mois (ex: "2025-04")
 const monthToDates = (value: string): { from: string; to: string } => {
   const [y, m] = value.split("-").map(Number);
   return {
@@ -55,49 +52,60 @@ const monthToDates = (value: string): { from: string; to: string } => {
   };
 };
 
-const formatEur = (n: number): string =>
-  n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+const formatEur = (n: number | undefined): string =>
+  n === undefined
+    ? "—"
+    : n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 
 const formatDate = (iso: string): string => {
   const d = new Date(iso);
-  return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "2-digit", hour: "2-digit", minute: "2-digit" });
 };
 
 const MONTH_OPTIONS = generateMonthOptions();
 
 const VintedAchatsPage = () => {
   const [period, setPeriod] = useState<PeriodId>("30d");
-  const [monthFilter, setMonthFilter] = useState<string>(""); // "" = pas de filtre mois actif
+  const [monthFilter, setMonthFilter] = useState<string>("");
   const [search, setSearch] = useState<string>("");
   const [items, setItems] = useState<VintedEvent[]>([]);
-  const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadedCount, setLoadedCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const requestId = useRef(0);
 
-  // Le filtre mois prend le pas sur les boutons de période s'il est actif
   const effectiveDates = monthFilter ? monthToDates(monthFilter) : periodToDates(period);
 
-  // Quand l'utilisateur clique un preset, on désactive le filtre mois
   const handleSelectPeriod = (id: PeriodId) => {
     setPeriod(id);
     setMonthFilter("");
   };
 
+  // Auto-load TOUS les achats de la période en suivant la pagination cursor
   useEffect(() => {
     const myId = ++requestId.current;
-    const load = async () => {
+    const loadAll = async () => {
       setLoading(true);
       setError(null);
       setItems([]);
-      setCursor(null);
+      setLoadedCount(0);
+      const accumulator: VintedEvent[] = [];
+      let cursor: string | null = null;
       try {
         const { from, to } = effectiveDates;
-        const res = await fetchVintedEvents({ type: "achat", from, to, limit: PAGE_SIZE });
-        if (requestId.current !== myId) return;
-        setItems(res.items);
-        setCursor(res.nextCursor);
+        do {
+          const res = await fetchVintedEvents({
+            type: "achat",
+            from, to,
+            limit: PAGE_SIZE,
+            cursor: cursor ?? undefined,
+          });
+          if (requestId.current !== myId) return;
+          accumulator.push(...res.items);
+          cursor = res.nextCursor;
+          setLoadedCount(accumulator.length);
+          setItems([...accumulator]);
+        } while (cursor);
       } catch (err) {
         if (requestId.current !== myId) return;
         console.error(err);
@@ -106,26 +114,9 @@ const VintedAchatsPage = () => {
         if (requestId.current === myId) setLoading(false);
       }
     };
-    load();
+    loadAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period, monthFilter]);
-
-  const handleLoadMore = async () => {
-    if (!cursor || loadingMore) return;
-    setLoadingMore(true);
-    setError(null);
-    try {
-      const { from, to } = effectiveDates;
-      const res = await fetchVintedEvents({ type: "achat", from, to, limit: PAGE_SIZE, cursor });
-      setItems(prev => [...prev, ...res.items]);
-      setCursor(res.nextCursor);
-    } catch (err) {
-      console.error(err);
-      setError("Erreur lors du chargement de la suite.");
-    } finally {
-      setLoadingMore(false);
-    }
-  };
 
   const filteredItems = search.trim().length === 0
     ? items
@@ -135,7 +126,6 @@ const VintedAchatsPage = () => {
         return haystack.includes(search.toLowerCase());
       });
 
-  // Total dépensé sur la page actuelle (utile pour avoir une idée du budget achats)
   const totalSpent = filteredItems.reduce((acc, it) => {
     const p = it.payload as { montant_total?: number };
     return acc + (typeof p.montant_total === "number" ? p.montant_total : 0);
@@ -146,7 +136,7 @@ const VintedAchatsPage = () => {
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold mb-2">Achats Vinted</h1>
-          <p className="text-gray-400">Consulte tes achats Vinted (sourcing inventaire) avec le détail des frais.</p>
+          <p className="text-gray-400">Liste complète des achats Vinted (sourcing inventaire) avec le détail des frais.</p>
         </div>
         <div className="flex flex-wrap gap-2 items-center">
           {PERIODS.map(p => {
@@ -187,7 +177,7 @@ const VintedAchatsPage = () => {
           <div className="flex items-center gap-3 flex-wrap">
             <h2 className="text-xl font-bold">Liste des achats</h2>
             <span className="text-sm text-gray-400">
-              {loading ? "Chargement…" : `${filteredItems.length}${cursor ? "+" : ""} affichés`}
+              {loading ? `Chargement… (${loadedCount})` : `${filteredItems.length} achats`}
             </span>
             {!loading && filteredItems.length > 0 && (
               <span className="text-sm bg-blue-600/15 text-blue-300 px-3 py-1 rounded-full">
@@ -211,32 +201,32 @@ const VintedAchatsPage = () => {
           <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 mb-4 text-red-400 text-sm">{error}</div>
         )}
 
-        {loading ? (
-          <div className="text-gray-400 italic py-8 text-center">Chargement des achats…</div>
-        ) : filteredItems.length === 0 ? (
+        {filteredItems.length === 0 && !loading ? (
           <div className="text-gray-500 italic py-8 text-center">
             {search ? "Aucun achat ne matche ce filtre." : "Aucun achat sur la période sélectionnée."}
           </div>
         ) : (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-              {filteredItems.map(achat => (
-                <AchatRow key={achat.gmailMessageId} achat={achat} />
-              ))}
-            </div>
-            {cursor && (
-              <div className="flex justify-center mt-6">
-                <button
-                  type="button"
-                  onClick={handleLoadMore}
-                  disabled={loadingMore}
-                  className="cursor-pointer px-6 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loadingMore ? "Chargement…" : "Charger plus"}
-                </button>
-              </div>
-            )}
-          </>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-gray-400 border-b border-[#2c3048]">
+                  <th className="py-2 px-3 font-semibold whitespace-nowrap">Date</th>
+                  <th className="py-2 px-3 font-semibold">Article</th>
+                  <th className="py-2 px-3 font-semibold whitespace-nowrap">Vendeur</th>
+                  <th className="py-2 px-3 font-semibold text-right whitespace-nowrap">Article</th>
+                  <th className="py-2 px-3 font-semibold text-right whitespace-nowrap">Port</th>
+                  <th className="py-2 px-3 font-semibold text-right whitespace-nowrap">Protection</th>
+                  <th className="py-2 px-3 font-semibold text-right whitespace-nowrap">Total</th>
+                  <th className="py-2 px-3 font-semibold text-right whitespace-nowrap">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredItems.map(achat => (
+                  <AchatTableRow key={achat.gmailMessageId} achat={achat} />
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>
@@ -260,7 +250,7 @@ const InlineCopyButton: React.FC<{ text: string; label: string }> = ({ text, lab
       onClick={handle}
       aria-label={`Copier ${label}`}
       title={copied ? "Copié !" : `Copier ${label}`}
-      className={`cursor-pointer ml-0.5 p-1 rounded transition-colors ${
+      className={`cursor-pointer ml-1 p-1 rounded transition-colors ${
         copied ? "text-green-400 bg-green-500/15" : "text-gray-500 hover:text-blue-300 hover:bg-blue-600/15"
       }`}
     >
@@ -269,7 +259,7 @@ const InlineCopyButton: React.FC<{ text: string; label: string }> = ({ text, lab
   );
 };
 
-const AchatRow: React.FC<{ achat: VintedEvent }> = ({ achat }) => {
+const AchatTableRow: React.FC<{ achat: VintedEvent }> = ({ achat }) => {
   const p = achat.payload as {
     beneficiaire?: string;
     article?: string;
@@ -277,33 +267,20 @@ const AchatRow: React.FC<{ achat: VintedEvent }> = ({ achat }) => {
     frais_port?: number;
     frais_protection?: number;
     montant_commande?: number;
-    reduction?: number;
-    transaction_id?: string;
-    mode_paiement?: string;
   };
 
   const [printLoading, setPrintLoading] = useState(false);
   const [printError, setPrintError] = useState<string | null>(null);
 
-  // Récupère le HTML du mail Vinted et déclenche le print dialog du browser via une iframe.
-  // Pratique pour imprimer la facture officielle Vinted (qui sert de justif comptable).
   const handlePrintInvoice = async () => {
     setPrintLoading(true);
     setPrintError(null);
     try {
       const { html, subject } = await fetchVintedEmail(achat.gmailMessageId);
       const wrapped = `<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="utf-8" />
-  <title>${subject || "Facture Vinted"}</title>
-  <style>
-    @page { margin: 1.5cm; }
-    body { font-family: Helvetica, Arial, sans-serif; }
-  </style>
-</head>
-<body>${html}</body>
-</html>`;
+<html lang="fr"><head><meta charset="utf-8" /><title>${subject || "Facture Vinted"}</title>
+<style>@page { margin: 1.5cm; } body { font-family: Helvetica, Arial, sans-serif; }</style>
+</head><body>${html}</body></html>`;
       const iframe = document.createElement("iframe");
       iframe.style.position = "fixed";
       iframe.style.left = "-9999px";
@@ -312,7 +289,6 @@ const AchatRow: React.FC<{ achat: VintedEvent }> = ({ achat }) => {
       iframe.srcdoc = wrapped;
       document.body.appendChild(iframe);
       iframe.onload = () => {
-        // Petit délai pour laisser les images du mail charger avant le print
         setTimeout(() => {
           try {
             iframe.contentWindow?.focus();
@@ -332,71 +308,33 @@ const AchatRow: React.FC<{ achat: VintedEvent }> = ({ achat }) => {
   };
 
   return (
-    <div className="bg-[#1c1f2e] rounded-lg p-4 flex gap-3 items-start">
-      <div className="w-12 h-12 bg-[#23263A] rounded flex items-center justify-center text-gray-600 flex-shrink-0">
-        <FaShoppingCart className="text-xl" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="font-semibold text-sm leading-tight line-clamp-2">
-          {p.article ?? "Article sans titre"}
-        </div>
-
-        <div className="text-xs text-gray-400 mt-1 flex items-center gap-1">
-          <FaUser className="text-[10px]" />
-          <span className="text-gray-300">{p.beneficiaire ?? "?"}</span>
-          {p.beneficiaire && <InlineCopyButton text={p.beneficiaire} label="le pseudo vendeur" />}
-        </div>
-
-        <div className="text-xs text-gray-500 mt-1">{formatDate(achat.eventDate)}</div>
-
-        {/* Breakdown des frais */}
-        {(p.montant_commande !== undefined || p.frais_port !== undefined || p.frais_protection !== undefined) && (
-          <div className="mt-3 pt-3 border-t border-[#2c3048] grid grid-cols-3 gap-2 text-[11px]">
-            {p.montant_commande !== undefined && (
-              <div>
-                <div className="text-gray-500">Article</div>
-                <div className="text-gray-200 font-medium">{formatEur(p.montant_commande)}</div>
-              </div>
-            )}
-            {p.frais_port !== undefined && (
-              <div>
-                <div className="text-gray-500">Port</div>
-                <div className="text-gray-200 font-medium">{formatEur(p.frais_port)}</div>
-              </div>
-            )}
-            {p.frais_protection !== undefined && (
-              <div>
-                <div className="text-gray-500">Protection</div>
-                <div className="text-gray-200 font-medium">{formatEur(p.frais_protection)}</div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Imprimer la facture (le mail Vinted) */}
-        <div className="mt-3">
-          <button
-            type="button"
-            onClick={handlePrintInvoice}
-            disabled={printLoading}
-            className="cursor-pointer inline-flex items-center gap-2 text-sm font-medium px-3.5 py-2 rounded-md bg-orange-600 text-white hover:bg-orange-700 active:bg-orange-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-            aria-label="Imprimer la facture Vinted (mail original)"
-          >
-            <FaPrint className="text-sm" />
-            {printLoading ? "Préparation…" : "Imprimer facture"}
-          </button>
-          {printError && (
-            <div className="text-xs text-red-400 mt-1">{printError}</div>
-          )}
-        </div>
-      </div>
-      <div className="text-right flex-shrink-0">
-        <div className="text-lg font-bold text-orange-400">
-          {p.montant_total !== undefined ? formatEur(p.montant_total) : "—"}
-        </div>
-        <div className="text-[10px] text-gray-500 mt-0.5">payé</div>
-      </div>
-    </div>
+    <tr className="border-b border-[#2c3048]/60 hover:bg-[#1c1f2e]/60 transition-colors">
+      <td className="py-2.5 px-3 text-xs text-gray-400 whitespace-nowrap tabular-nums">{formatDate(achat.eventDate)}</td>
+      <td className="py-2.5 px-3 max-w-md">
+        <div className="text-sm leading-tight line-clamp-2" title={p.article}>{p.article ?? "—"}</div>
+      </td>
+      <td className="py-2.5 px-3 whitespace-nowrap">
+        <span className="text-sm text-gray-300">{p.beneficiaire ?? "—"}</span>
+        {p.beneficiaire && <InlineCopyButton text={p.beneficiaire} label="le pseudo vendeur" />}
+      </td>
+      <td className="py-2.5 px-3 text-right text-xs text-gray-300 tabular-nums whitespace-nowrap">{formatEur(p.montant_commande)}</td>
+      <td className="py-2.5 px-3 text-right text-xs text-gray-400 tabular-nums whitespace-nowrap">{formatEur(p.frais_port)}</td>
+      <td className="py-2.5 px-3 text-right text-xs text-gray-400 tabular-nums whitespace-nowrap">{formatEur(p.frais_protection)}</td>
+      <td className="py-2.5 px-3 text-right text-sm font-bold text-orange-400 tabular-nums whitespace-nowrap">{formatEur(p.montant_total)}</td>
+      <td className="py-2.5 px-3 text-right whitespace-nowrap">
+        <button
+          type="button"
+          onClick={handlePrintInvoice}
+          disabled={printLoading}
+          className="cursor-pointer inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-md bg-orange-600/90 text-white hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          aria-label="Imprimer la facture Vinted"
+          title={printError || "Imprimer la facture (le mail Vinted)"}
+        >
+          <FaPrint className="text-[11px]" />
+          {printLoading ? "…" : "Facture"}
+        </button>
+      </td>
+    </tr>
   );
 };
 
