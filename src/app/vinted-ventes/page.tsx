@@ -159,7 +159,7 @@ const VintedVentesPage = () => {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
               {filteredItems.map(sale => (
                 <SaleRow key={sale.gmailMessageId} sale={sale} />
               ))}
@@ -295,27 +295,26 @@ const SaleRow: React.FC<{ sale: VintedEvent }> = ({ sale }) => {
           )}
         </div>
         <div className="text-xs text-gray-500 mt-1">{formatDate(sale.eventDate)}</div>
-        <div className="mt-2 flex items-center gap-2">
+        <div className="mt-3 flex items-center gap-2">
           <button
             type="button"
             onClick={handlePrintBordereau}
             disabled={bordereauLoading !== "none"}
-            className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="cursor-pointer inline-flex items-center gap-2 text-sm font-medium px-3.5 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
             aria-label="Imprimer le bordereau d'envoi"
           >
-            <FaPrint className="text-[11px]" />
+            <FaPrint className="text-sm" />
             {bordereauLoading === "print" ? "Préparation…" : "Imprimer"}
           </button>
           <button
             type="button"
             onClick={handleDownloadBordereau}
             disabled={bordereauLoading !== "none"}
-            className="inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded text-gray-400 hover:text-blue-300 hover:bg-blue-600/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="cursor-pointer inline-flex items-center justify-center w-9 h-9 rounded-md text-gray-400 hover:text-blue-300 hover:bg-blue-600/15 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-[#2c3048]"
             aria-label="Télécharger le bordereau d'envoi"
             title="Télécharger le PDF"
           >
-            <FaFileDownload className="text-[11px]" />
-            {bordereauLoading === "download" ? "…" : ""}
+            <FaFileDownload className="text-sm" />
           </button>
         </div>
         {bordereauError && (
