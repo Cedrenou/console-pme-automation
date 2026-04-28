@@ -1,42 +1,7 @@
 "use client";
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { fetchVintedEvents, fetchVintedEmail, type VintedEvent } from "@/lib/api";
+import React, { useEffect, useRef, useState } from "react";
+import { fetchVintedEvents, fetchVintedEmail, setVintedEventValidated, type VintedEvent } from "@/lib/api";
 import { FaCalendarAlt, FaSearch, FaRegCopy, FaCheck, FaPrint } from "react-icons/fa";
-
-// Hook qui persiste un Set d'IDs en localStorage. Utilisé pour la case à cocher
-// "achat validé" — c'est un marqueur perso, pas besoin de DynamoDB.
-const VALIDATED_STORAGE_KEY = "vinted-achats:validated";
-
-const useValidatedSet = () => {
-  const [validated, setValidated] = useState<Set<string>>(new Set());
-
-  // Hydrate depuis localStorage au mount (seul useEffect garantit qu'on n'accède pas
-  // à window pendant le SSR)
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(VALIDATED_STORAGE_KEY);
-      if (stored) setValidated(new Set(JSON.parse(stored)));
-    } catch (e) {
-      console.error("Failed to load validated set", e);
-    }
-  }, []);
-
-  const toggle = useCallback((id: string) => {
-    setValidated(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      try {
-        localStorage.setItem(VALIDATED_STORAGE_KEY, JSON.stringify([...next]));
-      } catch (e) {
-        console.error("Failed to save validated set", e);
-      }
-      return next;
-    });
-  }, []);
-
-  return { validated, toggle };
-};
 
 type PeriodId = "30d" | "90d" | "month" | "year" | "all";
 
@@ -108,7 +73,27 @@ const VintedAchatsPage = () => {
   const [loadedCount, setLoadedCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const requestId = useRef(0);
-  const { validated, toggle: toggleValidated } = useValidatedSet();
+
+  // Toggle validation : update optimiste de la liste locale + appel API.
+  // En cas d'échec, on rollback l'état local au précédent.
+  const toggleValidated = async (messageId: string) => {
+    const current = items.find(i => i.gmailMessageId === messageId);
+    if (!current) return;
+    const wasValidated = Boolean(current.validated_at);
+    const optimisticDate = wasValidated ? undefined : new Date().toISOString();
+    setItems(prev => prev.map(i =>
+      i.gmailMessageId === messageId ? { ...i, validated_at: optimisticDate } : i
+    ));
+    try {
+      await setVintedEventValidated(messageId, !wasValidated);
+    } catch (err) {
+      // Rollback
+      setItems(prev => prev.map(i =>
+        i.gmailMessageId === messageId ? { ...i, validated_at: current.validated_at } : i
+      ));
+      console.error("Toggle validation failed", err);
+    }
+  };
 
   const effectiveDates = monthFilter ? monthToDates(monthFilter) : periodToDates(period);
 
@@ -167,7 +152,7 @@ const VintedAchatsPage = () => {
     return acc + (typeof p.montant_total === "number" ? p.montant_total : 0);
   }, 0);
 
-  const validatedCount = filteredItems.filter(it => validated.has(it.gmailMessageId)).length;
+  const validatedCount = filteredItems.filter(it => it.validated_at).length;
 
   return (
     <div className="min-h-screen bg-[#151826] text-white p-8">
@@ -272,7 +257,7 @@ const VintedAchatsPage = () => {
                   <AchatTableRow
                     key={achat.gmailMessageId}
                     achat={achat}
-                    isValidated={validated.has(achat.gmailMessageId)}
+                    isValidated={Boolean(achat.validated_at)}
                     onToggleValidated={() => toggleValidated(achat.gmailMessageId)}
                   />
                 ))}

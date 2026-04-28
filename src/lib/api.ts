@@ -247,6 +247,8 @@ export type VintedEvent = {
   clientId: string;
   gmailMessageId: string;
   eventType: 'achat' | 'vente' | 'boost' | 'vitrine' | 'transfert' | 'refund' | 'transaction';
+  validated_at?: string;
+  validated_by?: string;
   eventDate: string;
   eventTypeIndex: string;
   payload: Record<string, unknown>;
@@ -363,6 +365,29 @@ export async function fetchVintedEmail(messageId: string): Promise<VintedEmail> 
     throw new Error(`Mail introuvable: ${txt}`);
   }
   return parseApiResponse<VintedEmail>(res);
+}
+
+export type VintedValidateResponse = {
+  messageId: string;
+  validated_at: string | null;
+  validated_by: string | null;
+};
+
+export async function setVintedEventValidated(messageId: string, validated: boolean): Promise<VintedValidateResponse> {
+  const url = `${process.env.NEXT_PUBLIC_API_URL}/clients/${VINTED_CLIENT_ID}/vinted/validate`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(await authHeader()),
+    },
+    body: JSON.stringify({ messageId, validated }),
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Erreur lors de la mise à jour : ${txt}`);
+  }
+  return parseApiResponse<VintedValidateResponse>(res);
 }
 
 export async function fetchVintedBordereau(venteId: string): Promise<VintedBordereau> {
