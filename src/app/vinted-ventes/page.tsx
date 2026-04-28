@@ -20,16 +20,45 @@ const PERIODS: { id: PeriodId; label: string }[] = [
 
 const PAGE_SIZE = 50;
 
+// Bornes en UTC pour être cohérent avec le bucketize serveur (cf. cockpit pour le rationale).
 const periodToDates = (id: PeriodId): { from?: string; to?: string } => {
   const now = new Date();
   const to = now.toISOString();
   if (id === "all") return {};
   if (id === "30d") return { from: new Date(now.getTime() - 30 * 86400_000).toISOString(), to };
   if (id === "90d") return { from: new Date(now.getTime() - 90 * 86400_000).toISOString(), to };
-  if (id === "month") return { from: new Date(now.getFullYear(), now.getMonth(), 1).toISOString(), to };
-  if (id === "year") return { from: new Date(now.getFullYear(), 0, 1).toISOString(), to };
+  if (id === "month") return { from: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString(), to };
+  if (id === "year") return { from: new Date(Date.UTC(now.getUTCFullYear(), 0, 1)).toISOString(), to };
   return {};
 };
+
+const MONTH_NAMES_FR = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+
+const generateMonthOptions = (): { value: string; label: string }[] => {
+  const result: { value: string; label: string }[] = [];
+  const now = new Date();
+  const startYear = 2025;
+  for (let y = now.getFullYear(); y >= startYear; y--) {
+    const fromMonth = y === now.getFullYear() ? now.getMonth() : 11;
+    const toMonth = y === startYear ? 0 : 0;
+    for (let m = fromMonth; m >= toMonth; m--) {
+      const value = `${y}-${String(m + 1).padStart(2, "0")}`;
+      const label = `${MONTH_NAMES_FR[m]} ${y}`;
+      result.push({ value, label });
+    }
+  }
+  return result;
+};
+
+const monthToDates = (value: string): { from: string; to: string } => {
+  const [y, m] = value.split("-").map(Number);
+  return {
+    from: new Date(Date.UTC(y, m - 1, 1)).toISOString(),
+    to: new Date(Date.UTC(y, m, 1)).toISOString(),
+  };
+};
+
+const MONTH_OPTIONS = generateMonthOptions();
 
 const formatEur = (n: number): string =>
   n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
@@ -40,7 +69,8 @@ const formatDate = (iso: string): string => {
 };
 
 const VintedVentesPage = () => {
-  const [period, setPeriod] = useState<PeriodId>("30d");
+  const [period, setPeriod] = useState<PeriodId>("month");
+  const [monthFilter, setMonthFilter] = useState<string>("");
   const [search, setSearch] = useState<string>("");
   const [items, setItems] = useState<VintedEvent[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -48,6 +78,18 @@ const VintedVentesPage = () => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const requestId = useRef(0);
+
+  const effectiveDates = monthFilter ? monthToDates(monthFilter) : periodToDates(period);
+
+  // Sur les "petites" fenêtres (1 mois précis, ce mois, 30j) on charge tout d'un coup —
+  // la volumétrie reste raisonnable et l'utilisateur veut un total juste sans cliquer.
+  // Sur 90j/année/tout on garde la pagination manuelle pour éviter une rafale d'appels.
+  const autoLoadAll = !!monthFilter || period === "month" || period === "30d";
+
+  const handleSelectPeriod = (id: PeriodId) => {
+    setPeriod(id);
+    setMonthFilter("");
+  };
 
   // Reset + chargement initial à chaque changement de période
   useEffect(() => {
@@ -58,11 +100,24 @@ const VintedVentesPage = () => {
       setItems([]);
       setCursor(null);
       try {
-        const { from, to } = periodToDates(period);
-        const res = await fetchVintedEvents({ type: "vente", from, to, limit: PAGE_SIZE });
-        if (requestId.current !== myId) return; // une autre requête a démarré
-        setItems(res.items);
-        setCursor(res.nextCursor);
+        const { from, to } = effectiveDates;
+        if (autoLoadAll) {
+          const accumulator: VintedEvent[] = [];
+          let nextCursor: string | null = null;
+          do {
+            const res = await fetchVintedEvents({ type: "vente", from, to, limit: PAGE_SIZE, cursor: nextCursor ?? undefined });
+            if (requestId.current !== myId) return;
+            accumulator.push(...res.items);
+            nextCursor = res.nextCursor;
+            setItems([...accumulator]);
+          } while (nextCursor);
+          setCursor(null);
+        } else {
+          const res = await fetchVintedEvents({ type: "vente", from, to, limit: PAGE_SIZE });
+          if (requestId.current !== myId) return;
+          setItems(res.items);
+          setCursor(res.nextCursor);
+        }
       } catch (err) {
         if (requestId.current !== myId) return;
         console.error(err);
@@ -72,14 +127,15 @@ const VintedVentesPage = () => {
       }
     };
     load();
-  }, [period]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [period, monthFilter]);
 
   const handleLoadMore = async () => {
     if (!cursor || loadingMore) return;
     setLoadingMore(true);
     setError(null);
     try {
-      const { from, to } = periodToDates(period);
+      const { from, to } = effectiveDates;
       const res = await fetchVintedEvents({ type: "vente", from, to, limit: PAGE_SIZE, cursor });
       setItems(prev => [...prev, ...res.items]);
       setCursor(res.nextCursor);
@@ -99,6 +155,12 @@ const VintedVentesPage = () => {
         return haystack.includes(search.toLowerCase());
       });
 
+  const totalRevenue = filteredItems.reduce((acc, it) => {
+    const p = it.payload as { prix_vente?: number };
+    return acc + (typeof p.prix_vente === "number" ? p.prix_vente : 0);
+  }, 0);
+  const pricedCount = filteredItems.filter(it => typeof (it.payload as { prix_vente?: number }).prix_vente === "number").length;
+
   return (
     <div className="min-h-screen bg-[#151826] text-white p-8">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
@@ -106,32 +168,59 @@ const VintedVentesPage = () => {
           <h1 className="text-3xl font-bold mb-2">Ventes Vinted</h1>
           <p className="text-gray-400">Consulte tes ventes et télécharge les bordereaux d&apos;envoi.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {PERIODS.map(p => (
-            <button
-              key={p.id}
-              onClick={() => setPeriod(p.id)}
-              aria-pressed={period === p.id}
-              className={`px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 ${
-                period === p.id
-                  ? "bg-blue-600 text-white"
-                  : "bg-[#23263A] text-gray-300 hover:bg-[#2c3048]"
-              }`}
-            >
-              <FaCalendarAlt className="text-sm" />
-              {p.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap gap-2 items-center">
+          {PERIODS.map(p => {
+            const isActive = period === p.id && !monthFilter;
+            return (
+              <button
+                key={p.id}
+                onClick={() => handleSelectPeriod(p.id)}
+                aria-pressed={isActive}
+                className={`cursor-pointer px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 ${
+                  isActive ? "bg-blue-600 text-white" : "bg-[#23263A] text-gray-300 hover:bg-[#2c3048]"
+                }`}
+              >
+                <FaCalendarAlt className="text-sm" />
+                {p.label}
+              </button>
+            );
+          })}
+          <div className="h-6 w-px bg-[#2c3048] mx-1" aria-hidden />
+          <select
+            value={monthFilter}
+            onChange={e => setMonthFilter(e.target.value)}
+            aria-label="Filtrer par mois"
+            className={`cursor-pointer px-4 py-2 rounded-lg font-semibold transition-colors text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              monthFilter ? "bg-blue-600 text-white" : "bg-[#23263A] text-gray-300 hover:bg-[#2c3048]"
+            }`}
+          >
+            <option value="">📅 Choisir un mois…</option>
+            {MONTH_OPTIONS.map(m => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
+          </select>
         </div>
       </div>
 
       <div className="bg-[#23263A] rounded-2xl shadow-lg p-6">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <h2 className="text-xl font-bold">Liste des ventes</h2>
             <span className="text-sm text-gray-400">
-              {loading ? "Chargement…" : `${filteredItems.length}${cursor ? "+" : ""} affichées`}
+              {loading
+                ? autoLoadAll
+                  ? `Chargement… (${items.length})`
+                  : "Chargement…"
+                : `${filteredItems.length}${cursor ? "+" : ""} affichées`}
             </span>
+            {!loading && filteredItems.length > 0 && (
+              <span
+                className="text-sm bg-emerald-600/15 text-emerald-300 px-3 py-1 rounded-full font-semibold"
+                title={pricedCount < filteredItems.length ? `${filteredItems.length - pricedCount} vente(s) sans prix` : "Somme des prix de vente"}
+              >
+                CA : {formatEur(totalRevenue)}
+              </span>
+            )}
           </div>
           <div className="relative">
             <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm" />
@@ -151,7 +240,7 @@ const VintedVentesPage = () => {
           </div>
         )}
 
-        {loading ? (
+        {loading && items.length === 0 ? (
           <div className="text-gray-400 italic py-8 text-center">Chargement des ventes…</div>
         ) : filteredItems.length === 0 ? (
           <div className="text-gray-500 italic py-8 text-center">
@@ -164,7 +253,7 @@ const VintedVentesPage = () => {
                 <SaleRow key={sale.gmailMessageId} sale={sale} />
               ))}
             </div>
-            {cursor && (
+            {cursor && !autoLoadAll && (
               <div className="flex justify-center mt-6">
                 <button
                   type="button"

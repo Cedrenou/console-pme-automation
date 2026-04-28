@@ -249,6 +249,7 @@ export type VintedEvent = {
   eventType: 'achat' | 'vente' | 'boost' | 'vitrine' | 'transfert' | 'refund' | 'transaction';
   validated_at?: string;
   validated_by?: string;
+  compta_label?: string;
   eventDate: string;
   eventTypeIndex: string;
   payload: Record<string, unknown>;
@@ -371,6 +372,7 @@ export type VintedValidateResponse = {
   messageId: string;
   validated_at: string | null;
   validated_by: string | null;
+  compta_label: string | null;
 };
 
 export async function setVintedEventValidated(messageId: string, validated: boolean): Promise<VintedValidateResponse> {
@@ -382,6 +384,25 @@ export async function setVintedEventValidated(messageId: string, validated: bool
       ...(await authHeader()),
     },
     body: JSON.stringify({ messageId, validated }),
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Erreur lors de la mise à jour : ${txt}`);
+  }
+  return parseApiResponse<VintedValidateResponse>(res);
+}
+
+// Met à jour le libellé compta libre saisi par la secrétaire ("Achat 12", "Annulation 3", …).
+// Une string vide efface le label en base.
+export async function setVintedEventComptaLabel(messageId: string, comptaLabel: string): Promise<VintedValidateResponse> {
+  const url = `${process.env.NEXT_PUBLIC_API_URL}/clients/${VINTED_CLIENT_ID}/vinted/validate`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(await authHeader()),
+    },
+    body: JSON.stringify({ messageId, comptaLabel }),
   });
   if (!res.ok) {
     const txt = await res.text();

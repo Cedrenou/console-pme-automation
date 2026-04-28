@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  FaCogs, FaUserCircle, FaChartLine, FaShoppingBag, FaShoppingCart, FaSignOutAlt,
+  FaCogs, FaUserCircle, FaChartLine, FaShoppingBag, FaShoppingCart, FaSignOutAlt, FaFileInvoiceDollar,
 } from "react-icons/fa";
 import { createClient } from "@/utils/supabase/client";
 
@@ -11,6 +11,7 @@ const links = [
   { href: "/", label: "Cockpit Vinted", icon: <FaChartLine /> },
   { href: "/vinted-ventes", label: "Ventes Vinted", icon: <FaShoppingBag /> },
   { href: "/vinted-achats", label: "Achats Vinted", icon: <FaShoppingCart /> },
+  { href: "/vinted-compta-achats", label: "Compta — Achats", icon: <FaFileInvoiceDollar /> },
   { href: "/automatisations", label: "Automatisations", icon: <FaCogs /> },
 ];
 

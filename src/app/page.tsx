@@ -20,16 +20,48 @@ const PERIODS: { id: PeriodId; label: string }[] = [
   { id: "all", label: "Tout" }
 ];
 
+// On aligne TOUTES les bornes sur UTC pour être cohérent avec le bucketize serveur
+// (timeline.js fait getUTCFullYear/getUTCMonth). Sinon en TZ Paris, une vente du 1er avril
+// 00h-02h locale tombait dans "Ce mois" (Paris) côté KPI mais dans le bucket de mars (UTC)
+// côté graphique → écart de quelques centaines d'€ en bordure de mois.
 const periodToDates = (id: PeriodId): { from?: string; to?: string } => {
   const now = new Date();
   const to = now.toISOString();
   if (id === "all") return {};
   if (id === "30d") return { from: new Date(now.getTime() - 30 * 86400_000).toISOString(), to };
   if (id === "90d") return { from: new Date(now.getTime() - 90 * 86400_000).toISOString(), to };
-  if (id === "month") return { from: new Date(now.getFullYear(), now.getMonth(), 1).toISOString(), to };
-  if (id === "year") return { from: new Date(now.getFullYear(), 0, 1).toISOString(), to };
+  if (id === "month") return { from: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString(), to };
+  if (id === "year") return { from: new Date(Date.UTC(now.getUTCFullYear(), 0, 1)).toISOString(), to };
   return {};
 };
+
+const MONTH_NAMES_FR = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+
+const generateMonthOptions = (): { value: string; label: string }[] => {
+  const result: { value: string; label: string }[] = [];
+  const now = new Date();
+  const startYear = 2025;
+  for (let y = now.getFullYear(); y >= startYear; y--) {
+    const fromMonth = y === now.getFullYear() ? now.getMonth() : 11;
+    const toMonth = y === startYear ? 0 : 0;
+    for (let m = fromMonth; m >= toMonth; m--) {
+      const value = `${y}-${String(m + 1).padStart(2, "0")}`;
+      const label = `${MONTH_NAMES_FR[m]} ${y}`;
+      result.push({ value, label });
+    }
+  }
+  return result;
+};
+
+const monthToDates = (value: string): { from: string; to: string } => {
+  const [y, m] = value.split("-").map(Number);
+  return {
+    from: new Date(Date.UTC(y, m - 1, 1)).toISOString(),
+    to: new Date(Date.UTC(y, m, 1)).toISOString(),
+  };
+};
+
+const MONTH_OPTIONS = generateMonthOptions();
 
 const formatEur = (n: number): string =>
   n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
@@ -42,7 +74,8 @@ const formatDate = (iso: string): string => {
 };
 
 const VintedCockpitPage = () => {
-  const [period, setPeriod] = useState<PeriodId>("30d");
+  const [period, setPeriod] = useState<PeriodId>("month");
+  const [monthFilter, setMonthFilter] = useState<string>("");
   const [stats, setStats] = useState<VintedStats | null>(null);
   const [timeline, setTimeline] = useState<VintedTimeline | null>(null);
   const [patterns, setPatterns] = useState<VintedPatterns | null>(null);
@@ -50,12 +83,19 @@ const VintedCockpitPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const effectiveDates = monthFilter ? monthToDates(monthFilter) : periodToDates(period);
+
+  const handleSelectPeriod = (id: PeriodId) => {
+    setPeriod(id);
+    setMonthFilter("");
+  };
+
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       setError(null);
       try {
-        const { from, to } = periodToDates(period);
+        const { from, to } = effectiveDates;
         // La timeline charge toujours les 24 derniers mois (saisonnalité indépendante du sélecteur).
         const now = new Date();
         const timelineFrom = new Date(now.getFullYear() - 2, now.getMonth(), 1).toISOString();
@@ -77,7 +117,8 @@ const VintedCockpitPage = () => {
       }
     };
     load();
-  }, [period]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [period, monthFilter]);
 
   const roiBoost = stats && stats.boosts.total_cost > 0
     ? (stats.sales.total_revenue / stats.boosts.total_cost).toFixed(1) + "x"
@@ -87,7 +128,6 @@ const VintedCockpitPage = () => {
     ? stats.transactions.total_net_recu
         - stats.boosts.total_cost
         - stats.vitrines.total_cost
-        - stats.refunds.sunset_vendeur.total
     : 0;
 
   const tauxFraisVinted = stats && stats.transactions.total_revenue > 0
@@ -101,22 +141,37 @@ const VintedCockpitPage = () => {
           <h1 className="text-3xl font-bold mb-2">Cockpit Vinted</h1>
           <p className="text-gray-400">CA, ventes, boosts et trésorerie quasi-temps réel.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {PERIODS.map(p => (
-            <button
-              key={p.id}
-              onClick={() => setPeriod(p.id)}
-              aria-pressed={period === p.id}
-              className={`px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 ${
-                period === p.id
-                  ? "bg-blue-600 text-white"
-                  : "bg-[#23263A] text-gray-300 hover:bg-[#2c3048]"
-              }`}
-            >
-              <FaCalendarAlt className="text-sm" />
-              {p.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap gap-2 items-center">
+          {PERIODS.map(p => {
+            const isActive = period === p.id && !monthFilter;
+            return (
+              <button
+                key={p.id}
+                onClick={() => handleSelectPeriod(p.id)}
+                aria-pressed={isActive}
+                className={`cursor-pointer px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 ${
+                  isActive ? "bg-blue-600 text-white" : "bg-[#23263A] text-gray-300 hover:bg-[#2c3048]"
+                }`}
+              >
+                <FaCalendarAlt className="text-sm" />
+                {p.label}
+              </button>
+            );
+          })}
+          <div className="h-6 w-px bg-[#2c3048] mx-1" aria-hidden />
+          <select
+            value={monthFilter}
+            onChange={e => setMonthFilter(e.target.value)}
+            aria-label="Filtrer par mois"
+            className={`cursor-pointer px-4 py-2 rounded-lg font-semibold transition-colors text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              monthFilter ? "bg-blue-600 text-white" : "bg-[#23263A] text-gray-300 hover:bg-[#2c3048]"
+            }`}
+          >
+            <option value="">📅 Choisir un mois…</option>
+            {MONTH_OPTIONS.map(m => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -172,17 +227,10 @@ const VintedCockpitPage = () => {
               hint={`${formatInt(stats.vitrines.count)} mises en vitrine`}
             />
             <KpiCard
-              icon={<FaUndo />}
-              label="Refunds"
-              value={formatEur(stats.refunds.total_amount)}
-              hint={`${formatInt(stats.refunds.count)} (${stats.refunds.sunset_acheteur.count} achats / ${stats.refunds.sunset_vendeur.count} ventes)`}
-              accent="text-red-400"
-            />
-            <KpiCard
               icon={<FaEuroSign />}
               label="Marge nette estimée"
               value={formatEur(margeNetteEstimee)}
-              hint="net Vinted − boosts − vitrines − refunds"
+              hint="net Vinted − boosts − vitrines"
               accent="text-emerald-300"
             />
           </div>
@@ -265,15 +313,32 @@ const SeasonalityChart: React.FC<SeasonalityChartProps> = ({ buckets }) => {
   });
 
   // Couleur saisonnière : printemps/été en chaud (orange), automne/hiver en froid (bleu).
-  const colorFor = (monthIdx: number): string => {
+  const seasonalColor = (monthIdx: number): string => {
     if (monthIdx >= 2 && monthIdx <= 8) return "#f97316"; // mars-sept
     return "#3b82f6"; // oct-fév
   };
+
+  const maxTotal = data.reduce((m, d) => Math.max(m, d.total), 0);
 
   return (
     <div className="w-full h-72">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
+          <defs>
+            <linearGradient id="goldBar" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#fff7c2" />
+              <stop offset="35%" stopColor="#fcd34d" />
+              <stop offset="65%" stopColor="#f59e0b" />
+              <stop offset="100%" stopColor="#b45309" />
+            </linearGradient>
+            <filter id="goldGlow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#2c3048" vertical={false} />
           <XAxis
             dataKey="label"
@@ -298,13 +363,25 @@ const SeasonalityChart: React.FC<SeasonalityChartProps> = ({ buckets }) => {
               fontSize: "0.875rem"
             }}
             labelStyle={{ color: "#e5e7eb", fontWeight: "600", marginBottom: "0.25rem" }}
+            itemStyle={{ color: "#e5e7eb" }}
             formatter={(value, name) => {
               if (name === "total" && typeof value === "number") return [formatEur(value), "CA"];
               return [String(value ?? ""), String(name ?? "")];
             }}
           />
           <Bar dataKey="total" radius={[6, 6, 0, 0]}>
-            {data.map((d, i) => <Cell key={i} fill={colorFor(d.monthIdx)} />)}
+            {data.map((d, i) => {
+              const isRecord = d.total === maxTotal && maxTotal > 0;
+              return (
+                <Cell
+                  key={i}
+                  fill={isRecord ? "url(#goldBar)" : seasonalColor(d.monthIdx)}
+                  filter={isRecord ? "url(#goldGlow)" : undefined}
+                  stroke={isRecord ? "#fde68a" : undefined}
+                  strokeWidth={isRecord ? 1 : 0}
+                />
+              );
+            })}
           </Bar>
         </BarChart>
       </ResponsiveContainer>
@@ -316,6 +393,13 @@ const SeasonalityChart: React.FC<SeasonalityChartProps> = ({ buckets }) => {
         <span className="flex items-center gap-1.5">
           <span className="inline-block w-3 h-3 rounded-sm" style={{ background: "#3b82f6" }} />
           Saison basse
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span
+            className="inline-block w-3 h-3 rounded-sm"
+            style={{ background: "linear-gradient(180deg, #fff7c2 0%, #fcd34d 35%, #f59e0b 65%, #b45309 100%)" }}
+          />
+          Record
         </span>
       </div>
     </div>

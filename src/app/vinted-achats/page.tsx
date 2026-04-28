@@ -15,14 +15,15 @@ const PERIODS: { id: PeriodId; label: string }[] = [
 
 const PAGE_SIZE = 200;
 
+// Bornes en UTC pour être cohérent avec le bucketize serveur (cf. cockpit pour le rationale).
 const periodToDates = (id: PeriodId): { from?: string; to?: string } => {
   const now = new Date();
   const to = now.toISOString();
   if (id === "all") return {};
   if (id === "30d") return { from: new Date(now.getTime() - 30 * 86400_000).toISOString(), to };
   if (id === "90d") return { from: new Date(now.getTime() - 90 * 86400_000).toISOString(), to };
-  if (id === "month") return { from: new Date(now.getFullYear(), now.getMonth(), 1).toISOString(), to };
-  if (id === "year") return { from: new Date(now.getFullYear(), 0, 1).toISOString(), to };
+  if (id === "month") return { from: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString(), to };
+  if (id === "year") return { from: new Date(Date.UTC(now.getUTCFullYear(), 0, 1)).toISOString(), to };
   return {};
 };
 
@@ -65,10 +66,11 @@ const formatDate = (iso: string): string => {
 const MONTH_OPTIONS = generateMonthOptions();
 
 const VintedAchatsPage = () => {
-  const [period, setPeriod] = useState<PeriodId>("30d");
+  const [period, setPeriod] = useState<PeriodId>("month");
   const [monthFilter, setMonthFilter] = useState<string>("");
   const [search, setSearch] = useState<string>("");
   const [items, setItems] = useState<VintedEvent[]>([]);
+  const [refundEvents, setRefundEvents] = useState<VintedEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadedCount, setLoadedCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -109,11 +111,16 @@ const VintedAchatsPage = () => {
       setLoading(true);
       setError(null);
       setItems([]);
+      setRefundEvents([]);
       setLoadedCount(0);
       const accumulator: VintedEvent[] = [];
       let cursor: string | null = null;
       try {
         const { from, to } = effectiveDates;
+        // Charge les refunds en parallèle (peu volumineux, sans pagination nécessaire)
+        const refundPromise = fetchVintedEvents({ type: "refund", from, to, limit: PAGE_SIZE })
+          .then(r => r.items.filter(e => (e.payload as { is_sunset_acheteur?: boolean })?.is_sunset_acheteur === true))
+          .catch(() => [] as VintedEvent[]);
         do {
           const res = await fetchVintedEvents({
             type: "achat",
@@ -127,6 +134,9 @@ const VintedAchatsPage = () => {
           setLoadedCount(accumulator.length);
           setItems([...accumulator]);
         } while (cursor);
+        const refunds = await refundPromise;
+        if (requestId.current !== myId) return;
+        setRefundEvents(refunds);
       } catch (err) {
         if (requestId.current !== myId) return;
         console.error(err);
@@ -151,6 +161,15 @@ const VintedAchatsPage = () => {
     const p = it.payload as { montant_total?: number };
     return acc + (typeof p.montant_total === "number" ? p.montant_total : 0);
   }, 0);
+
+  // Refunds = achats annulés par le vendeur tiers (à déduire pour obtenir le coût d'achat net).
+  // On ne filtre PAS par search car les refunds ne portent pas le même article/beneficiaire.
+  const refundsTotal = refundEvents.reduce((acc, it) => {
+    const p = it.payload as { montant?: number };
+    return acc + (typeof p.montant === "number" ? p.montant : 0);
+  }, 0);
+  const refundsCount = refundEvents.length;
+  const totalNet = totalSpent - refundsTotal;
 
   const validatedCount = filteredItems.filter(it => it.validated_at).length;
 
@@ -204,8 +223,25 @@ const VintedAchatsPage = () => {
             </span>
             {!loading && filteredItems.length > 0 && (
               <>
-                <span className="text-sm bg-blue-600/15 text-blue-300 px-3 py-1 rounded-full">
-                  Total : {formatEur(totalSpent)}
+                <span
+                  className="text-sm bg-blue-600/15 text-blue-300 px-3 py-1 rounded-full"
+                  title="Somme des montants d'achat (avant déduction des annulations)"
+                >
+                  Brut : {formatEur(totalSpent)}
+                </span>
+                {refundsCount > 0 && (
+                  <span
+                    className="text-sm bg-red-600/15 text-red-300 px-3 py-1 rounded-full"
+                    title="Achats annulés par le vendeur tiers — déduits du brut"
+                  >
+                    − {formatEur(refundsTotal)} ({refundsCount} annulé{refundsCount > 1 ? "s" : ""})
+                  </span>
+                )}
+                <span
+                  className="text-sm bg-emerald-600/15 text-emerald-300 px-3 py-1 rounded-full font-semibold"
+                  title="Coût d'achat réel après déduction des refunds"
+                >
+                  Net : {formatEur(totalNet)}
                 </span>
                 <span
                   className="text-sm bg-green-600/15 text-green-300 px-3 py-1 rounded-full"
