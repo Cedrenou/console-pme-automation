@@ -4,9 +4,10 @@ import {
   fetchVintedEvents, setVintedEventValidated, setVintedEventComptaLabel,
   type VintedEvent
 } from "@/lib/api";
-import { FaCalendarAlt, FaMagic } from "react-icons/fa";
+import { FaCalendarAlt, FaMagic, FaSearch, FaFileExcel } from "react-icons/fa";
 import { monthToDates, formatEur, formatDateOnly, formatModePaiementAchat } from "./utils";
 import { CopyableId } from "./CopyableId";
+import { filterBySearch, buildHaystack, downloadXlsx } from "./exports";
 
 const PAGE_SIZE = 200;
 
@@ -24,6 +25,7 @@ export const ComptaRemboursementsTab: React.FC<{ month: string }> = ({ month }) 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [autoNumbering, setAutoNumbering] = useState(false);
+  const [search, setSearch] = useState("");
   const requestId = useRef(0);
 
   useEffect(() => {
@@ -70,12 +72,45 @@ export const ComptaRemboursementsTab: React.FC<{ month: string }> = ({ month }) 
     return [...items].sort((a, b) => a.eventDate.localeCompare(b.eventDate));
   }, [items]);
 
+  const filteredItems = useMemo(() => filterBySearch(sortedItems, search, refund => {
+    const p = refund.payload as {
+      commande?: string; montant?: number; mode_paiement?: string;
+      transaction_id?: string; destinataire?: string;
+    };
+    return buildHaystack([p.commande, p.mode_paiement, p.transaction_id, p.destinataire, refund.compta_label, p.montant]);
+  }), [sortedItems, search]);
+
   const totalRembourse = useMemo(() => {
-    return sortedItems.reduce((acc, it) => {
+    return filteredItems.reduce((acc, it) => {
       const p = it.payload as { montant?: number };
       return acc + (typeof p.montant === "number" ? p.montant : 0);
     }, 0);
-  }, [sortedItems]);
+  }, [filteredItems]);
+
+  const handleExport = () => {
+    const headers = [
+      "Date de réception", "Date remboursement", "Article", "Montant",
+      "Mode de paiement", "Transaction ID", "Destinataire", "Vérifié", "N°Transaction"
+    ];
+    const rows = filteredItems.map(refund => {
+      const p = refund.payload as {
+        commande?: string; montant?: number; mode_paiement?: string;
+        transaction_id?: string; destinataire?: string; date_remboursement?: string;
+      };
+      return [
+        formatDateOnly(refund.eventDate),
+        p.date_remboursement ?? "",
+        p.commande ?? "",
+        p.montant ?? "",
+        p.mode_paiement ?? "",
+        p.transaction_id ?? "",
+        p.destinataire ?? "",
+        refund.validated_at ? "Oui" : "",
+        refund.compta_label ?? ""
+      ];
+    });
+    downloadXlsx(`compta-remboursements-${month}.xlsx`, headers, rows);
+  };
 
   const toggleValidated = async (messageId: string) => {
     const current = items.find(i => i.gmailMessageId === messageId);
@@ -155,26 +190,54 @@ export const ComptaRemboursementsTab: React.FC<{ month: string }> = ({ month }) 
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-3 mb-3 px-2">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <FaCalendarAlt className="text-gray-400 text-sm" />
           <span className="text-sm text-gray-300">
-            {loading ? `Chargement… (${items.length})` : `${sortedItems.length} remboursements`}
+            {loading
+              ? `Chargement… (${items.length})`
+              : search
+              ? `${filteredItems.length} / ${sortedItems.length} remboursements`
+              : `${sortedItems.length} remboursements`}
           </span>
+          <div className="relative">
+            <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs" />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Rechercher par montant ou nom…"
+              className="pl-8 pr-3 py-1.5 rounded-md bg-[#1c1f2e] border border-[#2c3048] text-xs text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 w-60"
+            />
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={autoNumberAll}
-          disabled={loading || autoNumbering || sortedItems.length === 0}
-          className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors text-sm bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Remplit les cases vides : Annulation 1, 2, 3…"
-        >
-          <FaMagic className="text-sm" />
-          {autoNumbering ? "Numérotation…" : "Auto-numéroter"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={loading || filteredItems.length === 0}
+            className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors text-sm bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Exporter le tableau filtré au format Excel"
+          >
+            <FaFileExcel className="text-sm" />
+            Exporter Excel
+          </button>
+          <button
+            type="button"
+            onClick={autoNumberAll}
+            disabled={loading || autoNumbering || sortedItems.length === 0}
+            className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors text-sm bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Remplit les cases vides : Annulation 1, 2, 3…"
+          >
+            <FaMagic className="text-sm" />
+            {autoNumbering ? "Numérotation…" : "Auto-numéroter"}
+          </button>
+        </div>
       </div>
 
-      {sortedItems.length === 0 && !loading ? (
-        <div className="text-gray-500 italic py-8 text-center">Aucun remboursement sur le mois sélectionné.</div>
+      {filteredItems.length === 0 && !loading ? (
+        <div className="text-gray-500 italic py-8 text-center">
+          {search ? "Aucun remboursement ne matche cette recherche." : "Aucun remboursement sur le mois sélectionné."}
+        </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
@@ -192,7 +255,7 @@ export const ComptaRemboursementsTab: React.FC<{ month: string }> = ({ month }) 
               </tr>
             </thead>
             <tbody>
-              {sortedItems.map(refund => (
+              {filteredItems.map(refund => (
                 <RefundRow
                   key={refund.gmailMessageId}
                   refund={refund}

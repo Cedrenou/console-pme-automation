@@ -4,8 +4,9 @@ import {
   fetchVintedEvents, setVintedEventValidated, setVintedEventComptaLabel,
   type VintedEvent
 } from "@/lib/api";
-import { FaCalendarAlt, FaMagic } from "react-icons/fa";
+import { FaCalendarAlt, FaMagic, FaSearch, FaFileExcel } from "react-icons/fa";
 import { monthToDates, formatEur, formatDateOnly, formatMoyenPaiementBoost } from "./utils";
+import { filterBySearch, buildHaystack, downloadXlsx } from "./exports";
 
 const PAGE_SIZE = 200;
 
@@ -14,6 +15,7 @@ export const ComptaVitrinesTab: React.FC<{ month: string }> = ({ month }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [autoNumbering, setAutoNumbering] = useState(false);
+  const [search, setSearch] = useState("");
   const requestId = useRef(0);
 
   useEffect(() => {
@@ -53,16 +55,38 @@ export const ComptaVitrinesTab: React.FC<{ month: string }> = ({ month }) => {
     return [...items].sort((a, b) => a.eventDate.localeCompare(b.eventDate));
   }, [items]);
 
+  const filteredItems = useMemo(() => filterBySearch(sortedItems, search, vitrine => {
+    const p = vitrine.payload as { montant_boost?: number; reduction?: number; montant_total?: number; moyen_paiement?: string };
+    return buildHaystack([p.moyen_paiement, vitrine.compta_label, p.montant_boost, p.reduction, p.montant_total]);
+  }), [sortedItems, search]);
+
   const totals = useMemo(() => {
     let montantBoost = 0, reduction = 0, montantTotal = 0;
-    for (const it of sortedItems) {
+    for (const it of filteredItems) {
       const p = it.payload as { montant_boost?: number; reduction?: number; montant_total?: number };
       montantBoost += typeof p.montant_boost === "number" ? p.montant_boost : 0;
       reduction += typeof p.reduction === "number" ? p.reduction : 0;
       montantTotal += typeof p.montant_total === "number" ? p.montant_total : 0;
     }
     return { montantBoost, reduction, montantTotal };
-  }, [sortedItems]);
+  }, [filteredItems]);
+
+  const handleExport = () => {
+    const headers = ["Date", "Montant Vitrine", "Réduction", "Montant Total", "Moyen de Paiement", "Vérifié", "N°Transaction"];
+    const rows = filteredItems.map(vitrine => {
+      const p = vitrine.payload as { montant_boost?: number; reduction?: number; montant_total?: number; moyen_paiement?: string };
+      return [
+        formatDateOnly(vitrine.eventDate),
+        p.montant_boost ?? "",
+        p.reduction ?? "",
+        p.montant_total ?? "",
+        p.moyen_paiement ?? "",
+        vitrine.validated_at ? "Oui" : "",
+        vitrine.compta_label ?? ""
+      ];
+    });
+    downloadXlsx(`compta-vitrines-${month}.xlsx`, headers, rows);
+  };
 
   const toggleValidated = async (messageId: string) => {
     const current = items.find(i => i.gmailMessageId === messageId);
@@ -140,26 +164,54 @@ export const ComptaVitrinesTab: React.FC<{ month: string }> = ({ month }) => {
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-3 mb-3 px-2">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <FaCalendarAlt className="text-gray-400 text-sm" />
           <span className="text-sm text-gray-300">
-            {loading ? `Chargement… (${items.length})` : `${sortedItems.length} vitrines`}
+            {loading
+              ? `Chargement… (${items.length})`
+              : search
+              ? `${filteredItems.length} / ${sortedItems.length} vitrines`
+              : `${sortedItems.length} vitrines`}
           </span>
+          <div className="relative">
+            <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs" />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Rechercher par montant ou nom…"
+              className="pl-8 pr-3 py-1.5 rounded-md bg-[#1c1f2e] border border-[#2c3048] text-xs text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 w-60"
+            />
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={autoNumberAll}
-          disabled={loading || autoNumbering || sortedItems.length === 0}
-          className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors text-sm bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Remplit les cases N°Transaction vides : Vitrine 1, 2, 3…"
-        >
-          <FaMagic className="text-sm" />
-          {autoNumbering ? "Numérotation…" : "Auto-numéroter"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={loading || filteredItems.length === 0}
+            className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors text-sm bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Exporter le tableau filtré au format Excel"
+          >
+            <FaFileExcel className="text-sm" />
+            Exporter Excel
+          </button>
+          <button
+            type="button"
+            onClick={autoNumberAll}
+            disabled={loading || autoNumbering || sortedItems.length === 0}
+            className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors text-sm bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Remplit les cases N°Transaction vides : Vitrine 1, 2, 3…"
+          >
+            <FaMagic className="text-sm" />
+            {autoNumbering ? "Numérotation…" : "Auto-numéroter"}
+          </button>
+        </div>
       </div>
 
-      {sortedItems.length === 0 && !loading ? (
-        <div className="text-gray-500 italic py-8 text-center">Aucune vitrine sur le mois sélectionné.</div>
+      {filteredItems.length === 0 && !loading ? (
+        <div className="text-gray-500 italic py-8 text-center">
+          {search ? "Aucune vitrine ne matche cette recherche." : "Aucune vitrine sur le mois sélectionné."}
+        </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
@@ -175,7 +227,7 @@ export const ComptaVitrinesTab: React.FC<{ month: string }> = ({ month }) => {
               </tr>
             </thead>
             <tbody>
-              {sortedItems.map(vitrine => (
+              {filteredItems.map(vitrine => (
                 <VitrineRow
                   key={vitrine.gmailMessageId}
                   vitrine={vitrine}
