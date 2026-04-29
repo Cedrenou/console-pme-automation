@@ -6,20 +6,26 @@ import {
   FaCogs, FaUserCircle, FaChartLine, FaShoppingBag, FaShoppingCart, FaSignOutAlt, FaFileInvoiceDollar, FaUsers,
 } from "react-icons/fa";
 import { createClient } from "@/utils/supabase/client";
+import { useUserRole, type UserRole } from "@/utils/supabase/useUserRole";
 
-const links = [
-  { href: "/", label: "Cockpit Vinted", icon: <FaChartLine /> },
-  { href: "/vinted-ventes", label: "Ventes Vinted", icon: <FaShoppingBag /> },
-  { href: "/vinted-achats", label: "Achats Vinted", icon: <FaShoppingCart /> },
-  { href: "/clients", label: "Clients", icon: <FaUsers /> },
+type LinkDef = { href: string; label: string; icon: React.ReactNode; roles?: UserRole[] };
+
+// Sans `roles`, le lien est visible pour tous. Le rôle "comptable" ne voit que /compta.
+const links: LinkDef[] = [
+  { href: "/", label: "Cockpit Vinted", icon: <FaChartLine />, roles: ["admin"] },
+  { href: "/vinted-ventes", label: "Ventes Vinted", icon: <FaShoppingBag />, roles: ["admin"] },
+  { href: "/vinted-achats", label: "Achats Vinted", icon: <FaShoppingCart />, roles: ["admin"] },
+  { href: "/clients", label: "Clients", icon: <FaUsers />, roles: ["admin"] },
   { href: "/compta", label: "Compta", icon: <FaFileInvoiceDollar /> },
-  { href: "/automatisations", label: "Automatisations", icon: <FaCogs /> },
+  { href: "/automatisations", label: "Automatisations", icon: <FaCogs />, roles: ["admin"] },
 ];
 
 const Sidebar = () => {
   const router = useRouter();
   const [email, setEmail] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
+  const { role } = useUserRole();
+  const visibleLinks = links.filter(l => !l.roles || l.roles.includes(role));
 
   useEffect(() => {
     const supabase = createClient();
@@ -46,7 +52,7 @@ const Sidebar = () => {
           Client Lambdas
         </div>
         <ul className="flex flex-col gap-1 px-2">
-          {links.map(link => (
+          {visibleLinks.map(link => (
             <li key={link.href}>
               <Link
                 href={link.href}
@@ -63,11 +69,18 @@ const Sidebar = () => {
         {email && (
           <div className="flex items-center gap-3 px-2 py-3 rounded-lg bg-[#23263A]">
             <FaUserCircle className="text-2xl text-blue-400 flex-shrink-0" />
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <div className="font-semibold text-sm truncate" title={email}>
                 {email}
               </div>
-              <div className="text-xs text-gray-400">Sunset Rider</div>
+              <div className="text-xs text-gray-400 flex items-center gap-2">
+                <span>Sunset Rider</span>
+                {role === "comptable" && (
+                  <span className="bg-purple-600/30 text-purple-300 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded font-semibold">
+                    Comptable
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         )}

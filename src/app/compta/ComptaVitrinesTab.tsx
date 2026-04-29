@@ -10,7 +10,7 @@ import { filterBySearch, buildHaystack, downloadXlsx } from "./exports";
 
 const PAGE_SIZE = 200;
 
-export const ComptaVitrinesTab: React.FC<{ month: string }> = ({ month }) => {
+export const ComptaVitrinesTab: React.FC<{ month: string; readOnly?: boolean }> = ({ month, readOnly = false }) => {
   const [items, setItems] = useState<VintedEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -195,16 +195,18 @@ export const ComptaVitrinesTab: React.FC<{ month: string }> = ({ month }) => {
             <FaFileExcel className="text-sm" />
             Exporter Excel
           </button>
-          <button
-            type="button"
-            onClick={autoNumberAll}
-            disabled={loading || autoNumbering || sortedItems.length === 0}
-            className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors text-sm bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Remplit les cases N°Transaction vides : Vitrine 1, 2, 3…"
-          >
-            <FaMagic className="text-sm" />
-            {autoNumbering ? "Numérotation…" : "Auto-numéroter"}
-          </button>
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={autoNumberAll}
+              disabled={loading || autoNumbering || sortedItems.length === 0}
+              className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors text-sm bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Remplit les cases N°Transaction vides : Vitrine 1, 2, 3…"
+            >
+              <FaMagic className="text-sm" />
+              {autoNumbering ? "Numérotation…" : "Auto-numéroter"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -231,6 +233,7 @@ export const ComptaVitrinesTab: React.FC<{ month: string }> = ({ month }) => {
                 <VitrineRow
                   key={vitrine.gmailMessageId}
                   vitrine={vitrine}
+                  readOnly={readOnly}
                   onToggleValidated={() => toggleValidated(vitrine.gmailMessageId)}
                   onLabelChange={(label) => updateComptaLabel(vitrine.gmailMessageId, label)}
                 />
@@ -254,9 +257,10 @@ export const ComptaVitrinesTab: React.FC<{ month: string }> = ({ month }) => {
 
 const VitrineRow: React.FC<{
   vitrine: VintedEvent;
+  readOnly: boolean;
   onToggleValidated: () => void;
   onLabelChange: (label: string) => void;
-}> = ({ vitrine, onToggleValidated, onLabelChange }) => {
+}> = ({ vitrine, readOnly, onToggleValidated, onLabelChange }) => {
   const p = vitrine.payload as {
     montant_boost?: number;
     reduction?: number;
@@ -287,8 +291,9 @@ const VitrineRow: React.FC<{
           type="checkbox"
           checked={isValidated}
           onChange={onToggleValidated}
+          disabled={readOnly}
           aria-label="Vérifié"
-          className="w-4 h-4 cursor-pointer accent-emerald-500"
+          className={`w-4 h-4 accent-emerald-500 ${readOnly ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
         />
       </td>
       <td className="py-2 px-2">
@@ -297,7 +302,8 @@ const VitrineRow: React.FC<{
           value={vitrine.compta_label ?? ""}
           onChange={e => onLabelChange(e.target.value)}
           placeholder="Vitrine X"
-          className="w-32 px-2 py-1 rounded text-xs font-semibold bg-purple-600/30 text-purple-200 border border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          readOnly={readOnly}
+          className={`w-32 px-2 py-1 rounded text-xs font-semibold bg-purple-600/30 text-purple-200 border border-purple-500/40 focus:outline-none focus:ring-2 focus:ring-blue-500 ${readOnly ? "cursor-not-allowed opacity-80" : ""}`}
         />
       </td>
     </tr>

@@ -20,12 +20,18 @@ const PAGE_SIZE = 200;
 // Bornes en UTC pour être cohérent avec le bucketize serveur (cf. cockpit pour le rationale).
 const periodToDates = (id: PeriodId): { from?: string; to?: string } => {
   const now = new Date();
-  const to = now.toISOString();
+  const tomorrowUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)).toISOString();
   if (id === "all") return {};
-  if (id === "30d") return { from: new Date(now.getTime() - 30 * 86400_000).toISOString(), to };
-  if (id === "90d") return { from: new Date(now.getTime() - 90 * 86400_000).toISOString(), to };
-  if (id === "month") return { from: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString(), to };
-  if (id === "year") return { from: new Date(Date.UTC(now.getUTCFullYear(), 0, 1)).toISOString(), to };
+  if (id === "30d") return { from: new Date(now.getTime() - 30 * 86400_000).toISOString(), to: tomorrowUtc };
+  if (id === "90d") return { from: new Date(now.getTime() - 90 * 86400_000).toISOString(), to: tomorrowUtc };
+  if (id === "month") return {
+    from: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString(),
+    to: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)).toISOString(),
+  };
+  if (id === "year") return {
+    from: new Date(Date.UTC(now.getUTCFullYear(), 0, 1)).toISOString(),
+    to: new Date(Date.UTC(now.getUTCFullYear() + 1, 0, 1)).toISOString(),
+  };
   return {};
 };
 

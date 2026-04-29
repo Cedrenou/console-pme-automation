@@ -20,7 +20,7 @@ const formatRefundDate = (raw: string | undefined): string => {
   return raw;
 };
 
-export const ComptaRemboursementsTab: React.FC<{ month: string }> = ({ month }) => {
+export const ComptaRemboursementsTab: React.FC<{ month: string; readOnly?: boolean }> = ({ month, readOnly = false }) => {
   const [items, setItems] = useState<VintedEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -221,16 +221,18 @@ export const ComptaRemboursementsTab: React.FC<{ month: string }> = ({ month }) 
             <FaFileExcel className="text-sm" />
             Exporter Excel
           </button>
-          <button
-            type="button"
-            onClick={autoNumberAll}
-            disabled={loading || autoNumbering || sortedItems.length === 0}
-            className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors text-sm bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Remplit les cases vides : Annulation 1, 2, 3…"
-          >
-            <FaMagic className="text-sm" />
-            {autoNumbering ? "Numérotation…" : "Auto-numéroter"}
-          </button>
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={autoNumberAll}
+              disabled={loading || autoNumbering || sortedItems.length === 0}
+              className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors text-sm bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Remplit les cases vides : Annulation 1, 2, 3…"
+            >
+              <FaMagic className="text-sm" />
+              {autoNumbering ? "Numérotation…" : "Auto-numéroter"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -259,6 +261,7 @@ export const ComptaRemboursementsTab: React.FC<{ month: string }> = ({ month }) 
                 <RefundRow
                   key={refund.gmailMessageId}
                   refund={refund}
+                  readOnly={readOnly}
                   onToggleValidated={() => toggleValidated(refund.gmailMessageId)}
                   onLabelChange={(label) => updateComptaLabel(refund.gmailMessageId, label)}
                 />
@@ -280,9 +283,10 @@ export const ComptaRemboursementsTab: React.FC<{ month: string }> = ({ month }) 
 
 const RefundRow: React.FC<{
   refund: VintedEvent;
+  readOnly: boolean;
   onToggleValidated: () => void;
   onLabelChange: (label: string) => void;
-}> = ({ refund, onToggleValidated, onLabelChange }) => {
+}> = ({ refund, readOnly, onToggleValidated, onLabelChange }) => {
   const p = refund.payload as {
     commande?: string;
     montant?: number;
@@ -319,8 +323,9 @@ const RefundRow: React.FC<{
           type="checkbox"
           checked={isValidated}
           onChange={onToggleValidated}
+          disabled={readOnly}
           aria-label="Vérifié"
-          className="w-4 h-4 cursor-pointer accent-emerald-500"
+          className={`w-4 h-4 accent-emerald-500 ${readOnly ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
         />
       </td>
       <td className="py-2 px-2">
@@ -329,7 +334,8 @@ const RefundRow: React.FC<{
           value={refund.compta_label ?? ""}
           onChange={e => onLabelChange(e.target.value)}
           placeholder="Annulation X"
-          className="w-32 px-2 py-1 rounded text-xs font-semibold bg-red-600/30 text-red-200 border border-red-500/40 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          readOnly={readOnly}
+          className={`w-32 px-2 py-1 rounded text-xs font-semibold bg-red-600/30 text-red-200 border border-red-500/40 focus:outline-none focus:ring-2 focus:ring-blue-500 ${readOnly ? "cursor-not-allowed opacity-80" : ""}`}
         />
       </td>
     </tr>

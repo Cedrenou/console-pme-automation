@@ -37,11 +37,24 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Connecté + sur /login → redirection vers la home
+  // Connecté + sur /login → redirection vers la home (compta si rôle comptable)
   if (user && pathname === "/login") {
     const homeUrl = request.nextUrl.clone();
-    homeUrl.pathname = "/";
+    homeUrl.pathname = user.app_metadata?.role === "comptable" ? "/compta" : "/";
     return NextResponse.redirect(homeUrl);
+  }
+
+  // RBAC : un comptable ne peut accéder qu'à /compta. Toute autre route protégée
+  // est redirigée vers /compta. Le frontend cache déjà les liens dans la sidebar,
+  // mais le middleware empêche aussi un accès direct par URL.
+  if (user && user.app_metadata?.role === "comptable") {
+    const isCompta = pathname === "/compta" || pathname.startsWith("/compta/");
+    if (!isCompta && !isPublic) {
+      const comptaUrl = request.nextUrl.clone();
+      comptaUrl.pathname = "/compta";
+      comptaUrl.search = "";
+      return NextResponse.redirect(comptaUrl);
+    }
   }
 
   return supabaseResponse;

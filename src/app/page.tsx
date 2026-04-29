@@ -23,17 +23,27 @@ const PERIODS: { id: PeriodId; label: string }[] = [
 ];
 
 // On aligne TOUTES les bornes sur UTC pour être cohérent avec le bucketize serveur
-// (timeline.js fait getUTCFullYear/getUTCMonth). Sinon en TZ Paris, une vente du 1er avril
-// 00h-02h locale tombait dans "Ce mois" (Paris) côté KPI mais dans le bucket de mars (UTC)
-// côté graphique → écart de quelques centaines d'€ en bordure de mois.
+// (timeline.js fait getUTCFullYear/getUTCMonth).
+// Note bug racine : les eventDate stockées sont "heure Paris labellisée UTC" (le parser
+// formate en TZ Paris puis dayjs reparse en UTC sur la lambda). Une vente à 16:00 Paris
+// se retrouve donc avec eventDate "16:00Z" alors que le vrai UTC est 14:00. Pour
+// compenser sans tout reparser, on borne avec end-of-période UTC plutôt que `now` pour
+// "month" / "year", et on étend `to` de +24h pour 30d/90d. Ainsi un événement du jour
+// avec eventDate fake-future passe le filtre.
 const periodToDates = (id: PeriodId): { from?: string; to?: string } => {
   const now = new Date();
-  const to = now.toISOString();
+  const tomorrowUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)).toISOString();
   if (id === "all") return {};
-  if (id === "30d") return { from: new Date(now.getTime() - 30 * 86400_000).toISOString(), to };
-  if (id === "90d") return { from: new Date(now.getTime() - 90 * 86400_000).toISOString(), to };
-  if (id === "month") return { from: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString(), to };
-  if (id === "year") return { from: new Date(Date.UTC(now.getUTCFullYear(), 0, 1)).toISOString(), to };
+  if (id === "30d") return { from: new Date(now.getTime() - 30 * 86400_000).toISOString(), to: tomorrowUtc };
+  if (id === "90d") return { from: new Date(now.getTime() - 90 * 86400_000).toISOString(), to: tomorrowUtc };
+  if (id === "month") return {
+    from: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString(),
+    to: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)).toISOString(),
+  };
+  if (id === "year") return {
+    from: new Date(Date.UTC(now.getUTCFullYear(), 0, 1)).toISOString(),
+    to: new Date(Date.UTC(now.getUTCFullYear() + 1, 0, 1)).toISOString(),
+  };
   return {};
 };
 

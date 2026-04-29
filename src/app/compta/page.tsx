@@ -9,6 +9,7 @@ import { ComptaBoostsTab } from "./ComptaBoostsTab";
 import { ComptaRemboursementsTab } from "./ComptaRemboursementsTab";
 import { ComptaTransfertsTab } from "./ComptaTransfertsTab";
 import { ComptaVitrinesTab } from "./ComptaVitrinesTab";
+import { useUserRole } from "@/utils/supabase/useUserRole";
 
 type TabId = "achats" | "boosts" | "vitrines" | "remboursements" | "transferts";
 
@@ -24,6 +25,10 @@ const ComptaPageInner: React.FC = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
+  const { role } = useUserRole();
+  // La comptable est en lecture seule : pas d'édition de label, pas de toggle "Vérifié",
+  // pas d'auto-numérotation. Le bouton Exporter Excel reste accessible.
+  const readOnly = role === "comptable";
 
   // L'état (onglet + mois) vit dans l'URL : bookmarkable, partageable, "back" du navigateur
   // fonctionne entre onglets, et les multiples instances ouvertes restent indépendantes.
@@ -74,11 +79,11 @@ const ComptaPageInner: React.FC = () => {
         })}
       </div>
 
-      {tab === "achats" && <ComptaAchatsTab month={month} />}
-      {tab === "boosts" && <ComptaBoostsTab month={month} />}
-      {tab === "vitrines" && <ComptaVitrinesTab month={month} />}
-      {tab === "remboursements" && <ComptaRemboursementsTab month={month} />}
-      {tab === "transferts" && <ComptaTransfertsTab month={month} />}
+      {tab === "achats" && <ComptaAchatsTab month={month} readOnly={readOnly} />}
+      {tab === "boosts" && <ComptaBoostsTab month={month} readOnly={readOnly} />}
+      {tab === "vitrines" && <ComptaVitrinesTab month={month} readOnly={readOnly} />}
+      {tab === "remboursements" && <ComptaRemboursementsTab month={month} readOnly={readOnly} />}
+      {tab === "transferts" && <ComptaTransfertsTab month={month} readOnly={readOnly} />}
     </div>
   );
 };
