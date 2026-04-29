@@ -7,6 +7,8 @@ import {
 import {
   FaCalendarAlt, FaUser, FaFileDownload, FaSearch, FaPrint, FaMapMarkerAlt, FaEnvelope, FaRegCopy, FaCheck
 } from "react-icons/fa";
+import { MONTH_OPTIONS, monthToDates } from "@/lib/months";
+import { MonthPicker } from "@/components/MonthPicker";
 
 type PeriodId = "30d" | "90d" | "month" | "year" | "all";
 
@@ -31,34 +33,6 @@ const periodToDates = (id: PeriodId): { from?: string; to?: string } => {
   if (id === "year") return { from: new Date(Date.UTC(now.getUTCFullYear(), 0, 1)).toISOString(), to };
   return {};
 };
-
-const MONTH_NAMES_FR = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
-
-const generateMonthOptions = (): { value: string; label: string }[] => {
-  const result: { value: string; label: string }[] = [];
-  const now = new Date();
-  const startYear = 2025;
-  for (let y = now.getFullYear(); y >= startYear; y--) {
-    const fromMonth = y === now.getFullYear() ? now.getMonth() : 11;
-    const toMonth = y === startYear ? 0 : 0;
-    for (let m = fromMonth; m >= toMonth; m--) {
-      const value = `${y}-${String(m + 1).padStart(2, "0")}`;
-      const label = `${MONTH_NAMES_FR[m]} ${y}`;
-      result.push({ value, label });
-    }
-  }
-  return result;
-};
-
-const monthToDates = (value: string): { from: string; to: string } => {
-  const [y, m] = value.split("-").map(Number);
-  return {
-    from: new Date(Date.UTC(y, m - 1, 1)).toISOString(),
-    to: new Date(Date.UTC(y, m, 1)).toISOString(),
-  };
-};
-
-const MONTH_OPTIONS = generateMonthOptions();
 
 const formatEur = (n: number): string =>
   n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
@@ -186,19 +160,11 @@ const VintedVentesPage = () => {
             );
           })}
           <div className="h-6 w-px bg-[#2c3048] mx-1" aria-hidden />
-          <select
+          <MonthPicker
             value={monthFilter}
-            onChange={e => setMonthFilter(e.target.value)}
-            aria-label="Filtrer par mois"
-            className={`cursor-pointer px-4 py-2 rounded-lg font-semibold transition-colors text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              monthFilter ? "bg-blue-600 text-white" : "bg-[#23263A] text-gray-300 hover:bg-[#2c3048]"
-            }`}
-          >
-            <option value="">📅 Choisir un mois…</option>
-            {MONTH_OPTIONS.map(m => (
-              <option key={m.value} value={m.value}>{m.label}</option>
-            ))}
-          </select>
+            onChange={setMonthFilter}
+            options={MONTH_OPTIONS}
+          />
         </div>
       </div>
 
