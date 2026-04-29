@@ -263,6 +263,50 @@ export type VintedEventsResponse = {
   count: number;
 };
 
+export type VintedCustomerOrder = {
+  gmailMessageId: string;
+  eventDate: string;
+  article_titre: string | null;
+  prix_vente: number | null;
+  article_image_url: string | null;
+};
+
+export type VintedCustomer = {
+  email: string;
+  acheteur_username: string | null;
+  nom: string | null;
+  rue: string | null;
+  ville: string | null;
+  code_postal: string | null;
+  pays: string | null;
+  conversation_url: string | null;
+  nb_commandes: number;
+  ca_total: number;
+  premiere_commande: string;
+  derniere_commande: string;
+  orders: VintedCustomerOrder[];
+};
+
+export type VintedCustomersResponse = {
+  period: { from: string | null; to: string | null };
+  count: number;
+  items: VintedCustomer[];
+};
+
+export async function fetchVintedCustomers(opts: { from?: string; to?: string } = {}): Promise<VintedCustomersResponse> {
+  if (shouldUseMock()) {
+    await new Promise(r => setTimeout(r, 200));
+    return { period: { from: opts.from ?? null, to: opts.to ?? null }, count: 0, items: [] };
+  }
+  const params = new URLSearchParams();
+  if (opts.from) params.set('from', opts.from);
+  if (opts.to) params.set('to', opts.to);
+  const url = `${process.env.NEXT_PUBLIC_API_URL}/clients/${VINTED_CLIENT_ID}/vinted/customers${params.toString() ? `?${params}` : ''}`;
+  const res = await fetch(url, { headers: await authHeader() });
+  if (!res.ok) throw new Error("Erreur lors de la récupération des clients");
+  return parseApiResponse<VintedCustomersResponse>(res);
+}
+
 export async function fetchVintedStats(from?: string, to?: string): Promise<VintedStats> {
   if (shouldUseMock()) {
     await new Promise(r => setTimeout(r, 200));
