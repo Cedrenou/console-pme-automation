@@ -39,7 +39,7 @@ const Sidebar = () => {
   };
 
   return (
-    <nav className="w-64 bg-[#181C2A] text-white min-h-screen flex flex-col justify-between shadow-lg">
+    <nav className="w-64 bg-[#181C2A] text-white h-screen sticky top-0 flex flex-col justify-between shadow-lg overflow-y-auto">
       <div>
         <div className="flex items-center gap-2 text-2xl font-bold px-6 py-8">
           <span className="inline-block w-3 h-3 bg-blue-500 rounded-full mr-2"></span>
