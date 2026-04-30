@@ -3,7 +3,6 @@ import React from "react";
 import { usePathname } from "next/navigation";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
-import PageLoader from "@/components/PageLoader";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -12,7 +11,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="fr">
       <body className="bg-gray-100">
-        <PageLoader />
         {hideSidebar ? (
           <main className="min-h-screen">{children}</main>
         ) : (
