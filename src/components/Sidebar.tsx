@@ -49,7 +49,7 @@ const Sidebar = () => {
       <div>
         <div className="flex items-center gap-2 text-2xl font-bold px-6 py-8">
           <span className="inline-block w-3 h-3 bg-blue-500 rounded-full mr-2"></span>
-          Client Lambdas
+          Sunset
         </div>
         <ul className="flex flex-col gap-1 px-2">
           {visibleLinks.map(link => (
