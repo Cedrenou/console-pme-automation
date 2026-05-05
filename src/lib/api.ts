@@ -469,17 +469,20 @@ export async function fetchVintedBordereau(venteId: string): Promise<VintedBorde
   return parseApiResponse<VintedBordereau>(res);
 }
 
-// Check léger qu'un bordereau existe pour une vente, sans télécharger le PDF.
-// Utilisé pour griser le bouton "Imprimer" tant que Yann n'a pas demandé le bordereau
-// sur Vinted (auquel cas le mail n'est pas encore arrivé).
-export async function checkVintedBordereau(venteId: string): Promise<{ available: boolean }> {
+// Check batch : un seul appel Lambda pour N ventes. Évite l'effet "30 cartes vente =
+// 30 invocations Lambda concurrentes = rate-limit Gmail = résultats aléatoires" qu'on
+// avait avec un check par vente. La Lambda fait 1 seule recherche Gmail pour tous les
+// bordereaux du créneau et matche par transaction_id.
+export async function checkVintedBordereauxBatch(venteIds: string[]): Promise<Record<string, boolean>> {
   if (shouldUseMock()) {
-    return { available: false };
+    return Object.fromEntries(venteIds.map(id => [id, false]));
   }
-  const url = `${process.env.NEXT_PUBLIC_API_URL}/clients/${VINTED_CLIENT_ID}/vinted/bordereau?venteId=${encodeURIComponent(venteId)}&checkOnly=true`;
+  if (venteIds.length === 0) return {};
+  const ids = encodeURIComponent(venteIds.join(','));
+  const url = `${process.env.NEXT_PUBLIC_API_URL}/clients/${VINTED_CLIENT_ID}/vinted/bordereau?venteIds=${ids}&checkOnly=true`;
   const res = await fetch(url, { headers: await authHeader() });
-  if (!res.ok) return { available: false };
-  return parseApiResponse<{ available: boolean }>(res);
+  if (!res.ok) return Object.fromEntries(venteIds.map(id => [id, false]));
+  return parseApiResponse<Record<string, boolean>>(res);
 }
 
 export async function fetchVintedTimeline(opts: {

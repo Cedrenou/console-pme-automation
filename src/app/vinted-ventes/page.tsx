@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  fetchVintedEvents, fetchVintedBordereau, checkVintedBordereau,
+  fetchVintedEvents, fetchVintedBordereau, checkVintedBordereauxBatch,
   type VintedEvent
 } from "@/lib/api";
 import {
@@ -59,6 +59,10 @@ const VintedVentesPage = () => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const requestId = useRef(0);
+  // Statut bordereau par vente. Un seul appel batch couvre toutes les ventes affichées.
+  // Évite N invocations Lambda concurrentes (qui causaient des résultats aléatoires
+  // par rate-limit Gmail).
+  const [bordereauStatuses, setBordereauStatuses] = useState<Record<string, "checking" | "ready" | "missing">>({});
 
   const effectiveDates = monthFilter ? monthToDates(monthFilter) : periodToDates(period);
 
@@ -110,6 +114,45 @@ const VintedVentesPage = () => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period, monthFilter]);
+
+  // Batch-check des bordereaux dès qu'on a des items. Ne re-check que les venteIds
+  // pas encore connus (évite de spammer Gmail au scroll). Découpe en chunks de 30 pour
+  // que la Lambda reste sous le timeout API Gateway (29s) même sur de grosses fenêtres.
+  useEffect(() => {
+    const unknownIds = items.map(it => it.gmailMessageId).filter(id => !(id in bordereauStatuses));
+    if (unknownIds.length === 0) return;
+    let cancelled = false;
+    setBordereauStatuses(prev => {
+      const next = { ...prev };
+      for (const id of unknownIds) next[id] = "checking";
+      return next;
+    });
+    const chunkSize = 30;
+    const chunks: string[][] = [];
+    for (let i = 0; i < unknownIds.length; i += chunkSize) chunks.push(unknownIds.slice(i, i + chunkSize));
+    (async () => {
+      for (const chunk of chunks) {
+        try {
+          const res = await checkVintedBordereauxBatch(chunk);
+          if (cancelled) return;
+          setBordereauStatuses(prev => {
+            const next = { ...prev };
+            for (const id of chunk) next[id] = res[id] ? "ready" : "missing";
+            return next;
+          });
+        } catch {
+          if (cancelled) return;
+          setBordereauStatuses(prev => {
+            const next = { ...prev };
+            for (const id of chunk) next[id] = "missing";
+            return next;
+          });
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items]);
 
   const handleLoadMore = async () => {
     if (!cursor || loadingMore) return;
@@ -232,7 +275,11 @@ const VintedVentesPage = () => {
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
               {filteredItems.map(sale => (
-                <SaleRow key={sale.gmailMessageId} sale={sale} />
+                <SaleRow
+                  key={sale.gmailMessageId}
+                  sale={sale}
+                  bordereauStatus={bordereauStatuses[sale.gmailMessageId] ?? "checking"}
+                />
               ))}
             </div>
             {cursor && !autoLoadAll && (
@@ -292,7 +339,10 @@ const CopyableField: React.FC<{
   );
 };
 
-const SaleRow: React.FC<{ sale: VintedEvent }> = ({ sale }) => {
+const SaleRow: React.FC<{
+  sale: VintedEvent;
+  bordereauStatus: "checking" | "ready" | "missing";
+}> = ({ sale, bordereauStatus }) => {
   const p = sale.payload as {
     acheteur_username?: string;
     acheteur_email?: string;
@@ -315,18 +365,6 @@ const SaleRow: React.FC<{ sale: VintedEvent }> = ({ sale }) => {
 
   const [bordereauLoading, setBordereauLoading] = useState<"none" | "print" | "download">("none");
   const [bordereauError, setBordereauError] = useState<string | null>(null);
-  // Statut "checking" tant que le check léger n'a pas répondu, pour ne pas faire flasher
-  // le bouton entre actif → désactivé. Une fois résolu : "ready" (Yann a demandé le
-  // bordereau, le mail est arrivé) ou "missing" (rien en boîte mail, bouton grisé).
-  const [bordereauStatus, setBordereauStatus] = useState<"checking" | "ready" | "missing">("checking");
-
-  useEffect(() => {
-    let cancelled = false;
-    checkVintedBordereau(sale.gmailMessageId)
-      .then(r => { if (!cancelled) setBordereauStatus(r.available ? "ready" : "missing"); })
-      .catch(() => { if (!cancelled) setBordereauStatus("missing"); });
-    return () => { cancelled = true; };
-  }, [sale.gmailMessageId]);
 
   // Convertit la réponse API en blob PDF + URL utilisable.
   const fetchBordereauBlob = async (): Promise<{ blob: Blob; filename: string; url: string }> => {
