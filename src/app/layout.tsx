@@ -10,7 +10,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="fr">
-      <body className="bg-gray-100">
+      {/* overflow-x-clip plutôt que -hidden pour ne pas casser le sticky de la sidebar.
+          Empêche le scroll horizontal au niveau page tout en laissant les tables
+          (overflow-x-auto en interne) faire leur scroll local quand nécessaire. */}
+      <body className="bg-[#151826] overflow-x-clip">
         {hideSidebar ? (
           <main className="min-h-screen">{children}</main>
         ) : (

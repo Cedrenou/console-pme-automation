@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import { MONTH_OPTIONS, monthToDates } from "@/lib/months";
 import { MonthPicker } from "@/components/MonthPicker";
+import { PeriodSelect } from "@/components/PeriodSelect";
 
 type PeriodId = "30d" | "90d" | "month" | "year" | "all";
 
@@ -126,23 +127,34 @@ const VintedCockpitPage = () => {
           <p className="text-gray-400">CA, ventes, boosts et trésorerie quasi-temps réel.</p>
         </div>
         <div className="flex flex-wrap gap-2 items-center">
-          {PERIODS.map(p => {
-            const isActive = period === p.id && !monthFilter;
-            return (
-              <button
-                key={p.id}
-                onClick={() => handleSelectPeriod(p.id)}
-                aria-pressed={isActive}
-                className={`cursor-pointer px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 ${
-                  isActive ? "bg-blue-600 text-white" : "bg-[#23263A] text-gray-300 hover:bg-[#2c3048]"
-                }`}
-              >
-                <FaCalendarAlt className="text-sm" />
-                {p.label}
-              </button>
-            );
-          })}
-          <div className="h-6 w-px bg-[#2c3048] mx-1" aria-hidden />
+          {/* Mobile : un select compact à la place des 5 boutons. */}
+          <PeriodSelect
+            className="md:hidden"
+            value={monthFilter ? "" : period}
+            onChange={handleSelectPeriod}
+            options={PERIODS.map(p => ({ id: p.id, label: p.label }))}
+            inactive={!!monthFilter}
+          />
+          {/* Desktop : boutons un par un comme avant. */}
+          <div className="hidden md:flex flex-wrap gap-2 items-center">
+            {PERIODS.map(p => {
+              const isActive = period === p.id && !monthFilter;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => handleSelectPeriod(p.id)}
+                  aria-pressed={isActive}
+                  className={`cursor-pointer px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 ${
+                    isActive ? "bg-blue-600 text-white" : "bg-[#23263A] text-gray-300 hover:bg-[#2c3048]"
+                  }`}
+                >
+                  <FaCalendarAlt className="text-sm" />
+                  {p.label}
+                </button>
+              );
+            })}
+          </div>
+          <div className="hidden md:block h-6 w-px bg-[#2c3048] mx-1" aria-hidden />
           <MonthPicker
             value={monthFilter}
             onChange={setMonthFilter}
