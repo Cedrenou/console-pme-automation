@@ -118,39 +118,36 @@ const VintedVentesPage = () => {
   // Batch-check des bordereaux dès qu'on a des items. Ne re-check que les venteIds
   // pas encore connus (évite de spammer Gmail au scroll). Découpe en chunks de 30 pour
   // que la Lambda reste sous le timeout API Gateway (29s) même sur de grosses fenêtres.
+  // Pas de cleanup/cancel : items change plusieurs fois pendant le chargement paginé
+  // (autoLoadAll setItems une fois par page), et annuler les requêtes en vol laissait
+  // les premières cartes coincées en "checking" indéfiniment.
   useEffect(() => {
     const unknownIds = items.map(it => it.gmailMessageId).filter(id => !(id in bordereauStatuses));
     if (unknownIds.length === 0) return;
-    let cancelled = false;
     setBordereauStatuses(prev => {
       const next = { ...prev };
       for (const id of unknownIds) next[id] = "checking";
       return next;
     });
     const chunkSize = 30;
-    const chunks: string[][] = [];
-    for (let i = 0; i < unknownIds.length; i += chunkSize) chunks.push(unknownIds.slice(i, i + chunkSize));
-    (async () => {
-      for (const chunk of chunks) {
-        try {
-          const res = await checkVintedBordereauxBatch(chunk);
-          if (cancelled) return;
+    for (let i = 0; i < unknownIds.length; i += chunkSize) {
+      const chunk = unknownIds.slice(i, i + chunkSize);
+      checkVintedBordereauxBatch(chunk)
+        .then(res => {
           setBordereauStatuses(prev => {
             const next = { ...prev };
             for (const id of chunk) next[id] = res[id] ? "ready" : "missing";
             return next;
           });
-        } catch {
-          if (cancelled) return;
+        })
+        .catch(() => {
           setBordereauStatuses(prev => {
             const next = { ...prev };
             for (const id of chunk) next[id] = "missing";
             return next;
           });
-        }
-      }
-    })();
-    return () => { cancelled = true; };
+        });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items]);
 
