@@ -469,6 +469,19 @@ export async function fetchVintedBordereau(venteId: string): Promise<VintedBorde
   return parseApiResponse<VintedBordereau>(res);
 }
 
+// Check léger qu'un bordereau existe pour une vente, sans télécharger le PDF.
+// Utilisé pour griser le bouton "Imprimer" tant que Yann n'a pas demandé le bordereau
+// sur Vinted (auquel cas le mail n'est pas encore arrivé).
+export async function checkVintedBordereau(venteId: string): Promise<{ available: boolean }> {
+  if (shouldUseMock()) {
+    return { available: false };
+  }
+  const url = `${process.env.NEXT_PUBLIC_API_URL}/clients/${VINTED_CLIENT_ID}/vinted/bordereau?venteId=${encodeURIComponent(venteId)}&checkOnly=true`;
+  const res = await fetch(url, { headers: await authHeader() });
+  if (!res.ok) return { available: false };
+  return parseApiResponse<{ available: boolean }>(res);
+}
+
 export async function fetchVintedTimeline(opts: {
   type?: VintedEvent['eventType'] | 'revenue';
   from?: string;

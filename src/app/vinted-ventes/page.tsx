@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  fetchVintedEvents, fetchVintedBordereau,
+  fetchVintedEvents, fetchVintedBordereau, checkVintedBordereau,
   type VintedEvent
 } from "@/lib/api";
 import {
@@ -315,6 +315,18 @@ const SaleRow: React.FC<{ sale: VintedEvent }> = ({ sale }) => {
 
   const [bordereauLoading, setBordereauLoading] = useState<"none" | "print" | "download">("none");
   const [bordereauError, setBordereauError] = useState<string | null>(null);
+  // Statut "checking" tant que le check léger n'a pas répondu, pour ne pas faire flasher
+  // le bouton entre actif → désactivé. Une fois résolu : "ready" (Yann a demandé le
+  // bordereau, le mail est arrivé) ou "missing" (rien en boîte mail, bouton grisé).
+  const [bordereauStatus, setBordereauStatus] = useState<"checking" | "ready" | "missing">("checking");
+
+  useEffect(() => {
+    let cancelled = false;
+    checkVintedBordereau(sale.gmailMessageId)
+      .then(r => { if (!cancelled) setBordereauStatus(r.available ? "ready" : "missing"); })
+      .catch(() => { if (!cancelled) setBordereauStatus("missing"); });
+    return () => { cancelled = true; };
+  }, [sale.gmailMessageId]);
 
   // Convertit la réponse API en blob PDF + URL utilisable.
   const fetchBordereauBlob = async (): Promise<{ blob: Blob; filename: string; url: string }> => {
@@ -447,20 +459,31 @@ const SaleRow: React.FC<{ sale: VintedEvent }> = ({ sale }) => {
           <button
             type="button"
             onClick={handlePrintBordereau}
-            disabled={bordereauLoading !== "none"}
+            disabled={bordereauLoading !== "none" || bordereauStatus !== "ready"}
             className="cursor-pointer inline-flex items-center gap-2 text-sm font-medium px-3.5 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
             aria-label="Imprimer le bordereau d'envoi"
+            title={
+              bordereauStatus === "checking" ? "Vérification du bordereau…"
+                : bordereauStatus === "missing" ? "Bordereau pas encore demandé sur Vinted"
+                : "Imprimer l'étiquette"
+            }
           >
             <FaPrint className="text-sm" />
-            {bordereauLoading === "print" ? "Préparation…" : "Imprimer"}
+            {bordereauLoading === "print"
+              ? "Préparation…"
+              : bordereauStatus === "checking"
+              ? "Vérification…"
+              : bordereauStatus === "missing"
+              ? "Bordereau pas dispo"
+              : "Imprimer"}
           </button>
           <button
             type="button"
             onClick={handleDownloadBordereau}
-            disabled={bordereauLoading !== "none"}
+            disabled={bordereauLoading !== "none" || bordereauStatus !== "ready"}
             className="cursor-pointer inline-flex items-center justify-center w-9 h-9 rounded-md text-gray-400 hover:text-blue-300 hover:bg-blue-600/15 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-[#2c3048]"
             aria-label="Télécharger le bordereau d'envoi"
-            title="Télécharger le PDF"
+            title={bordereauStatus === "ready" ? "Télécharger le PDF" : "Bordereau pas dispo"}
           >
             <FaFileDownload className="text-sm" />
           </button>
