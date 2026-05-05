@@ -271,13 +271,13 @@ export const ComptaAchatsTab: React.FC<{ month: string; readOnly?: boolean }> = 
               <tr className="text-left text-xs text-gray-400 border-b border-[#2c3048]">
                 <th className="py-2 px-2 font-semibold whitespace-nowrap">Date</th>
                 <th className="py-2 px-2 font-semibold whitespace-nowrap">Article</th>
-                <th className="py-2 px-2 font-semibold whitespace-nowrap">Bénéficiaire</th>
-                <th className="py-2 px-2 font-semibold text-right whitespace-nowrap">Montant total</th>
-                <th className="py-2 px-2 font-semibold text-right whitespace-nowrap">Frais port</th>
-                <th className="py-2 px-2 font-semibold text-right whitespace-nowrap">Montant article</th>
-                <th className="py-2 px-2 font-semibold text-right whitespace-nowrap">Frais protection</th>
-                <th className="py-2 px-2 font-semibold whitespace-nowrap">Transaction ID</th>
-                <th className="py-2 px-2 font-semibold whitespace-nowrap">Mode de paiement</th>
+                <th className="py-2 px-2 font-semibold whitespace-nowrap hidden sm:table-cell">Bénéficiaire</th>
+                <th className="py-2 px-2 font-semibold text-right whitespace-nowrap">Total</th>
+                <th className="py-2 px-2 font-semibold text-right whitespace-nowrap hidden lg:table-cell">Frais port</th>
+                <th className="py-2 px-2 font-semibold text-right whitespace-nowrap hidden lg:table-cell">Montant article</th>
+                <th className="py-2 px-2 font-semibold text-right whitespace-nowrap hidden lg:table-cell">Frais protection</th>
+                <th className="py-2 px-2 font-semibold whitespace-nowrap hidden xl:table-cell">Transaction ID</th>
+                <th className="py-2 px-2 font-semibold whitespace-nowrap hidden md:table-cell">Mode de paiement</th>
                 <th className="py-2 px-2 font-semibold text-center whitespace-nowrap">Vérifié</th>
                 <th className="py-2 px-2 font-semibold whitespace-nowrap">N°Transaction</th>
               </tr>
@@ -325,26 +325,26 @@ const AchatRow: React.FC<{
       <td className="py-2 px-2 text-xs whitespace-nowrap tabular-nums text-gray-300">
         {formatDateOnly(achat.eventDate)}
       </td>
-      <td className="py-2 px-2 text-sm max-w-xs truncate" title={p.article ?? ""}>
+      <td className="py-2 px-2 text-sm max-w-[10rem] sm:max-w-xs truncate" title={p.article ?? ""}>
         {p.article ?? "—"}
       </td>
-      <td className="py-2 px-2 text-sm whitespace-nowrap text-gray-300">{p.beneficiaire ?? "—"}</td>
+      <td className="py-2 px-2 text-sm whitespace-nowrap text-gray-300 hidden sm:table-cell">{p.beneficiaire ?? "—"}</td>
       <td className="py-2 px-2 text-sm text-right tabular-nums whitespace-nowrap font-semibold">
         {formatEur(p.montant_total)}
       </td>
-      <td className="py-2 px-2 text-sm text-right tabular-nums whitespace-nowrap text-gray-300">
+      <td className="py-2 px-2 text-sm text-right tabular-nums whitespace-nowrap text-gray-300 hidden lg:table-cell">
         {formatEur(p.frais_port)}
       </td>
-      <td className="py-2 px-2 text-sm text-right tabular-nums whitespace-nowrap text-gray-300">
+      <td className="py-2 px-2 text-sm text-right tabular-nums whitespace-nowrap text-gray-300 hidden lg:table-cell">
         {formatEur(p.montant_commande)}
       </td>
-      <td className="py-2 px-2 text-sm text-right tabular-nums whitespace-nowrap text-gray-300">
+      <td className="py-2 px-2 text-sm text-right tabular-nums whitespace-nowrap text-gray-300 hidden lg:table-cell">
         {formatEur(p.frais_protection)}
       </td>
-      <td className="py-2 px-2 text-xs whitespace-nowrap text-gray-400 tabular-nums">
+      <td className="py-2 px-2 text-xs whitespace-nowrap text-gray-400 tabular-nums hidden xl:table-cell">
         {p.transaction_id ? <CopyableId value={p.transaction_id} /> : "—"}
       </td>
-      <td className="py-2 px-2 text-xs whitespace-nowrap text-gray-400 tabular-nums" title={p.mode_paiement ?? ""}>
+      <td className="py-2 px-2 text-xs whitespace-nowrap text-gray-400 tabular-nums hidden md:table-cell" title={p.mode_paiement ?? ""}>
         {formatModePaiementAchat(p.mode_paiement)}
       </td>
       <td className="py-2 px-2 text-center">

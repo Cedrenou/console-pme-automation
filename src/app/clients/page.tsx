@@ -94,7 +94,7 @@ const VintedClientsPage = () => {
   const recurrents = useMemo(() => filtered.filter(c => c.nb_commandes > 1).length, [filtered]);
 
   return (
-    <div className="min-h-screen bg-[#151826] text-white p-8">
+    <div className="min-h-screen bg-[#151826] text-white p-4 md:p-8">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold mb-2">Clients Sunset</h1>
@@ -137,13 +137,17 @@ const VintedClientsPage = () => {
               <thead>
                 <tr className="text-left text-xs text-gray-400 border-b border-[#2c3048]">
                   <SortableHeader label="Nom" active={sortKey === "nom"} onClick={() => handleSort("nom")} icon={sortIcon("nom")} />
-                  <th className="py-2 px-3 font-semibold whitespace-nowrap">Username</th>
-                  <th className="py-2 px-3 font-semibold whitespace-nowrap">Email</th>
-                  <th className="py-2 px-3 font-semibold whitespace-nowrap">Ville</th>
-                  <th className="py-2 px-3 font-semibold whitespace-nowrap">Pays</th>
+                  <th className="py-2 px-3 font-semibold whitespace-nowrap hidden lg:table-cell">Username</th>
+                  <th className="py-2 px-3 font-semibold whitespace-nowrap hidden md:table-cell">Email</th>
+                  <th className="py-2 px-3 font-semibold whitespace-nowrap hidden sm:table-cell">Ville</th>
+                  <th className="py-2 px-3 font-semibold whitespace-nowrap hidden lg:table-cell">Pays</th>
                   <SortableHeader label="Commandes" align="right" active={sortKey === "nb_commandes"} onClick={() => handleSort("nb_commandes")} icon={sortIcon("nb_commandes")} />
                   <SortableHeader label="CA total" align="right" active={sortKey === "ca_total"} onClick={() => handleSort("ca_total")} icon={sortIcon("ca_total")} />
-                  <SortableHeader label="Dernière commande" active={sortKey === "derniere_commande"} onClick={() => handleSort("derniere_commande")} icon={sortIcon("derniere_commande")} />
+                  <th className="py-2 px-3 font-semibold whitespace-nowrap hidden md:table-cell">
+                    <button type="button" onClick={() => handleSort("derniere_commande")} className={`cursor-pointer inline-flex items-center hover:text-blue-300 ${sortKey === "derniere_commande" ? "text-blue-300" : "text-gray-400"}`}>
+                      Dernière commande{sortIcon("derniere_commande")}
+                    </button>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -154,17 +158,17 @@ const VintedClientsPage = () => {
                     className="border-b border-[#2c3048] hover:bg-[#1c1f2e]/60 cursor-pointer"
                   >
                     <td className="py-2 px-3 text-sm font-medium whitespace-nowrap">{c.nom ?? <span className="text-gray-500 italic">—</span>}</td>
-                    <td className="py-2 px-3 text-xs text-gray-400 whitespace-nowrap">{c.acheteur_username ?? "—"}</td>
-                    <td className="py-2 px-3 text-xs text-gray-400 max-w-[14rem] truncate" title={c.email}>{c.email}</td>
-                    <td className="py-2 px-3 text-sm text-gray-300 whitespace-nowrap">{c.ville ?? "—"}</td>
-                    <td className="py-2 px-3 text-xs text-gray-400 whitespace-nowrap">{c.pays ?? "—"}</td>
+                    <td className="py-2 px-3 text-xs text-gray-400 whitespace-nowrap hidden lg:table-cell">{c.acheteur_username ?? "—"}</td>
+                    <td className="py-2 px-3 text-xs text-gray-400 max-w-[14rem] truncate hidden md:table-cell" title={c.email}>{c.email}</td>
+                    <td className="py-2 px-3 text-sm text-gray-300 whitespace-nowrap hidden sm:table-cell">{c.ville ?? "—"}</td>
+                    <td className="py-2 px-3 text-xs text-gray-400 whitespace-nowrap hidden lg:table-cell">{c.pays ?? "—"}</td>
                     <td className="py-2 px-3 text-sm text-right tabular-nums whitespace-nowrap">
                       {c.nb_commandes > 1
                         ? <span className="bg-amber-600/20 text-amber-300 px-2 py-0.5 rounded-full font-semibold">{c.nb_commandes}</span>
                         : c.nb_commandes}
                     </td>
                     <td className="py-2 px-3 text-sm text-right tabular-nums whitespace-nowrap font-semibold text-emerald-400">{formatEur(c.ca_total)}</td>
-                    <td className="py-2 px-3 text-xs text-gray-300 whitespace-nowrap tabular-nums">{formatDate(c.derniere_commande)}</td>
+                    <td className="py-2 px-3 text-xs text-gray-300 whitespace-nowrap tabular-nums hidden md:table-cell">{formatDate(c.derniere_commande)}</td>
                   </tr>
                 ))}
               </tbody>

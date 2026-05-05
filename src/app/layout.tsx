@@ -16,7 +16,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         ) : (
           <div className="flex min-h-screen">
             <Sidebar />
-            <main className="flex-1">{children}</main>
+            {/* pt-14 md:pt-0 : laisse de la place au bouton hamburger sur mobile, qui
+                est en position fixed top-3 left-3 et risquerait sinon de masquer le
+                titre de la page. */}
+            <main className="flex-1 pt-14 md:pt-0">{children}</main>
           </div>
         )}
       </body>

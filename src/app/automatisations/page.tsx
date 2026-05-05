@@ -36,7 +36,7 @@ const HomePage = () => {
   if (error) return <div className="text-red-400 p-8">{error}</div>;
 
   return (
-    <div className="min-h-screen bg-[#151826] text-white p-8">
+    <div className="min-h-screen bg-[#151826] text-white p-4 md:p-8">
       <div className="mb-10">
         <h1 className="text-3xl font-bold mb-2">Bienvenue !</h1>
         <p className="text-gray-400">Retrouvez vos services automatisés et leur état en un coup d&apos;œil.</p>

@@ -245,13 +245,13 @@ export const ComptaRemboursementsTab: React.FC<{ month: string; readOnly?: boole
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr className="text-left text-xs text-gray-400 border-b border-[#2c3048]">
-                <th className="py-2 px-2 font-semibold whitespace-nowrap">Date de réception</th>
-                <th className="py-2 px-2 font-semibold whitespace-nowrap">Date remboursement</th>
+                <th className="py-2 px-2 font-semibold whitespace-nowrap">Date</th>
+                <th className="py-2 px-2 font-semibold whitespace-nowrap hidden md:table-cell">Date remb.</th>
                 <th className="py-2 px-2 font-semibold whitespace-nowrap">Article</th>
                 <th className="py-2 px-2 font-semibold text-right whitespace-nowrap">Montant</th>
-                <th className="py-2 px-2 font-semibold whitespace-nowrap">Mode de paiement</th>
-                <th className="py-2 px-2 font-semibold whitespace-nowrap">Transaction ID</th>
-                <th className="py-2 px-2 font-semibold whitespace-nowrap">Destinataire</th>
+                <th className="py-2 px-2 font-semibold whitespace-nowrap hidden md:table-cell">Mode de paiement</th>
+                <th className="py-2 px-2 font-semibold whitespace-nowrap hidden lg:table-cell">Transaction ID</th>
+                <th className="py-2 px-2 font-semibold whitespace-nowrap hidden lg:table-cell">Destinataire</th>
                 <th className="py-2 px-2 font-semibold text-center whitespace-nowrap">Vérifié</th>
                 <th className="py-2 px-2 font-semibold whitespace-nowrap">N°Transaction</th>
               </tr>
@@ -269,9 +269,14 @@ export const ComptaRemboursementsTab: React.FC<{ month: string; readOnly?: boole
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-[#2c3048] font-bold">
-                <td className="py-3 px-2 text-sm whitespace-nowrap" colSpan={3}>TOTAL</td>
+                {/* Sur mobile : Date + Article seulement avant Montant.
+                    Sur md : Date + Date remb + Article (3) avant Montant. */}
+                <td className="py-3 px-2 text-sm whitespace-nowrap hidden md:table-cell" colSpan={3}>TOTAL</td>
+                <td className="py-3 px-2 text-sm whitespace-nowrap md:hidden" colSpan={2}>TOTAL</td>
                 <td className="py-3 px-2 text-sm text-right tabular-nums whitespace-nowrap">{formatEur(totalRembourse)}</td>
-                <td colSpan={5} />
+                <td className="hidden lg:table-cell" colSpan={5} />
+                <td className="hidden md:table-cell lg:hidden" colSpan={3} />
+                <td className="md:hidden" colSpan={2} />
               </tr>
             </tfoot>
           </table>
@@ -302,22 +307,22 @@ const RefundRow: React.FC<{
       <td className="py-2 px-2 text-xs whitespace-nowrap tabular-nums text-gray-300">
         {formatDateOnly(refund.eventDate)}
       </td>
-      <td className="py-2 px-2 text-xs whitespace-nowrap tabular-nums text-gray-300">
+      <td className="py-2 px-2 text-xs whitespace-nowrap tabular-nums text-gray-300 hidden md:table-cell">
         {formatRefundDate(p.date_remboursement)}
       </td>
-      <td className="py-2 px-2 text-sm max-w-xs truncate" title={p.commande ?? ""}>
+      <td className="py-2 px-2 text-sm max-w-[10rem] sm:max-w-xs truncate" title={p.commande ?? ""}>
         {p.commande ?? "—"}
       </td>
       <td className="py-2 px-2 text-sm text-right tabular-nums whitespace-nowrap font-semibold">
         {formatEur(p.montant)}
       </td>
-      <td className="py-2 px-2 text-xs whitespace-nowrap text-gray-400 tabular-nums" title={p.mode_paiement ?? ""}>
+      <td className="py-2 px-2 text-xs whitespace-nowrap text-gray-400 tabular-nums hidden md:table-cell" title={p.mode_paiement ?? ""}>
         {formatModePaiementAchat(p.mode_paiement)}
       </td>
-      <td className="py-2 px-2 text-xs whitespace-nowrap text-gray-400 tabular-nums">
+      <td className="py-2 px-2 text-xs whitespace-nowrap text-gray-400 tabular-nums hidden lg:table-cell">
         {p.transaction_id ? <CopyableId value={p.transaction_id} /> : "—"}
       </td>
-      <td className="py-2 px-2 text-sm whitespace-nowrap text-gray-300">{p.destinataire ?? "—"}</td>
+      <td className="py-2 px-2 text-sm whitespace-nowrap text-gray-300 hidden lg:table-cell">{p.destinataire ?? "—"}</td>
       <td className="py-2 px-2 text-center">
         <input
           type="checkbox"

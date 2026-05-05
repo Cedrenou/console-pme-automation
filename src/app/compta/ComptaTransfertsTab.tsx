@@ -227,11 +227,11 @@ export const ComptaTransfertsTab: React.FC<{ month: string; readOnly?: boolean }
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr className="text-left text-xs text-gray-400 border-b border-[#2c3048]">
-                <th className="py-2 px-2 font-semibold whitespace-nowrap">Date émission</th>
-                <th className="py-2 px-2 font-semibold whitespace-nowrap">Date réception</th>
+                <th className="py-2 px-2 font-semibold whitespace-nowrap">Émission</th>
+                <th className="py-2 px-2 font-semibold whitespace-nowrap hidden md:table-cell">Réception</th>
                 <th className="py-2 px-2 font-semibold whitespace-nowrap">Bénéficiaire</th>
                 <th className="py-2 px-2 font-semibold text-right whitespace-nowrap">Montant</th>
-                <th className="py-2 px-2 font-semibold whitespace-nowrap">Compte</th>
+                <th className="py-2 px-2 font-semibold whitespace-nowrap hidden md:table-cell">Compte</th>
                 <th className="py-2 px-2 font-semibold text-center whitespace-nowrap">Vérifié</th>
                 <th className="py-2 px-2 font-semibold whitespace-nowrap">N°Transaction</th>
               </tr>
@@ -249,9 +249,11 @@ export const ComptaTransfertsTab: React.FC<{ month: string; readOnly?: boolean }
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-[#2c3048] font-bold">
-                <td className="py-3 px-2 text-sm whitespace-nowrap" colSpan={3}>TOTAL</td>
+                <td className="py-3 px-2 text-sm whitespace-nowrap hidden md:table-cell" colSpan={3}>TOTAL</td>
+                <td className="py-3 px-2 text-sm whitespace-nowrap md:hidden" colSpan={2}>TOTAL</td>
                 <td className="py-3 px-2 text-sm text-right tabular-nums whitespace-nowrap">{formatEur(totalMontant)}</td>
-                <td colSpan={3} />
+                <td className="hidden md:table-cell" colSpan={3} />
+                <td className="md:hidden" colSpan={2} />
               </tr>
             </tfoot>
           </table>
@@ -280,14 +282,14 @@ const TransfertRow: React.FC<{
       <td className="py-2 px-2 text-xs whitespace-nowrap tabular-nums text-gray-300">
         {formatDateOnly(transfert.eventDate)}
       </td>
-      <td className="py-2 px-2 text-xs whitespace-nowrap tabular-nums text-gray-300">
+      <td className="py-2 px-2 text-xs whitespace-nowrap tabular-nums text-gray-300 hidden md:table-cell">
         {formatBankDate(p.date_reception)}
       </td>
       <td className="py-2 px-2 text-sm whitespace-nowrap text-gray-300">{p.beneficiaire ?? "—"}</td>
       <td className="py-2 px-2 text-sm text-right tabular-nums whitespace-nowrap font-semibold">
         {formatEur(p.montant)}
       </td>
-      <td className="py-2 px-2 text-xs whitespace-nowrap text-gray-400 tabular-nums">{p.compte ?? "—"}</td>
+      <td className="py-2 px-2 text-xs whitespace-nowrap text-gray-400 tabular-nums hidden md:table-cell">{p.compte ?? "—"}</td>
       <td className="py-2 px-2 text-center">
         <input
           type="checkbox"

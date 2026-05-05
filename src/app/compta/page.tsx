@@ -90,7 +90,7 @@ const ComptaPageInner: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#151826] text-white p-8">
+    <div className="min-h-screen bg-[#151826] text-white p-4 md:p-8">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold mb-2">Compta</h1>
@@ -149,7 +149,7 @@ const ComptaPageInner: React.FC = () => {
               type="button"
               onClick={() => updateUrl({ tab: t.id })}
               aria-pressed={isActive}
-              className={`cursor-pointer inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-colors rounded-t-lg border-b-2 ${
+              className={`cursor-pointer inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold transition-colors rounded-t-lg border-b-2 ${
                 isActive
                   ? "text-blue-300 border-blue-400 bg-[#23263A]"
                   : "text-gray-400 border-transparent hover:text-gray-200 hover:bg-[#1c1f2e]/60"
@@ -180,7 +180,7 @@ const ComptaPageInner: React.FC = () => {
 };
 
 const ComptaPage = () => (
-  <Suspense fallback={<div className="min-h-screen bg-[#151826] text-white p-8">Chargement…</div>}>
+  <Suspense fallback={<div className="min-h-screen bg-[#151826] text-white p-4 md:p-8">Chargement…</div>}>
     <ComptaPageInner />
   </Suspense>
 );

@@ -223,10 +223,10 @@ export const ComptaBoostsTab: React.FC<{ month: string; readOnly?: boolean }> = 
             <thead>
               <tr className="text-left text-xs text-gray-400 border-b border-[#2c3048]">
                 <th className="py-2 px-2 font-semibold whitespace-nowrap">Date</th>
-                <th className="py-2 px-2 font-semibold text-right whitespace-nowrap">Montant Boost</th>
-                <th className="py-2 px-2 font-semibold text-right whitespace-nowrap">Réduction</th>
-                <th className="py-2 px-2 font-semibold text-right whitespace-nowrap">Montant Total</th>
-                <th className="py-2 px-2 font-semibold whitespace-nowrap">Moyen de Paiement</th>
+                <th className="py-2 px-2 font-semibold text-right whitespace-nowrap hidden md:table-cell">Montant Boost</th>
+                <th className="py-2 px-2 font-semibold text-right whitespace-nowrap hidden lg:table-cell">Réduction</th>
+                <th className="py-2 px-2 font-semibold text-right whitespace-nowrap">Total</th>
+                <th className="py-2 px-2 font-semibold whitespace-nowrap hidden md:table-cell">Moyen de Paiement</th>
                 <th className="py-2 px-2 font-semibold text-center whitespace-nowrap">Vérifié</th>
                 <th className="py-2 px-2 font-semibold whitespace-nowrap">N°Transaction</th>
               </tr>
@@ -245,10 +245,11 @@ export const ComptaBoostsTab: React.FC<{ month: string; readOnly?: boolean }> = 
             <tfoot>
               <tr className="border-t-2 border-[#2c3048] font-bold">
                 <td className="py-3 px-2 text-sm whitespace-nowrap">TOTAL</td>
-                <td className="py-3 px-2 text-sm text-right tabular-nums whitespace-nowrap">{formatEur(totals.montantBoost)}</td>
-                <td className="py-3 px-2 text-sm text-right tabular-nums whitespace-nowrap">{formatEur(totals.reduction)}</td>
+                <td className="py-3 px-2 text-sm text-right tabular-nums whitespace-nowrap hidden md:table-cell">{formatEur(totals.montantBoost)}</td>
+                <td className="py-3 px-2 text-sm text-right tabular-nums whitespace-nowrap hidden lg:table-cell">{formatEur(totals.reduction)}</td>
                 <td className="py-3 px-2 text-sm text-right tabular-nums whitespace-nowrap">{formatEur(totals.montantTotal)}</td>
-                <td colSpan={3} />
+                <td className="hidden md:table-cell" colSpan={3} />
+                <td className="md:hidden" colSpan={2} />
               </tr>
             </tfoot>
           </table>
@@ -277,16 +278,16 @@ const BoostRow: React.FC<{
       <td className="py-2 px-2 text-xs whitespace-nowrap tabular-nums text-gray-300">
         {formatDateOnly(boost.eventDate)}
       </td>
-      <td className="py-2 px-2 text-sm text-right tabular-nums whitespace-nowrap text-gray-300">
+      <td className="py-2 px-2 text-sm text-right tabular-nums whitespace-nowrap text-gray-300 hidden md:table-cell">
         {formatEur(p.montant_boost)}
       </td>
-      <td className="py-2 px-2 text-sm text-right tabular-nums whitespace-nowrap text-gray-300">
+      <td className="py-2 px-2 text-sm text-right tabular-nums whitespace-nowrap text-gray-300 hidden lg:table-cell">
         {formatEur(p.reduction)}
       </td>
       <td className="py-2 px-2 text-sm text-right tabular-nums whitespace-nowrap font-semibold">
         {formatEur(p.montant_total)}
       </td>
-      <td className="py-2 px-2 text-xs whitespace-nowrap text-gray-400" title={p.moyen_paiement ?? ""}>
+      <td className="py-2 px-2 text-xs whitespace-nowrap text-gray-400 hidden md:table-cell" title={p.moyen_paiement ?? ""}>
         {formatMoyenPaiementBoost(p.moyen_paiement)}
       </td>
       <td className="py-2 px-2 text-center">

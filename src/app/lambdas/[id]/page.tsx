@@ -66,7 +66,7 @@ const LambdaConfigPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#151826] text-white p-8">
+    <div className="min-h-screen bg-[#151826] text-white p-4 md:p-8">
       <div className="max-w-2xl w-full mx-auto">
         <button onClick={() => router.back()} className="mb-6 text-blue-400 hover:underline">&larr; Retour</button>
         <div className="bg-[#23263A] rounded-2xl shadow-lg px-8 py-10">
