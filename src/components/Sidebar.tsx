@@ -7,6 +7,7 @@ import {
 } from "react-icons/fa";
 import { createClient } from "@/utils/supabase/client";
 import { useUserRole, type UserRole } from "@/utils/supabase/useUserRole";
+import FeedbackButton from "./FeedbackButton";
 
 type LinkDef = { href: string; label: string; icon: React.ReactNode; roles?: UserRole[] };
 
@@ -134,6 +135,7 @@ const Sidebar = () => {
               </div>
             </div>
           )}
+          <FeedbackButton />
           <button
             type="button"
             onClick={handleSignOut}

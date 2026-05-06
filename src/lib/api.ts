@@ -506,6 +506,46 @@ export async function fetchVintedTimeline(opts: {
   return parseApiResponse<VintedTimeline>(res);
 }
 
+// === Feedback / demandes utilisateur (bouton sidebar) ===
+// POST /feedback → lambda-sunset-create-trello-ticket → carte sur le board
+// "Cockpit Sunset — Demandes clients" (liste "📥 Nouvelles demandes").
+export type FeedbackType = 'bug' | 'evolution' | 'question';
+export type FeedbackScreenshot = {
+  name: string;
+  contentType: string;
+  base64: string; // data sans le préfixe `data:...;base64,`
+};
+export type FeedbackPayload = {
+  type: FeedbackType;
+  title: string;
+  description?: string;
+  urgent?: boolean;
+  page?: string;
+  screenshot?: FeedbackScreenshot;
+};
+export type FeedbackResponse = { id: string; url: string; name: string; attachmentUploaded?: boolean };
+
+export async function submitFeedback(payload: FeedbackPayload): Promise<FeedbackResponse> {
+  if (shouldUseMock()) {
+    await new Promise(r => setTimeout(r, 400));
+    return {
+      id: `mock-${Date.now()}`,
+      url: 'https://trello.com/c/MOCK',
+      name: `[${payload.type}] ${payload.title} (mock)`,
+    };
+  }
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/feedback`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Envoi de la demande échoué: ${txt || res.status}`);
+  }
+  return parseApiResponse<FeedbackResponse>(res);
+}
+
 export async function fetchVintedEvents(opts: {
   type: VintedEvent['eventType'];
   from?: string;
