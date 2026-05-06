@@ -46,7 +46,9 @@ const formatEur = (n: number): string =>
 
 const formatDate = (iso: string): string => {
   const d = new Date(iso);
-  return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+  // eventDate est stocké en heure Paris labellisée Z par le parser ingest ;
+  // afficher en UTC neutralise le second +1/+2h qu'ajouterait la TZ navigateur.
+  return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
 };
 
 const VintedVentesPage = () => {
