@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
-import { FaCommentAlt, FaTimes, FaExternalLinkAlt, FaBug, FaLightbulb, FaQuestionCircle, FaImage, FaPaperclip } from "react-icons/fa";
+import { FaCommentAlt, FaTimes, FaBug, FaLightbulb, FaQuestionCircle, FaImage, FaPaperclip, FaCheck } from "react-icons/fa";
 import { submitFeedback, type FeedbackType, type FeedbackScreenshot } from "@/lib/api";
 
 const MAX_SCREENSHOT_BYTES = 3 * 1024 * 1024; // 3 MB raw — tient sous la limite Lambda sync (6 MB) une fois encodé en base64.
@@ -43,14 +43,18 @@ const FeedbackButton = () => {
   const [urgent, setUrgent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successUrl, setSuccessUrl] = useState<string | null>(null);
+  const [toastVisible, setToastVisible] = useState(false);
   const [screenshot, setScreenshot] = useState<LocalScreenshot | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setMounted(true);
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
   }, []);
 
   const reset = () => {
@@ -59,11 +63,16 @@ const FeedbackButton = () => {
     setDescription("");
     setUrgent(false);
     setError(null);
-    setSuccessUrl(null);
     setSubmitting(false);
     setScreenshot(null);
     setDragActive(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const showSuccessToast = () => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToastVisible(true);
+    toastTimerRef.current = setTimeout(() => setToastVisible(false), 3000);
   };
 
   const ingestFile = async (file: File) => {
@@ -129,7 +138,7 @@ const FeedbackButton = () => {
     setError(null);
     setSubmitting(true);
     try {
-      const res = await submitFeedback({
+      await submitFeedback({
         type,
         title: cleanTitle,
         description: description.trim() || undefined,
@@ -139,10 +148,11 @@ const FeedbackButton = () => {
           ? { name: screenshot.name, contentType: screenshot.contentType, base64: screenshot.base64 }
           : undefined,
       });
-      setSuccessUrl(res.url);
+      setOpen(false);
+      setTimeout(reset, 200);
+      showSuccessToast();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inconnue");
-    } finally {
       setSubmitting(false);
     }
   };
@@ -187,35 +197,7 @@ const FeedbackButton = () => {
               </button>
             </div>
 
-            {successUrl ? (
-              <div className="px-6 py-8 flex flex-col items-center gap-4 text-center">
-                <div className="w-12 h-12 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-2xl">
-                  ✓
-                </div>
-                <div>
-                  <div className="font-semibold text-lg">Merci, c'est envoyé !</div>
-                  <div className="text-sm text-gray-400 mt-1">
-                    Ton ticket a été créé. On revient vers toi dès qu'on l'a regardé.
-                  </div>
-                </div>
-                <a
-                  href={successUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors"
-                >
-                  Voir le ticket <FaExternalLinkAlt className="text-xs" />
-                </a>
-                <button
-                  type="button"
-                  onClick={handleClose}
-                  className="text-sm text-gray-400 hover:text-white transition-colors"
-                >
-                  Fermer
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmit} className="px-6 py-5 flex flex-col gap-5">
+            <form onSubmit={handleSubmit} className="px-6 py-5 flex flex-col gap-5">
                 <fieldset className="flex flex-col gap-2">
                   <legend className="text-sm font-medium text-gray-300 mb-1">Type de demande</legend>
                   <div className="grid grid-cols-3 gap-2">
@@ -379,7 +361,25 @@ const FeedbackButton = () => {
                   </button>
                 </div>
               </form>
-            )}
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {mounted && createPortal(
+        <div
+          role="status"
+          aria-live="polite"
+          className={`fixed top-6 right-6 z-[70] flex items-center gap-4 px-6 py-4 rounded-xl bg-green-600 text-white shadow-2xl ring-1 ring-green-300/40 transition-all duration-300 ${
+            toastVisible ? "opacity-100 translate-y-0 scale-100" : "opacity-0 -translate-y-3 scale-95 pointer-events-none"
+          }`}
+        >
+          <span className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-lg">
+            <FaCheck />
+          </span>
+          <div className="flex flex-col">
+            <span className="text-base font-semibold leading-tight">Merci, c&apos;est envoyé !</span>
+            <span className="text-sm text-green-100/90 leading-tight">Ton ticket a bien été créé.</span>
           </div>
         </div>,
         document.body
