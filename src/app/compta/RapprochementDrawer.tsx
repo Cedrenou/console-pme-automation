@@ -6,10 +6,11 @@ import {
 } from "@/lib/api";
 import {
   FaTimes, FaUpload, FaCheckCircle, FaExclamationTriangle, FaQuestionCircle,
-  FaCheck, FaSpinner, FaChevronDown, FaChevronRight
+  FaCheck, FaSpinner, FaChevronDown, FaChevronRight, FaFileExcel
 } from "react-icons/fa";
-import { parseSGCsv, type BankLine } from "./parseSGCsv";
+import { parseSGCsv, type BankLine, type ParsedBankCsv } from "./parseSGCsv";
 import { matchBankLines, summarize, type BankMatchResult, type MatchedEventCandidate } from "./matchBank";
+import { downloadBankRapprochementXlsx } from "./exports";
 import { monthToDates, formatEur, formatDateOnly } from "./utils";
 
 type Props = {
@@ -29,7 +30,8 @@ const EVENT_TYPES = ["achat", "boost", "vitrine", "refund", "transfert"] as cons
 const FETCH_BUFFER_DAYS = 5;
 
 export const RapprochementDrawer: React.FC<Props> = ({ month, onClose, onValidationsApplied }) => {
-  const [bankLines, setBankLines] = useState<BankLine[] | null>(null);
+  const [parsed, setParsed] = useState<ParsedBankCsv | null>(null);
+  const bankLines: BankLine[] | null = parsed?.bankLines ?? null;
   const [events, setEvents] = useState<VintedEvent[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
@@ -88,14 +90,14 @@ export const RapprochementDrawer: React.FC<Props> = ({ month, onClose, onValidat
     setFilename(file.name);
     try {
       const text = await file.text();
-      const parsed = parseSGCsv(text);
-      setBankLines(parsed);
+      const result = parseSGCsv(text);
+      setParsed(result);
       setPicks(new Map());
       setResolvedPicks(new Map());
       setFeedback(null);
     } catch (err) {
       setParseError(err instanceof Error ? err.message : String(err));
-      setBankLines(null);
+      setParsed(null);
     }
   };
 
@@ -175,6 +177,18 @@ export const RapprochementDrawer: React.FC<Props> = ({ month, onClose, onValidat
     // Une fois la grosse vague de validations passée, on replie le panneau "sûrs" pour
     // que la secrétaire voit tout de suite les ambigus / non trouvés sans scroller.
     setOpenPanels(prev => ({ ...prev, sure: false }));
+  };
+
+  const handleExport = () => {
+    if (!parsed) return;
+    const eventsById = new Map(events.map(e => [e.gmailMessageId, e]));
+    downloadBankRapprochementXlsx(
+      `releve-bancaire-${month}.xlsx`,
+      parsed,
+      matches,
+      resolvedPicks,
+      eventsById,
+    );
   };
 
   const handleValidateAmbigu = async (idx: number) => {
@@ -276,7 +290,7 @@ export const RapprochementDrawer: React.FC<Props> = ({ month, onClose, onValidat
                   <span className="font-semibold">{filename}</span>
                   <button
                     type="button"
-                    onClick={() => { setBankLines(null); setFilename(null); setPicks(new Map()); setResolvedPicks(new Map()); setFeedback(null); }}
+                    onClick={() => { setParsed(null); setFilename(null); setPicks(new Map()); setResolvedPicks(new Map()); setFeedback(null); }}
                     className="cursor-pointer text-xs text-blue-400 hover:underline ml-2"
                   >
                     Changer
@@ -291,6 +305,15 @@ export const RapprochementDrawer: React.FC<Props> = ({ month, onClose, onValidat
                   <Stat icon={<FaCheckCircle className="text-emerald-400" />} label="Sûrs" value={stats.sure} />
                   <Stat icon={<FaQuestionCircle className="text-amber-400" />} label="Ambigus" value={stats.ambigu} />
                   <Stat icon={<FaExclamationTriangle className="text-red-400" />} label="Non trouvés" value={stats.none} />
+                  <button
+                    type="button"
+                    onClick={handleExport}
+                    className="cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 rounded-lg font-semibold text-sm bg-emerald-600 hover:bg-emerald-700 text-white"
+                    title="Télécharger le relevé bancaire enrichi d'une colonne N°Transaction (issue du compta_label des events matchés)"
+                  >
+                    <FaFileExcel className="text-sm" />
+                    Exporter Excel
+                  </button>
                 </div>
               </div>
 

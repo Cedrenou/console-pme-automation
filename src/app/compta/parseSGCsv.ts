@@ -16,6 +16,22 @@ export type BankLineKind =
   | "vinted_refund_cb"   // CARTE X5365 REMBT DD/MM MGP*Vinted (Crédit) → annulation achat
   | "ignored";           // Stripe, PayPal, Facebook, prélèvements, etc.
 
+/** Une ligne brute du CSV SG telle qu'elle apparaît dans le fichier (1 transaction principale
+ *  ou 1 continuation). On la conserve pour reproduire la mise en page d'origine dans l'export
+ *  Excel (relevé bancaire + colonne N°Transaction). */
+export type BankRawRow = {
+  /** Date au format DD/MM/YYYY, ou chaîne vide pour les lignes de continuation. */
+  date: string;
+  /** Colonne 2 — "Nature de l'opération" ou détail (DE: Mangopay, MOTIF…) pour les continuations. */
+  label: string;
+  /** Colonne 3 — Débit (string brut, signe inclus). */
+  debit: string;
+  /** Colonne 4 — Crédit (string brut). */
+  credit: string;
+  /** Colonne 7 — Libellé interbancaire. */
+  libelleInter: string;
+};
+
 export type BankLine = {
   /** Date de l'opération réelle (DD/MM/YYYY parsée en ISO date YYYY-MM-DD).
    *  Pour les CB, on prend la date dans le libellé (DD/MM) plutôt que la date
@@ -31,6 +47,19 @@ export type BankLine = {
   category: string;
   /** Notre classification métier. */
   kind: BankLineKind;
+  /** Lignes brutes du CSV pour cette transaction (la principale en [0], les continuations
+   *  ensuite). Utilisé par l'export Excel pour respecter le format SG d'origine. */
+  rawRows: BankRawRow[];
+};
+
+/** Résultat complet du parsing : les transactions + les lignes d'entête (titre du compte,
+ *  IBAN, solde, etc.) qu'on réinjecte dans l'export Excel. */
+export type ParsedBankCsv = {
+  /** Lignes brutes au-dessus du header (titre compte, IBAN, solde). Chaque entrée est
+   *  la liste des cellules de la ligne. */
+  headerRows: string[][];
+  /** Transactions parsées. */
+  bankLines: BankLine[];
 };
 
 const EXPECTED_HEADER = "Date;Nature de l'opération";
@@ -99,7 +128,7 @@ function classify(label: string, details: string, amount: number, category: stri
   return "ignored";
 }
 
-export function parseSGCsv(csvText: string): BankLine[] {
+export function parseSGCsv(csvText: string): ParsedBankCsv {
   // Normalise les fins de ligne et enlève le BOM éventuel
   const text = csvText.replace(/^﻿/, "").replace(/\r\n?/g, "\n");
   const lines = text.split("\n");
@@ -108,7 +137,15 @@ export function parseSGCsv(csvText: string): BankLine[] {
   const headerIdx = lines.findIndex(l => l.startsWith(EXPECTED_HEADER));
   if (headerIdx < 0) throw new Error("Format CSV non reconnu : ligne d'entête introuvable.");
 
-  const result: BankLine[] = [];
+  // Lignes au-dessus du header (titre compte, IBAN, solde, …) — on les conserve pour l'export
+  const headerRows: string[][] = [];
+  for (let i = 0; i < headerIdx; i++) {
+    const raw = lines[i];
+    if (!raw.trim()) continue;
+    headerRows.push(splitCsvLine(raw));
+  }
+
+  const bankLines: BankLine[] = [];
   let current: BankLine | null = null;
 
   for (let i = headerIdx + 1; i < lines.length; i++) {
@@ -117,13 +154,15 @@ export function parseSGCsv(csvText: string): BankLine[] {
     const cols = splitCsvLine(raw);
     const dateStr = cols[0]?.trim() || "";
     const label = cols[1]?.trim() || "";
+    const debitStr = (cols[2] || "").trim();
+    const creditStr = (cols[3] || "").trim();
+    const libelleInterStr = (cols[6] || "").trim();
 
     if (dateStr) {
       // Nouvelle transaction : on push la précédente si elle existe
-      if (current) result.push(finalize(current));
-      const debit = parseFrAmount(cols[2] || "");
-      const credit = parseFrAmount(cols[3] || "");
-      const category = (cols[6] || "").trim();
+      if (current) bankLines.push(finalize(current));
+      const debit = parseFrAmount(debitStr);
+      const credit = parseFrAmount(creditStr);
       // Le SG exporte les débits déjà signés négatifs ("-60,96") dans la colonne Débit.
       // On force le signe avec -Math.abs pour être robuste si une autre banque les
       // stockait en positif. credit > 0 wins toujours.
@@ -133,18 +172,32 @@ export function parseSGCsv(csvText: string): BankLine[] {
         label,
         amount,
         details: "",
-        category,
-        kind: "ignored"
+        category: libelleInterStr,
+        kind: "ignored",
+        rawRows: [{
+          date: dateStr,
+          label,
+          debit: debitStr,
+          credit: creditStr,
+          libelleInter: libelleInterStr,
+        }],
       };
     } else if (current) {
-      // Ligne de continuation : on agrège dans details
+      // Ligne de continuation : on agrège dans details et on conserve la ligne brute
       const extra = label;
       if (extra) current.details += (current.details ? " " : "") + extra;
+      current.rawRows.push({
+        date: "",
+        label,
+        debit: debitStr,
+        credit: creditStr,
+        libelleInter: libelleInterStr,
+      });
     }
   }
-  if (current) result.push(finalize(current));
+  if (current) bankLines.push(finalize(current));
 
-  return result;
+  return { headerRows, bankLines };
 }
 
 function finalize(line: BankLine): BankLine {
