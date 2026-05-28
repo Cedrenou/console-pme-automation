@@ -1,6 +1,6 @@
 "use client";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FaUpload, FaFileCsv, FaCheckCircle, FaTimesCircle, FaSpinner, FaImages, FaTimes } from "react-icons/fa";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { FaUpload, FaFileCsv, FaCheckCircle, FaTimesCircle, FaSpinner, FaTimes, FaPlus } from "react-icons/fa";
 
 /**
  * Parser CSV — identique à shopify-catalogue (même format export caisse
@@ -43,10 +43,10 @@ const parseCsv = (raw: string): Record<string, string>[] => {
 type SkuRow = { codeArt: string; designation: string };
 
 type PhotoItem = {
-  id: string;          // identifiant interne (uuid v4 sans crypto pour rester léger)
+  id: string;
   file: File;
-  previewUrl: string;  // objectURL — révoqué au unmount
-  assignedTo: string | null; // codeArt du SKU, ou null = réserve
+  previewUrl: string;
+  assignedTo: string;  // codeArt — par construction toujours assigné à un SKU
 };
 
 type UploadResult =
@@ -62,7 +62,6 @@ const MAX_FILE_BYTES = 4 * 1024 * 1024;
 
 const ACCEPTED_MIME = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 
-// uuid léger — pas besoin de crypto.randomUUID pour de simples clés React.
 const uid = (): string => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
 
 // Encodage base64 sans préfixe data:URI (le middleware attend du base64 brut).
@@ -88,13 +87,11 @@ const ShopifyPhotosPage = () => {
   const [importing, setImporting] = useState(false);
   const [done, setDone] = useState(false);
 
-  // Cleanup des objectURLs au unmount pour éviter une fuite mémoire si
-  // l'utilisateur navigue ailleurs en cours d'import.
+  // Cleanup des objectURLs au unmount pour éviter une fuite mémoire.
   useEffect(() => {
     return () => {
       photos.forEach((p) => URL.revokeObjectURL(p.previewUrl));
     };
-    // On veut juste cleanup au unmount, pas à chaque update de photos.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -143,7 +140,9 @@ const ShopifyPhotosPage = () => {
     if (file) handleCsvFile(file);
   };
 
-  const addPhotoFiles = useCallback((files: FileList | File[]) => {
+  // Ajoute des fichiers à un SKU précis. Filtre les fichiers rejetés (mime
+  // non supporté ou trop volumineux) et remonte un message d'erreur global.
+  const addFilesToSku = (files: FileList | File[], skuCode: string) => {
     const accepted: PhotoItem[] = [];
     const rejected: string[] = [];
     for (const file of Array.from(files)) {
@@ -159,30 +158,25 @@ const ShopifyPhotosPage = () => {
         id: uid(),
         file,
         previewUrl: URL.createObjectURL(file),
-        assignedTo: null,
+        assignedTo: skuCode,
       });
     }
     if (rejected.length > 0) {
       setParseError(`Fichiers rejetés : ${rejected.join(", ")}`);
+    } else {
+      setParseError(null);
     }
     if (accepted.length > 0) {
       setPhotos((prev) => [...prev, ...accepted]);
     }
-  }, []);
-
-  const onPhotoInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) addPhotoFiles(e.target.files);
-    // reset pour permettre re-sélection du même fichier
-    e.target.value = "";
   };
 
   // ─── Drag & drop ─────────────────────────────────────────────────
   //
-  // 2 sources possibles à un drop :
-  // 1. Fichiers OS (DataTransfer.files non vide) → on ajoute à la réserve
-  //    si drop sur la zone réserve, OU à un SKU si drop sur une ligne SKU.
-  // 2. Photo déjà dans l'UI : on transporte son id via dataTransfer (text/plain)
-  //    pour permettre la réaffectation entre SKU et réserve.
+  // 2 sources possibles à un drop sur une ligne SKU :
+  // 1. Fichiers OS (DataTransfer.files non vide) → ajout au SKU
+  // 2. Photo déjà dans l'UI (dataTransfer "photo-id") → réaffectation
+  //    d'un SKU vers un autre
 
   const handleDropOnSku = (e: React.DragEvent, skuCode: string) => {
     e.preventDefault();
@@ -193,26 +187,7 @@ const ShopifyPhotosPage = () => {
       return;
     }
     if (e.dataTransfer.files.length > 0) {
-      const newItems: PhotoItem[] = [];
-      for (const file of Array.from(e.dataTransfer.files)) {
-        if (!ACCEPTED_MIME.includes(file.type)) continue;
-        if (file.size > MAX_FILE_BYTES) continue;
-        newItems.push({ id: uid(), file, previewUrl: URL.createObjectURL(file), assignedTo: skuCode });
-      }
-      if (newItems.length > 0) setPhotos((prev) => [...prev, ...newItems]);
-    }
-  };
-
-  const handleDropOnReserve = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const draggedPhotoId = e.dataTransfer.getData("photo-id");
-    if (draggedPhotoId) {
-      setPhotos((prev) => prev.map((p) => p.id === draggedPhotoId ? { ...p, assignedTo: null } : p));
-      return;
-    }
-    if (e.dataTransfer.files.length > 0) {
-      addPhotoFiles(e.dataTransfer.files);
+      addFilesToSku(e.dataTransfer.files, skuCode);
     }
   };
 
@@ -234,44 +209,31 @@ const ShopifyPhotosPage = () => {
     });
   };
 
-  // ─── Indices dérivés ─────────────────────────────────────────────
-
   const photosBySku = useMemo(() => {
     const map = new Map<string, PhotoItem[]>();
     for (const p of photos) {
-      if (p.assignedTo) {
-        const arr = map.get(p.assignedTo) ?? [];
-        arr.push(p);
-        map.set(p.assignedTo, arr);
-      }
+      const arr = map.get(p.assignedTo) ?? [];
+      arr.push(p);
+      map.set(p.assignedTo, arr);
     }
     return map;
   }, [photos]);
 
-  const unassignedPhotos = useMemo(() => photos.filter((p) => p.assignedTo === null), [photos]);
-
-  const assignedCount = photos.length - unassignedPhotos.length;
   const skusWithPhotos = useMemo(() => skus.filter((s) => photosBySku.has(s.codeArt)).length, [skus, photosBySku]);
-  const canImport = !importing && assignedCount > 0;
-
-  // ─── Lancement de l'import ───────────────────────────────────────
+  const canImport = !importing && photos.length > 0;
 
   const handleImport = async () => {
     if (!canImport) return;
     setImporting(true);
     setDone(false);
 
-    const toUpload = photos.filter((p) => p.assignedTo !== null);
-
-    // État initial : toutes les photos affectées en pending
     const initial: Record<string, UploadResult> = {};
-    for (const p of toUpload) initial[p.id] = { status: "pending" };
+    for (const p of photos) initial[p.id] = { status: "pending" };
     setUploadState(initial);
 
-    // Boucle séquentielle. On pourrait paralléliser à 3-4 mais Shopify rate-limit
-    // sur la même boutique (2 req/s), donc le séquentiel est aussi rapide en
-    // pratique et plus simple à raisonner.
-    for (const photo of toUpload) {
+    // Boucle séquentielle. Shopify rate-limit à 2 req/s sur la même boutique,
+    // donc le séquentiel est aussi rapide en pratique et plus simple à raisonner.
+    for (const photo of photos) {
       setUploadState((prev) => ({ ...prev, [photo.id]: { status: "uploading" } }));
       try {
         const contentBase64 = await fileToBase64(photo.file);
@@ -316,7 +278,6 @@ const ShopifyPhotosPage = () => {
     setParseError(null);
   };
 
-  // Progression
   const uploadedCount = Object.values(uploadState).filter((s) => s.status === "done").length;
   const errorCount = Object.values(uploadState).filter((s) => s.status === "error").length;
   const totalToUpload = Object.keys(uploadState).length;
@@ -328,7 +289,7 @@ const ShopifyPhotosPage = () => {
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Import Photos Shopify</h1>
         <p className="text-gray-400">
-          Déposez un CSV de SKUs, puis associez les photos à chaque article avant de lancer l&apos;import.
+          Déposez un CSV de SKUs, puis affectez les photos à chaque article avant de lancer l&apos;import.
           Les photos sont <strong>ajoutées</strong> aux produits Shopify existants (jamais en remplacement).
         </p>
       </div>
@@ -367,73 +328,14 @@ const ShopifyPhotosPage = () => {
         </div>
       )}
 
-      {/* Étape 2 : Réserve photos */}
-      {skus.length > 0 && (
-        <div className="bg-[#23263A] rounded-2xl shadow-lg p-6 mb-6">
-          <div className="flex items-center gap-4 mb-4">
-            <FaImages className="text-3xl text-purple-400" />
-            <div>
-              <h2 className="text-xl font-semibold">2. Réserve photos</h2>
-              <p className="text-sm text-gray-400">
-                Déposez ici toutes les photos en vrac (jusqu&apos;à 4 Mo par photo, JPG/PNG/WebP), puis glissez chaque photo vers le SKU correspondant ci-dessous.
-              </p>
-            </div>
-          </div>
-
-          <div
-            onDrop={handleDropOnReserve}
-            onDragOver={handleDragOver}
-            className="min-h-[120px] border-2 border-dashed border-purple-700/50 rounded-xl p-4 bg-[#1c1f2e]"
-            aria-label="Zone de dépôt photos réserve"
-          >
-            {unassignedPhotos.length === 0 ? (
-              <label className="flex items-center justify-center gap-3 h-full py-6 cursor-pointer text-gray-400 hover:text-gray-200 transition-colors">
-                <FaUpload />
-                <span>Glisser les photos ici, ou cliquer pour les sélectionner</span>
-                <input
-                  type="file"
-                  accept={ACCEPTED_MIME.join(",")}
-                  multiple
-                  onChange={onPhotoInput}
-                  className="hidden"
-                />
-              </label>
-            ) : (
-              <div className="flex flex-wrap gap-3">
-                {unassignedPhotos.map((p) => (
-                  <PhotoThumb
-                    key={p.id}
-                    photo={p}
-                    onRemove={() => removePhoto(p.id)}
-                    onDragStart={(e) => handleDragStart(e, p.id)}
-                    status={getPhotoStatus(p.id)}
-                  />
-                ))}
-                <label className="w-24 h-24 flex flex-col items-center justify-center gap-1 border-2 border-dashed border-gray-600 rounded-lg cursor-pointer hover:border-purple-500 hover:bg-[#23263A] transition-colors text-gray-400 text-xs">
-                  <FaUpload />
-                  <span>Ajouter</span>
-                  <input
-                    type="file"
-                    accept={ACCEPTED_MIME.join(",")}
-                    multiple
-                    onChange={onPhotoInput}
-                    className="hidden"
-                  />
-                </label>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Étape 3 : tableau SKUs avec drop zone par ligne */}
+      {/* Étape 2 : tableau SKUs avec drop zone par ligne */}
       {skus.length > 0 && (
         <div className="bg-[#23263A] rounded-2xl shadow-lg p-6 mb-6">
           <div className="flex items-center justify-between mb-4 gap-4">
             <div>
-              <h2 className="text-xl font-semibold">3. Affecter les photos aux SKUs</h2>
+              <h2 className="text-xl font-semibold">2. Affecter les photos aux SKUs</h2>
               <p className="text-sm text-gray-400">
-                Glissez chaque photo depuis la réserve vers le SKU correspondant.
+                Glissez les photos directement sur la ligne du SKU, ou cliquez pour les sélectionner. Max 4 Mo par photo (JPG/PNG/WebP).
               </p>
             </div>
             <button
@@ -445,7 +347,7 @@ const ShopifyPhotosPage = () => {
               {importing ? (
                 <><FaSpinner className="animate-spin" /> Import {uploadedCount + errorCount}/{totalToUpload}</>
               ) : (
-                <>Lancer l&apos;import ({assignedCount})</>
+                <>Lancer l&apos;import ({photos.length})</>
               )}
             </button>
           </div>
@@ -463,37 +365,21 @@ const ShopifyPhotosPage = () => {
                 {skus.map((s) => {
                   const skuPhotos = photosBySku.get(s.codeArt) ?? [];
                   return (
-                    <tr key={s.codeArt} className="border-b border-gray-800 align-top">
+                    <tr key={s.codeArt} className="border-b border-gray-700/60 align-top">
                       <td className="py-3 pr-4 font-mono text-white">{s.codeArt}</td>
                       <td className="py-3 pr-4 text-gray-300">{s.designation || <span className="italic text-gray-500">(vide)</span>}</td>
                       <td className="py-3">
-                        <div
+                        <SkuDropCell
+                          skuCode={s.codeArt}
+                          photos={skuPhotos}
                           onDrop={(e) => handleDropOnSku(e, s.codeArt)}
                           onDragOver={handleDragOver}
-                          className={`min-h-[88px] rounded-lg p-2 border-2 border-dashed transition-colors ${
-                            skuPhotos.length === 0
-                              ? "border-gray-700 hover:border-blue-600"
-                              : "border-blue-700/50 bg-blue-950/20"
-                          }`}
-                          aria-label={`Zone photos pour ${s.codeArt}`}
-                        >
-                          {skuPhotos.length === 0 ? (
-                            <span className="text-xs italic text-gray-500 px-2">Déposer des photos ici</span>
-                          ) : (
-                            <div className="flex flex-wrap gap-2">
-                              {skuPhotos.map((p) => (
-                                <PhotoThumb
-                                  key={p.id}
-                                  photo={p}
-                                  small
-                                  onRemove={() => removePhoto(p.id)}
-                                  onDragStart={(e) => handleDragStart(e, p.id)}
-                                  status={getPhotoStatus(p.id)}
-                                />
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                          onFilesPicked={(files) => addFilesToSku(files, s.codeArt)}
+                          onPhotoDragStart={handleDragStart}
+                          onPhotoRemove={removePhoto}
+                          getPhotoStatus={getPhotoStatus}
+                          disabled={importing}
+                        />
                       </td>
                     </tr>
                   );
@@ -563,6 +449,88 @@ const ShopifyPhotosPage = () => {
   );
 };
 
+// ─── Sous-composant : cellule drop+pick par SKU ──────────────────────
+
+type SkuDropCellProps = {
+  skuCode: string;
+  photos: PhotoItem[];
+  onDrop: (e: React.DragEvent) => void;
+  onDragOver: (e: React.DragEvent) => void;
+  onFilesPicked: (files: FileList) => void;
+  onPhotoDragStart: (e: React.DragEvent, photoId: string) => void;
+  onPhotoRemove: (photoId: string) => void;
+  getPhotoStatus: (photoId: string) => UploadResult | undefined;
+  disabled: boolean;
+};
+
+const SkuDropCell: React.FC<SkuDropCellProps> = ({
+  skuCode, photos, onDrop, onDragOver, onFilesPicked,
+  onPhotoDragStart, onPhotoRemove, getPhotoStatus, disabled,
+}) => {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  const handlePick = () => {
+    if (!disabled) inputRef.current?.click();
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) onFilesPicked(e.target.files);
+    e.target.value = "";
+  };
+
+  return (
+    <div
+      onDrop={onDrop}
+      onDragOver={onDragOver}
+      className={`min-h-[88px] rounded-lg p-2 border-2 border-dashed transition-colors ${
+        photos.length === 0
+          ? "border-gray-700 hover:border-blue-600 cursor-pointer"
+          : "border-blue-700/50 bg-blue-950/20"
+      }`}
+      onClick={photos.length === 0 ? handlePick : undefined}
+      aria-label={`Zone photos pour ${skuCode}`}
+    >
+      <input
+        ref={inputRef}
+        type="file"
+        accept={ACCEPTED_MIME.join(",")}
+        multiple
+        onChange={handleInputChange}
+        className="hidden"
+      />
+      {photos.length === 0 ? (
+        <div className="flex items-center justify-center gap-2 h-full py-4 text-xs italic text-gray-500">
+          <FaUpload />
+          <span>Déposer ou cliquer pour choisir</span>
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2 items-center">
+          {photos.map((p) => (
+            <PhotoThumb
+              key={p.id}
+              photo={p}
+              small
+              onRemove={() => onPhotoRemove(p.id)}
+              onDragStart={(e) => onPhotoDragStart(e, p.id)}
+              status={getPhotoStatus(p.id)}
+            />
+          ))}
+          <button
+            type="button"
+            onClick={handlePick}
+            disabled={disabled}
+            aria-label={`Ajouter une photo à ${skuCode}`}
+            className="w-16 h-16 flex flex-col items-center justify-center border-2 border-dashed border-gray-600 rounded-lg hover:border-blue-500 hover:bg-[#1c1f2e] transition-colors text-gray-400 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <FaPlus />
+            <span>Ajouter</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── Sous-composant : vignette photo ──────────────────────────────────
 
 type PhotoThumbProps = {
@@ -577,9 +545,6 @@ const PhotoThumb: React.FC<PhotoThumbProps> = ({ photo, small, onRemove, onDragS
   const size = small ? "w-16 h-16" : "w-24 h-24";
   const showOverlay = status && status.status !== "pending";
 
-  // Un useRef pour exposer la ref ne sert pas ici, mais on garde la possibilité.
-  const imgRef = useRef<HTMLImageElement | null>(null);
-
   return (
     <div
       draggable={!status || status.status === "pending"}
@@ -589,14 +554,12 @@ const PhotoThumb: React.FC<PhotoThumbProps> = ({ photo, small, onRemove, onDragS
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        ref={imgRef}
         src={photo.previewUrl}
         alt={photo.file.name}
         className="w-full h-full object-cover"
         draggable={false}
       />
 
-      {/* Statut overlay */}
       {showOverlay && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/60">
           {status?.status === "uploading" && <FaSpinner className="text-blue-400 text-xl animate-spin" />}
@@ -605,7 +568,6 @@ const PhotoThumb: React.FC<PhotoThumbProps> = ({ photo, small, onRemove, onDragS
         </div>
       )}
 
-      {/* Bouton suppression */}
       {(!status || status.status === "pending") && (
         <button
           type="button"
