@@ -6,6 +6,11 @@ frontend:
         - npm ci
     build:
       commands:
+        # Propage les env vars Amplify configurées dans la console
+        # (SHOPIFY_MIDDLEWARE_*, NEXT_PUBLIC_*) vers un .env.production
+        # que Next.js lit au build. Sans ça, les API routes SSR voient
+        # `process.env.XXX === undefined` au runtime sur Amplify Hosting.
+        - env | grep -E '^(SHOPIFY_MIDDLEWARE_|NEXT_PUBLIC_)' >> .env.production || true
         - npm run build
   artifacts:
     baseDirectory: .next
