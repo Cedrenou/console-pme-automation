@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import {
-  FaCogs, FaUserCircle, FaChartLine, FaShoppingBag, FaShoppingCart, FaSignOutAlt, FaFileInvoiceDollar, FaUsers, FaBars, FaTimes, FaStore, FaImages,
+  FaCogs, FaUserCircle, FaChartLine, FaShoppingBag, FaShoppingCart, FaSignOutAlt, FaFileInvoiceDollar, FaUsers, FaBars, FaTimes, FaStore, FaImages, FaMagic,
 } from "react-icons/fa";
 import { createClient } from "@/utils/supabase/client";
 import { useUserRole, type UserRole } from "@/utils/supabase/useUserRole";
@@ -20,6 +20,7 @@ const links: LinkDef[] = [
   { href: "/compta", label: "Compta", icon: <FaFileInvoiceDollar /> },
   { href: "/shopify-catalogue", label: "Import Catalogue Shopify", icon: <FaStore />, roles: ["admin"] },
   { href: "/shopify-photos", label: "Import Photos Shopify", icon: <FaImages />, roles: ["admin"] },
+  { href: "/shopify-enrichir", label: "Enrichir descriptions Shopify", icon: <FaMagic />, roles: ["admin"] },
   { href: "/automatisations", label: "Automatisations", icon: <FaCogs />, roles: ["admin"] },
 ];
 

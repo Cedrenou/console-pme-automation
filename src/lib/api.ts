@@ -546,6 +546,51 @@ export async function submitFeedback(payload: FeedbackPayload): Promise<Feedback
   return parseApiResponse<FeedbackResponse>(res);
 }
 
+// POST /csv-to-shopify → lambda-sunset-csv-to-shopify
+// Enrichit un batch de produits Shopify (descriptions, SEO, tags) via Claude API.
+// Le cockpit parse le CSV côté client puis envoie des batches de 5-10 rows
+// pour rester sous la limite API Gateway (29s) — chaque row prend ~3-5s.
+export type ShopifyEnrichRow = Record<string, string>;
+export type ShopifyEnrichResult = {
+  code_article: string;
+  status: 'ok' | 'error';
+  productId?: string;
+  error?: string;
+};
+export type ShopifyEnrichResponse = {
+  summary: Partial<Record<'ok' | 'error', number>>;
+  results: ShopifyEnrichResult[];
+};
+
+export async function enrichShopifyProducts(rows: ShopifyEnrichRow[]): Promise<ShopifyEnrichResponse> {
+  if (shouldUseMock()) {
+    await new Promise(r => setTimeout(r, 800));
+    const results: ShopifyEnrichResult[] = rows.map((row, i) => ({
+      code_article: row['Code article'] ?? row['code_article'] ?? `MOCK-${i}`,
+      status: i % 7 === 6 ? 'error' : 'ok',
+      ...(i % 7 === 6
+        ? { error: 'Produit Shopify introuvable pour ce SKU (mock)' }
+        : { productId: `gid://shopify/Product/mock-${i}` }),
+    }));
+    const summary = results.reduce<Partial<Record<'ok' | 'error', number>>>(
+      (acc, r) => ({ ...acc, [r.status]: (acc[r.status] ?? 0) + 1 }),
+      {},
+    );
+    return { summary, results };
+  }
+
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/csv-to-shopify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
+    body: JSON.stringify({ rows }),
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Enrichissement Shopify échoué : ${txt || res.status}`);
+  }
+  return parseApiResponse<ShopifyEnrichResponse>(res);
+}
+
 export async function fetchVintedEvents(opts: {
   type: VintedEvent['eventType'];
   from?: string;
