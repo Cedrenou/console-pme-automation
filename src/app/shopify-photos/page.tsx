@@ -86,6 +86,7 @@ const ShopifyPhotosPage = () => {
   const [uploadState, setUploadState] = useState<Record<string, UploadResult>>({});
   const [importing, setImporting] = useState(false);
   const [done, setDone] = useState(false);
+  const [manualSku, setManualSku] = useState("");
 
   // Cleanup des objectURLs au unmount pour éviter une fuite mémoire.
   useEffect(() => {
@@ -138,6 +139,40 @@ const ShopifyPhotosPage = () => {
   const onCsvChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) handleCsvFile(file);
+  };
+
+  const addManualSku = () => {
+    const sku = manualSku.trim();
+    if (!sku) return;
+    if (!/^[A-Za-z0-9_-]+$/.test(sku)) {
+      setParseError(`SKU invalide : "${sku}" (lettres, chiffres, tirets uniquement)`);
+      return;
+    }
+    if (skus.some((s) => s.codeArt === sku)) {
+      setParseError(`SKU "${sku}" déjà dans la liste`);
+      setManualSku("");
+      return;
+    }
+    setParseError(null);
+    setSkus((prev) => [...prev, { codeArt: sku, designation: "(ajouté manuellement)" }]);
+    setManualSku("");
+  };
+
+  const onManualSkuKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addManualSku();
+    }
+  };
+
+  const removeSku = (skuCode: string) => {
+    // Retire le SKU et les photos qui lui sont rattachées
+    setPhotos((prev) => {
+      const removed = prev.filter((p) => p.assignedTo === skuCode);
+      removed.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+      return prev.filter((p) => p.assignedTo !== skuCode);
+    });
+    setSkus((prev) => prev.filter((s) => s.codeArt !== skuCode));
   };
 
   // Ajoute des fichiers à un SKU précis. Filtre les fichiers rejetés (mime
@@ -294,15 +329,16 @@ const ShopifyPhotosPage = () => {
         </p>
       </div>
 
-      {/* Étape 1 : CSV */}
+      {/* Étape 1 : liste de SKUs (CSV ou saisie manuelle) */}
       <div className="bg-[#23263A] rounded-2xl shadow-lg p-6 mb-6">
         <div className="flex items-center gap-4 mb-4">
           <FaFileCsv className="text-3xl text-blue-400" />
           <div>
-            <h2 className="text-xl font-semibold">1. CSV des SKUs</h2>
-            <p className="text-sm text-gray-400">Format identique à l&apos;import catalogue (colonne &laquo; Code article &raquo;).</p>
+            <h2 className="text-xl font-semibold">1. Liste des SKUs</h2>
+            <p className="text-sm text-gray-400">Importer un CSV (colonne &laquo; Code article &raquo;) ou saisir un SKU manuellement.</p>
           </div>
         </div>
+
         <label
           className="flex items-center justify-center gap-3 px-6 py-6 border-2 border-dashed border-gray-600 rounded-xl cursor-pointer hover:border-blue-500 hover:bg-[#1c1f2e] transition-colors"
           tabIndex={0}
@@ -313,9 +349,36 @@ const ShopifyPhotosPage = () => {
           </span>
           <input type="file" accept=".csv,text/csv" onChange={onCsvChange} className="hidden" />
         </label>
+
+        <div className="flex items-center gap-3 my-4">
+          <div className="flex-1 h-px bg-gray-700" />
+          <span className="text-xs text-gray-500 uppercase tracking-wider">ou</span>
+          <div className="flex-1 h-px bg-gray-700" />
+        </div>
+
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={manualSku}
+            onChange={(e) => setManualSku(e.target.value)}
+            onKeyDown={onManualSkuKey}
+            placeholder="Saisir un code article (ex: R0186A51)"
+            className="flex-1 px-4 py-2 bg-[#1c1f2e] border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 font-mono text-sm"
+            aria-label="Ajouter un SKU manuellement"
+          />
+          <button
+            type="button"
+            onClick={addManualSku}
+            disabled={!manualSku.trim()}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg font-semibold transition-colors flex items-center gap-2"
+          >
+            <FaPlus /> Ajouter
+          </button>
+        </div>
+
         {skus.length > 0 && (
-          <p className="text-sm text-gray-400 mt-3">
-            <strong className="text-white">{skus.length}</strong> SKU(s) détecté(s) — dont{" "}
+          <p className="text-sm text-gray-400 mt-4">
+            <strong className="text-white">{skus.length}</strong> SKU(s) dans la liste — dont{" "}
             <strong className="text-green-400">{skusWithPhotos}</strong> avec au moins une photo associée.
           </p>
         )}
@@ -359,6 +422,7 @@ const ShopifyPhotosPage = () => {
                   <th className="text-left py-2 pr-4 w-40">Code article</th>
                   <th className="text-left py-2 pr-4">Désignation</th>
                   <th className="text-left py-2">Photos</th>
+                  <th className="w-10"></th>
                 </tr>
               </thead>
               <tbody>
@@ -380,6 +444,18 @@ const ShopifyPhotosPage = () => {
                           getPhotoStatus={getPhotoStatus}
                           disabled={importing}
                         />
+                      </td>
+                      <td className="py-3 pl-2">
+                        <button
+                          type="button"
+                          onClick={() => removeSku(s.codeArt)}
+                          disabled={importing}
+                          aria-label={`Retirer ${s.codeArt} de la liste`}
+                          className="w-7 h-7 flex items-center justify-center rounded-full text-gray-500 hover:text-red-400 hover:bg-red-900/30 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Retirer ce SKU de la liste"
+                        >
+                          <FaTimes />
+                        </button>
                       </td>
                     </tr>
                   );
