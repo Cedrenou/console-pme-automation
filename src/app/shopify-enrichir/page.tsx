@@ -2,7 +2,7 @@
 import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import { FaUpload, FaFileCsv, FaCheckCircle, FaTimesCircle, FaSpinner, FaMagic, FaCog } from "react-icons/fa";
-import { enrichShopifyProducts, type ShopifyEnrichResult, type ShopifyEnrichRow } from "@/lib/api";
+import { enrichShopifyProducts, type ShopifyBatchUsage, type ShopifyEnrichResult, type ShopifyEnrichRow } from "@/lib/api";
 
 /**
  * Parser CSV qui gère les valeurs multi-lignes entre guillemets — le CSV
@@ -58,10 +58,28 @@ const REQUIRED_HEADERS = ["Code article", "Designation"];
 const BATCH_SIZE = 5;
 const PARALLEL_BATCHES = 3;
 
+// Cumul des `usage` retournés par chaque batch — un usage null signifie qu'on n'a
+// rien obtenu d'Anthropic sur ce batch (uniquement des erreurs avant l'appel modèle).
+type AggregatedUsage = ShopifyBatchUsage | null;
+
 type EnrichState =
   | { kind: "idle" }
   | { kind: "running"; done: number; total: number }
-  | { kind: "done"; results: ShopifyEnrichResult[]; durationMs: number };
+  | { kind: "done"; results: ShopifyEnrichResult[]; durationMs: number; usage: AggregatedUsage };
+
+function mergeUsage(a: AggregatedUsage, b: AggregatedUsage): AggregatedUsage {
+  if (!a) return b;
+  if (!b) return a;
+  return {
+    model: a.model === b.model ? a.model : `${a.model}+${b.model}`,
+    input_tokens: a.input_tokens + b.input_tokens,
+    output_tokens: a.output_tokens + b.output_tokens,
+    cache_read_input_tokens: a.cache_read_input_tokens + b.cache_read_input_tokens,
+    cache_creation_input_tokens: a.cache_creation_input_tokens + b.cache_creation_input_tokens,
+    cost_usd: a.cost_usd + b.cost_usd,
+    cost_eur: a.cost_eur + b.cost_eur,
+  };
+}
 
 const ShopifyEnrichirPage = () => {
   const [rows, setRows] = useState<ShopifyEnrichRow[]>([]);
@@ -121,6 +139,7 @@ const ShopifyEnrichirPage = () => {
     }
 
     const allResults: ShopifyEnrichResult[] = [];
+    let aggregatedUsage: AggregatedUsage = null;
     let done = 0;
 
     // Pool de workers : PARALLEL_BATCHES requêtes simultanées
@@ -133,6 +152,7 @@ const ShopifyEnrichirPage = () => {
         try {
           const resp = await enrichShopifyProducts(batch);
           allResults.push(...resp.results);
+          if (resp.usage) aggregatedUsage = mergeUsage(aggregatedUsage, resp.usage);
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : "Erreur batch";
           for (const row of batch) {
@@ -150,7 +170,7 @@ const ShopifyEnrichirPage = () => {
 
     await Promise.all(Array.from({ length: PARALLEL_BATCHES }, worker));
 
-    setState({ kind: "done", results: allResults, durationMs: Date.now() - started });
+    setState({ kind: "done", results: allResults, durationMs: Date.now() - started, usage: aggregatedUsage });
   };
 
   const handleReset = () => {
@@ -356,9 +376,27 @@ const ShopifyEnrichirPage = () => {
             </div>
           </div>
 
-          <p className="text-xs text-gray-500 mb-3">
-            Durée : {(state.durationMs / 1000).toFixed(1)}s
-          </p>
+          <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-gray-500 mb-3">
+            <span>Durée : {(state.durationMs / 1000).toFixed(1)}s</span>
+            {state.usage && (
+              <>
+                <span>
+                  Coût : <span className="text-gray-300">
+                    {state.usage.cost_eur < 0.01
+                      ? `${(state.usage.cost_eur * 100).toFixed(2)} ¢ €`
+                      : `${state.usage.cost_eur.toFixed(3)} €`}
+                  </span>
+                  <span className="text-gray-600 ml-1">(≈ ${state.usage.cost_usd.toFixed(3)})</span>
+                </span>
+                <span>
+                  Tokens : <span className="text-gray-300">{state.usage.input_tokens.toLocaleString("fr-FR")} in</span>
+                  {" / "}
+                  <span className="text-gray-300">{state.usage.output_tokens.toLocaleString("fr-FR")} out</span>
+                </span>
+                <span>Modèle : <span className="text-gray-300 font-mono">{state.usage.model}</span></span>
+              </>
+            )}
+          </div>
 
           {errorResults.length > 0 && (
             <div className="bg-[#1c1f2e] rounded-xl p-4 max-h-64 overflow-y-auto">

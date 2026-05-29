@@ -557,9 +557,19 @@ export type ShopifyEnrichResult = {
   productId?: string;
   error?: string;
 };
+export type ShopifyBatchUsage = {
+  model: string;
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_input_tokens: number;
+  cache_creation_input_tokens: number;
+  cost_usd: number;
+  cost_eur: number;
+};
 export type ShopifyEnrichResponse = {
   summary: Partial<Record<'ok' | 'error', number>>;
   results: ShopifyEnrichResult[];
+  usage?: ShopifyBatchUsage | null;
 };
 
 export async function enrichShopifyProducts(rows: ShopifyEnrichRow[]): Promise<ShopifyEnrichResponse> {
@@ -576,7 +586,17 @@ export async function enrichShopifyProducts(rows: ShopifyEnrichRow[]): Promise<S
       (acc, r) => ({ ...acc, [r.status]: (acc[r.status] ?? 0) + 1 }),
       {},
     );
-    return { summary, results };
+    const okCount = summary.ok ?? 0;
+    const usage: ShopifyBatchUsage = {
+      model: 'claude-sonnet-4-6',
+      input_tokens: 1808 * okCount,
+      output_tokens: 885 * okCount,
+      cache_read_input_tokens: 0,
+      cache_creation_input_tokens: 0,
+      cost_usd: 0.0187 * okCount,
+      cost_eur: 0.0172 * okCount,
+    };
+    return { summary, results, usage };
   }
 
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/csv-to-shopify`, {
