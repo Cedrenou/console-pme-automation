@@ -11,6 +11,12 @@ type Service = {
   parameters: Record<string, string | number | boolean>;
 };
 
+// Lambdas qui ont leur propre UI de configuration dédiée dans le cockpit —
+// on les cache de la liste générique pour éviter d'avoir deux entrées.
+const LAMBDAS_WITH_DEDICATED_UI = new Set([
+  "uploadProductToShopify", // → /shopify-enrichir/parametres
+]);
+
 const HomePage = () => {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
@@ -20,7 +26,10 @@ const HomePage = () => {
     fetchLambdas()
       .then(data => {
         console.log('Lambdas reçues:', data);
-        setServices(data as unknown as Service[]);
+        const filtered = (data as unknown as Service[]).filter(
+          s => !LAMBDAS_WITH_DEDICATED_UI.has(s.lambdaName),
+        );
+        setServices(filtered);
       })
       .catch((e) => {
         setError("Erreur lors du chargement des services.");
