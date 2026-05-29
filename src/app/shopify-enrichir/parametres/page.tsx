@@ -181,19 +181,11 @@ const ShopifyEnrichirParametresPage = () => {
         {/* Claude prompt */}
         <section className="bg-[#23263A] rounded-2xl shadow-lg p-6">
           <label className="block">
-            <span className="text-lg font-semibold mb-1 block">Prompt principal</span>
+            <span className="text-lg font-semibold mb-1 block">Prompt principal (consignes)</span>
             <span className="text-sm text-gray-400 mb-3 block">
-              Instructions détaillées pour chaque produit. Les placeholders disponibles :{" "}
-              <code className="text-blue-300">${"{product.nom_produit}"}</code>,{" "}
-              <code className="text-blue-300">${"{product.marque}"}</code>,{" "}
-              <code className="text-blue-300">${"{product.categorie}"}</code>,{" "}
-              <code className="text-blue-300">${"{product.taille}"}</code>,{" "}
-              <code className="text-blue-300">${"{product.etat}"}</code>,{" "}
-              <code className="text-blue-300">${"{product.genre}"}</code>,{" "}
-              <code className="text-blue-300">${"{product.matiere}"}</code>,{" "}
-              <code className="text-blue-300">${"{product.protections}"}</code>,{" "}
-              <code className="text-blue-300">${"{product.doublure}"}</code>,{" "}
-              <code className="text-blue-300">${"{product.indications}"}</code>.
+              Décris uniquement <strong className="text-gray-200">ce que Claude doit produire</strong> (structure, ton, contraintes par champ).
+              Les données du produit (marque, taille, matière, protections, etc.) sont injectées automatiquement
+              avant ce prompt par la Lambda — tu n&apos;as pas besoin de les mentionner ni d&apos;utiliser de placeholders.
             </span>
             <textarea
               value={config.claudePrompt}
