@@ -67,8 +67,16 @@ const ShopifyEnrichirPage = () => {
   const [filename, setFilename] = useState<string | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
   const [state, setState] = useState<EnrichState>({ kind: "idle" });
+  // Counter, pas booléen : onDragEnter/Leave fire à chaque traversée d'enfant,
+  // on incrémente sur Enter et décrémente sur Leave pour éviter le flicker.
+  const [dragDepth, setDragDepth] = useState(0);
+  const isDragging = dragDepth > 0;
 
   const handleFile = (file: File) => {
+    if (!file.name.toLowerCase().endsWith(".csv") && file.type !== "text/csv") {
+      setParseError(`Fichier ignoré : seuls les .csv sont acceptés (reçu ${file.name})`);
+      return;
+    }
     setParseError(null);
     setState({ kind: "idle" });
     setFilename(file.name);
@@ -190,12 +198,40 @@ const ShopifyEnrichirPage = () => {
           </div>
         </div>
         <label
-          className="flex items-center justify-center gap-3 px-6 py-8 border-2 border-dashed border-gray-600 rounded-xl cursor-pointer hover:border-blue-500 hover:bg-[#1c1f2e] transition-colors"
+          onDragEnter={(e) => {
+            e.preventDefault();
+            setDragDepth(d => d + 1);
+          }}
+          onDragLeave={(e) => {
+            e.preventDefault();
+            setDragDepth(d => Math.max(0, d - 1));
+          }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "copy";
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragDepth(0);
+            const file = e.dataTransfer.files?.[0];
+            if (file) handleFile(file);
+          }}
+          className={`flex flex-col items-center justify-center gap-2 px-6 py-10 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${
+            isDragging
+              ? "border-purple-400 bg-purple-500/10"
+              : "border-gray-600 hover:border-blue-500 hover:bg-[#1c1f2e]"
+          }`}
           tabIndex={0}
         >
-          <FaUpload className="text-2xl text-gray-400" />
+          <FaUpload className={`text-3xl transition-colors ${isDragging ? "text-purple-300" : "text-gray-400"}`} />
           <span className="text-gray-300">
-            {filename ? <strong className="text-white">{filename}</strong> : "Cliquer pour choisir un fichier CSV"}
+            {isDragging ? (
+              <strong className="text-purple-200">Relâche pour charger le fichier</strong>
+            ) : filename ? (
+              <strong className="text-white">{filename}</strong>
+            ) : (
+              <>Glisser-déposer un CSV ici, ou <span className="text-blue-400 underline">cliquer pour choisir</span></>
+            )}
           </span>
           <input
             type="file"
