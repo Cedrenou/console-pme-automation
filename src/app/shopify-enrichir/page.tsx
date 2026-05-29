@@ -1,6 +1,7 @@
 "use client";
 import React, { useMemo, useState } from "react";
-import { FaUpload, FaFileCsv, FaCheckCircle, FaTimesCircle, FaSpinner, FaMagic } from "react-icons/fa";
+import Link from "next/link";
+import { FaUpload, FaFileCsv, FaCheckCircle, FaTimesCircle, FaSpinner, FaMagic, FaCog } from "react-icons/fa";
 import { enrichShopifyProducts, type ShopifyEnrichResult, type ShopifyEnrichRow } from "@/lib/api";
 
 /**
@@ -175,15 +176,24 @@ const ShopifyEnrichirPage = () => {
 
   return (
     <div className="min-h-screen bg-[#151826] text-white p-4 md:p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
-          <FaMagic className="text-purple-400" />
-          Enrichir descriptions Shopify
-        </h1>
-        <p className="text-gray-400">
-          Importez un CSV d&apos;enrichissement (Code article, Désignation, Famille, Protections, Doublure, Matière, État,
-          Indications). Claude génère les descriptions et SEO, et met à jour les produits Shopify existants.
-        </p>
+      <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
+            <FaMagic className="text-purple-400" />
+            Enrichir descriptions Shopify
+          </h1>
+          <p className="text-gray-400">
+            Importez un CSV d&apos;enrichissement (Code article, Désignation, Famille, Protections, Doublure, Matière, État,
+            Indications). Claude génère les descriptions et SEO, et met à jour les produits Shopify existants.
+          </p>
+        </div>
+        <Link
+          href="/shopify-enrichir/parametres"
+          className="shrink-0 px-4 py-2 bg-[#23263A] hover:bg-[#2c3046] border border-gray-700 hover:border-blue-500 text-gray-200 rounded-lg transition-colors flex items-center gap-2 text-sm"
+        >
+          <FaCog />
+          Paramètres Claude
+        </Link>
       </div>
 
       {/* Upload */}
