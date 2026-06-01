@@ -3,17 +3,30 @@ import React, { useState, useMemo } from "react";
 import { FaUpload, FaFileCsv, FaCheckCircle, FaTimesCircle, FaSpinner } from "react-icons/fa";
 
 /**
- * Parser CSV minimal pour le format export caisse Rezomatic :
- *   - Séparateur `;`
- *   - Valeurs entourées de `"` (optionnellement)
- *   - Première ligne = headers
- *
- * Retourne un tableau d'objets clé → valeur. Volontairement maison (pas de
- * dépendance papaparse) pour rester léger.
+ * Parser CSV tolérant — supporte l'export caisse Rezomatic (séparateur `;`,
+ * colonne "Code article") comme un export WooCommerce / classique (séparateur
+ * `,`, colonne "UGS"/"SKU"). Le séparateur est détecté automatiquement depuis
+ * la ligne d'en-tête. Volontairement maison (pas de dépendance papaparse).
  */
+const detectDelimiter = (headerLine: string): string => {
+  const candidates = [";", ",", "\t"];
+  let best = ";";
+  let bestCount = -1;
+  for (const d of candidates) {
+    const count = headerLine.split(d).length - 1;
+    if (count > bestCount) {
+      bestCount = count;
+      best = d;
+    }
+  }
+  return best;
+};
+
 const parseCsv = (raw: string): Record<string, string>[] => {
   const lines = raw.split(/\r?\n/).filter((l) => l.trim().length > 0);
   if (lines.length === 0) return [];
+
+  const delimiter = detectDelimiter(lines[0]);
 
   const parseLine = (line: string): string[] => {
     const cols: string[] = [];
@@ -24,7 +37,7 @@ const parseCsv = (raw: string): Record<string, string>[] => {
       if (c === '"') {
         if (inQuotes && line[i + 1] === '"') { buf += '"'; i++; }
         else inQuotes = !inQuotes;
-      } else if (c === ";" && !inQuotes) {
+      } else if (c === delimiter && !inQuotes) {
         cols.push(buf);
         buf = "";
       } else {
@@ -35,7 +48,7 @@ const parseCsv = (raw: string): Record<string, string>[] => {
     return cols;
   };
 
-  const headers = parseLine(lines[0]);
+  const headers = parseLine(lines[0]).map((h) => h.trim());
   return lines.slice(1).map((line) => {
     const cols = parseLine(line);
     const obj: Record<string, string> = {};
@@ -43,6 +56,14 @@ const parseCsv = (raw: string): Record<string, string>[] => {
     return obj;
   });
 };
+
+// Noms de colonne acceptés pour le SKU, selon la source du CSV (Rezomatic vs
+// WooCommerce export FR/EN). Comparaison insensible à la casse et aux espaces.
+const SKU_COLUMN_ALIASES = ["code article", "sku", "ugs", "référence", "reference", "ref"];
+const DESIGNATION_COLUMN_ALIASES = ["designation", "désignation", "nom", "name", "produit", "titre"];
+
+const findColumn = (headers: string[], aliases: string[]): string | undefined =>
+  headers.find((k) => aliases.includes(k.trim().toLowerCase()));
 
 type ImportResult = {
   success: boolean;
@@ -77,25 +98,36 @@ const ShopifyCataloguePage = () => {
           setSkus([]);
           return;
         }
-        // On cherche la colonne "Code article" (insensible aux variations d'espaces)
-        const headerKey = Object.keys(rows[0]).find((k) => k.trim().toLowerCase() === "code article");
-        if (!headerKey) {
-          setParseError("Colonne 'Code article' introuvable dans le CSV");
+        // Recherche tolérante de la colonne SKU (Rezomatic, WooCommerce…)
+        const headers = Object.keys(rows[0]);
+        const skuKey = findColumn(headers, SKU_COLUMN_ALIASES);
+        if (!skuKey) {
+          setParseError(
+            `Colonne SKU introuvable. Colonnes acceptées : ${SKU_COLUMN_ALIASES.join(", ")}. ` +
+            `En-têtes détectés : ${headers.join(", ")}`
+          );
           setSkus([]);
           return;
         }
+        const designationKey = findColumn(headers, DESIGNATION_COLUMN_ALIASES);
+        const couleurKey = headers.find((k) => ["couleur", "color"].includes(k.trim().toLowerCase()));
         const extracted: string[] = [];
         const preview: typeof previewRows = [];
         for (const r of rows) {
-          const sku = r[headerKey]?.trim();
+          const sku = r[skuKey]?.trim();
           if (!sku) continue;
           if (!/^[A-Za-z0-9_-]+$/.test(sku)) continue;
           extracted.push(sku);
           preview.push({
             codeArt: sku,
-            designation: (r["Designation"] ?? "").trim(),
-            couleur: (r["Couleur"] ?? "").trim(),
+            designation: (designationKey ? r[designationKey] : "")?.trim() ?? "",
+            couleur: (couleurKey ? r[couleurKey] : "")?.trim() ?? "",
           });
+        }
+        if (extracted.length === 0) {
+          setParseError(`Colonne "${skuKey}" trouvée mais aucun SKU valide dedans (vérifiez le contenu).`);
+          setSkus([]);
+          return;
         }
         // Dédoublonnage
         const unique = Array.from(new Set(extracted));
