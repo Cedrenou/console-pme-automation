@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useMemo } from "react";
-import { FaUpload, FaFileCsv, FaCheckCircle, FaTimesCircle, FaSpinner } from "react-icons/fa";
+import { FaUpload, FaFileCsv, FaCheckCircle, FaTimesCircle, FaSpinner, FaSync } from "react-icons/fa";
 
 /**
  * Parser CSV tolérant — supporte l'export caisse Rezomatic (séparateur `;`,
@@ -75,6 +75,15 @@ type ImportResult = {
   results: { sku: string; ok: boolean; operation?: string; message?: string }[];
 };
 
+type StockRefreshResult = {
+  success: boolean;
+  total: number;
+  synced: number;
+  skipped: number;
+  errors: number;
+  duration_ms: number;
+};
+
 const ShopifyCataloguePage = () => {
   const [skus, setSkus] = useState<string[]>([]);
   const [previewRows, setPreviewRows] = useState<{ codeArt: string; designation: string; couleur: string }[]>([]);
@@ -82,6 +91,11 @@ const ShopifyCataloguePage = () => {
   const [parseError, setParseError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
+
+  // Mise à jour stock global (équivalent batch du stock-on-view)
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshResult, setRefreshResult] = useState<StockRefreshResult | null>(null);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
 
   const handleFile = (file: File) => {
     setParseError(null);
@@ -171,6 +185,27 @@ const ShopifyCataloguePage = () => {
     }
   };
 
+  const handleRefreshStock = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    setRefreshResult(null);
+    setRefreshError(null);
+    try {
+      const res = await fetch("/api/shopify-stock-refresh", { method: "POST" });
+      const data: StockRefreshResult & { error?: string } = await res.json();
+      if (!res.ok) {
+        setRefreshError(data.error ?? `Erreur HTTP ${res.status}`);
+      } else {
+        setRefreshResult(data);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Erreur réseau";
+      setRefreshError(msg);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const previewToShow = useMemo(() => previewRows.slice(0, 10), [previewRows]);
 
   return (
@@ -180,6 +215,73 @@ const ShopifyCataloguePage = () => {
         <p className="text-gray-400">
           Importez un CSV de réception fournisseur (export caisse) pour créer ou mettre à jour les produits Shopify correspondants.
         </p>
+      </div>
+
+      {/* Mise à jour stock global */}
+      <div className="bg-[#23263A] rounded-2xl shadow-lg p-6 mb-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <FaSync className={`text-3xl text-green-400 ${refreshing ? "animate-spin" : ""}`} />
+            <div>
+              <h2 className="text-xl font-semibold">Mettre à jour le stock</h2>
+              <p className="text-sm text-gray-400">
+                Vérifie le stock Rezomatic de tous les produits Shopify et le met à jour si besoin. Peut prendre 1 à 3 min.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleRefreshStock}
+            disabled={refreshing}
+            aria-label="Mettre à jour le stock de tous les produits"
+            className="px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg font-semibold transition-colors flex items-center gap-2 whitespace-nowrap"
+          >
+            {refreshing ? (
+              <><FaSpinner className="animate-spin" /> Mise à jour en cours…</>
+            ) : (
+              <><FaSync /> Mettre à jour le stock</>
+            )}
+          </button>
+        </div>
+
+        {refreshError && (
+          <div className="mt-4 bg-red-900/40 border border-red-700 rounded-xl p-3 flex items-start gap-2">
+            <FaTimesCircle className="text-red-400 mt-0.5" />
+            <p className="text-red-300 text-sm">{refreshError}</p>
+          </div>
+        )}
+
+        {refreshResult && (
+          <div className="mt-4 bg-[#1c1f2e] rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              {refreshResult.success ? (
+                <FaCheckCircle className="text-green-400" />
+              ) : (
+                <FaTimesCircle className="text-yellow-400" />
+              )}
+              <span className="font-semibold">
+                Mise à jour terminée ({(refreshResult.duration_ms / 1000).toFixed(0)}s)
+              </span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+              <div className="bg-[#23263A] rounded-lg p-3">
+                <div className="text-gray-400">Total</div>
+                <div className="text-lg font-bold">{refreshResult.total}</div>
+              </div>
+              <div className="bg-green-900/30 border border-green-700 rounded-lg p-3">
+                <div className="text-green-300">Synchronisés</div>
+                <div className="text-lg font-bold text-green-400">{refreshResult.synced}</div>
+              </div>
+              <div className="bg-[#23263A] rounded-lg p-3">
+                <div className="text-gray-400">Inchangés</div>
+                <div className="text-lg font-bold">{refreshResult.skipped}</div>
+              </div>
+              <div className={`rounded-lg p-3 border ${refreshResult.errors > 0 ? "bg-red-900/30 border-red-700" : "bg-[#23263A] border-transparent"}`}>
+                <div className={refreshResult.errors > 0 ? "text-red-300" : "text-gray-400"}>Erreurs</div>
+                <div className={`text-lg font-bold ${refreshResult.errors > 0 ? "text-red-400" : ""}`}>{refreshResult.errors}</div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Upload zone */}
