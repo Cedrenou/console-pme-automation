@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { FaUpload, FaFileCsv, FaCheckCircle, FaTimesCircle, FaSpinner, FaTimes, FaPlus } from "react-icons/fa";
+import { FaUpload, FaFileCsv, FaCheckCircle, FaTimesCircle, FaSpinner, FaTimes, FaPlus, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 
 /**
  * Parser CSV tolérant — supporte à la fois l'export caisse Rezomatic
@@ -280,6 +280,30 @@ const ShopifyPhotosPage = () => {
     });
   };
 
+  // Réordonne une photo au sein de SON SKU (l'ordre d'affichage = l'ordre
+  // d'upload = la position côté Shopify). On échange les positions absolues
+  // des deux photos voisines dans le tableau `photos` : comme `photosBySku`
+  // préserve l'ordre du tableau, ça ne déplace que ces deux-là et n'affecte
+  // pas les autres SKUs.
+  const movePhotoWithinSku = (photoId: string, dir: "left" | "right") => {
+    setPhotos((prev) => {
+      const photo = prev.find((p) => p.id === photoId);
+      if (!photo) return prev;
+      const sameSkuIndices = prev
+        .map((p, i) => ({ p, i }))
+        .filter((x) => x.p.assignedTo === photo.assignedTo)
+        .map((x) => x.i);
+      const posInSku = sameSkuIndices.findIndex((i) => prev[i].id === photoId);
+      const targetPos = dir === "left" ? posInSku - 1 : posInSku + 1;
+      if (targetPos < 0 || targetPos >= sameSkuIndices.length) return prev;
+      const a = sameSkuIndices[posInSku];
+      const b = sameSkuIndices[targetPos];
+      const next = [...prev];
+      [next[a], next[b]] = [next[b], next[a]];
+      return next;
+    });
+  };
+
   const photosBySku = useMemo(() => {
     const map = new Map<string, PhotoItem[]>();
     for (const p of photos) {
@@ -302,6 +326,14 @@ const ShopifyPhotosPage = () => {
     for (const p of photos) initial[p.id] = { status: "pending" };
     setUploadState(initial);
 
+    // Position 1-based de chaque photo au sein de son SKU. Envoyée à Shopify
+    // pour garantir l'ordre affiché ici (photo #1 = image de couverture),
+    // sans dépendre de l'ordre d'arrivée des requêtes.
+    const positionByPhotoId = new Map<string, number>();
+    for (const [, list] of photosBySku) {
+      list.forEach((p, idx) => positionByPhotoId.set(p.id, idx + 1));
+    }
+
     // Boucle séquentielle. Shopify rate-limit à 2 req/s sur la même boutique,
     // donc le séquentiel est aussi rapide en pratique et plus simple à raisonner.
     for (const photo of photos) {
@@ -315,6 +347,7 @@ const ShopifyPhotosPage = () => {
             sku: photo.assignedTo,
             filename: photo.file.name,
             contentBase64,
+            position: positionByPhotoId.get(photo.id) ?? 1,
           }),
         });
         const data: { ok?: boolean; imageId?: number; error?: string } = await res.json();
@@ -477,6 +510,7 @@ const ShopifyPhotosPage = () => {
                           onFilesPicked={(files) => addFilesToSku(files, s.codeArt)}
                           onPhotoDragStart={handleDragStart}
                           onPhotoRemove={removePhoto}
+                          onPhotoMove={movePhotoWithinSku}
                           getPhotoStatus={getPhotoStatus}
                           disabled={importing}
                         />
@@ -571,13 +605,14 @@ type SkuDropCellProps = {
   onFilesPicked: (files: FileList) => void;
   onPhotoDragStart: (e: React.DragEvent, photoId: string) => void;
   onPhotoRemove: (photoId: string) => void;
+  onPhotoMove: (photoId: string, dir: "left" | "right") => void;
   getPhotoStatus: (photoId: string) => UploadResult | undefined;
   disabled: boolean;
 };
 
 const SkuDropCell: React.FC<SkuDropCellProps> = ({
   skuCode, photos, onDrop, onDragOver, onFilesPicked,
-  onPhotoDragStart, onPhotoRemove, getPhotoStatus, disabled,
+  onPhotoDragStart, onPhotoRemove, onPhotoMove, getPhotoStatus, disabled,
 }) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -617,11 +652,16 @@ const SkuDropCell: React.FC<SkuDropCellProps> = ({
         </div>
       ) : (
         <div className="flex flex-wrap gap-2 items-center">
-          {photos.map((p) => (
+          {photos.map((p, idx) => (
             <PhotoThumb
               key={p.id}
               photo={p}
               small
+              position={idx + 1}
+              canMoveLeft={idx > 0}
+              canMoveRight={idx < photos.length - 1}
+              onMoveLeft={() => onPhotoMove(p.id, "left")}
+              onMoveRight={() => onPhotoMove(p.id, "right")}
               onRemove={() => onPhotoRemove(p.id)}
               onDragStart={(e) => onPhotoDragStart(e, p.id)}
               status={getPhotoStatus(p.id)}
@@ -648,18 +688,26 @@ const SkuDropCell: React.FC<SkuDropCellProps> = ({
 type PhotoThumbProps = {
   photo: PhotoItem;
   small?: boolean;
+  position?: number;
+  canMoveLeft?: boolean;
+  canMoveRight?: boolean;
+  onMoveLeft?: () => void;
+  onMoveRight?: () => void;
   onRemove: () => void;
   onDragStart: (e: React.DragEvent) => void;
   status?: UploadResult;
 };
 
-const PhotoThumb: React.FC<PhotoThumbProps> = ({ photo, small, onRemove, onDragStart, status }) => {
+const PhotoThumb: React.FC<PhotoThumbProps> = ({
+  photo, small, position, canMoveLeft, canMoveRight, onMoveLeft, onMoveRight, onRemove, onDragStart, status,
+}) => {
   const size = small ? "w-16 h-16" : "w-24 h-24";
   const showOverlay = status && status.status !== "pending";
+  const editable = !status || status.status === "pending";
 
   return (
     <div
-      draggable={!status || status.status === "pending"}
+      draggable={editable}
       onDragStart={onDragStart}
       className={`relative ${size} rounded-lg overflow-hidden border border-gray-700 bg-[#1c1f2e] cursor-grab active:cursor-grabbing group`}
       title={photo.file.name}
@@ -672,6 +720,16 @@ const PhotoThumb: React.FC<PhotoThumbProps> = ({ photo, small, onRemove, onDragS
         draggable={false}
       />
 
+      {/* Badge de position : 1 = image de couverture côté Shopify */}
+      {position !== undefined && (
+        <span
+          className="absolute top-0.5 left-0.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-blue-600 text-white text-[10px] font-bold shadow"
+          title={position === 1 ? "Image de couverture" : `Position ${position}`}
+        >
+          {position}
+        </span>
+      )}
+
       {showOverlay && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/60">
           {status?.status === "uploading" && <FaSpinner className="text-blue-400 text-xl animate-spin" />}
@@ -680,15 +738,39 @@ const PhotoThumb: React.FC<PhotoThumbProps> = ({ photo, small, onRemove, onDragS
         </div>
       )}
 
-      {(!status || status.status === "pending") && (
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onRemove(); }}
-          aria-label={`Retirer ${photo.file.name}`}
-          className="absolute top-0.5 right-0.5 w-5 h-5 flex items-center justify-center rounded-full bg-black/70 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-        >
-          <FaTimes className="text-[10px]" />
-        </button>
+      {editable && (
+        <>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onRemove(); }}
+            aria-label={`Retirer ${photo.file.name}`}
+            className="absolute top-0.5 right-0.5 w-5 h-5 flex items-center justify-center rounded-full bg-black/70 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+          >
+            <FaTimes className="text-[10px]" />
+          </button>
+
+          {/* Flèches de réordonnancement (apparaissent au survol) */}
+          <div className="absolute bottom-0 inset-x-0 flex justify-between px-0.5 pb-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onMoveLeft?.(); }}
+              disabled={!canMoveLeft}
+              aria-label="Déplacer vers la gauche"
+              className="w-5 h-5 flex items-center justify-center rounded bg-black/70 text-white hover:bg-blue-600 disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <FaChevronLeft className="text-[10px]" />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onMoveRight?.(); }}
+              disabled={!canMoveRight}
+              aria-label="Déplacer vers la droite"
+              className="w-5 h-5 flex items-center justify-center rounded bg-black/70 text-white hover:bg-blue-600 disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <FaChevronRight className="text-[10px]" />
+            </button>
+          </div>
+        </>
       )}
     </div>
   );

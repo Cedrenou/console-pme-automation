@@ -30,14 +30,14 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let body: { sku?: string; filename?: string; contentBase64?: string };
+  let body: { sku?: string; filename?: string; contentBase64?: string; position?: number };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Body JSON invalide" }, { status: 400 });
   }
 
-  const { sku, filename, contentBase64 } = body;
+  const { sku, filename, contentBase64, position } = body;
   if (!sku || !filename || !contentBase64) {
     return NextResponse.json(
       { error: "sku, filename et contentBase64 sont requis" },
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
         "Content-Type": "application/json",
         Authorization: `Bearer ${adminPassword}`,
       },
-      body: JSON.stringify({ sku, filename, contentBase64 }),
+      body: JSON.stringify({ sku, filename, contentBase64, position }),
     });
     const data = await res.json();
     return NextResponse.json(data, { status: res.status });
