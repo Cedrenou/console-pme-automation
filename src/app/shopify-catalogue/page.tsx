@@ -96,6 +96,7 @@ const ShopifyCataloguePage = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [refreshResult, setRefreshResult] = useState<StockRefreshResult | null>(null);
   const [refreshError, setRefreshError] = useState<string | null>(null);
+  const [csvDragOver, setCsvDragOver] = useState(false);
 
   const handleFile = (file: File) => {
     setParseError(null);
@@ -159,6 +160,27 @@ const ShopifyCataloguePage = () => {
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) handleFile(file);
+  };
+
+  const handleCsvDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCsvDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    const isCsv = /\.csv$/i.test(file.name) || file.type === "text/csv" || file.type === "application/vnd.ms-excel";
+    if (!isCsv) {
+      setParseError(`Fichier ignoré : "${file.name}" n'est pas un CSV.`);
+      return;
+    }
+    handleFile(file);
+  };
+
+  const handleCsvDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "copy";
+    setCsvDragOver(true);
   };
 
   const handleImport = async () => {
@@ -294,12 +316,23 @@ const ShopifyCataloguePage = () => {
           </div>
         </div>
         <label
-          className="flex items-center justify-center gap-3 px-6 py-8 border-2 border-dashed border-gray-600 rounded-xl cursor-pointer hover:border-blue-500 hover:bg-[#1c1f2e] transition-colors"
+          onDrop={handleCsvDrop}
+          onDragOver={handleCsvDragOver}
+          onDragLeave={() => setCsvDragOver(false)}
+          className={`flex items-center justify-center gap-3 px-6 py-8 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${
+            csvDragOver ? "border-blue-400 bg-[#1c1f2e]" : "border-gray-600 hover:border-blue-500 hover:bg-[#1c1f2e]"
+          }`}
           tabIndex={0}
         >
           <FaUpload className="text-2xl text-gray-400" />
           <span className="text-gray-300">
-            {filename ? <strong className="text-white">{filename}</strong> : "Cliquer pour choisir un fichier CSV"}
+            {filename ? (
+              <strong className="text-white">{filename}</strong>
+            ) : csvDragOver ? (
+              "Relâcher pour importer le CSV"
+            ) : (
+              "Glisser un CSV ici ou cliquer pour choisir un fichier"
+            )}
           </span>
           <input type="file" accept=".csv,text/csv" onChange={onFileChange} className="hidden" />
         </label>
