@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 
 /**
- * Le refresh global itère ~400 SKU côté middleware (batch de 50 en
- * parallèle). On laisse jusqu'à 5 min à la fonction pour répondre, sinon
- * Amplify/Lambda couperait la requête longue avant la fin du traitement.
+ * Le refresh global itère ~565 SKU côté middleware (lecture SOAP par SKU,
+ * batch de 50). Mesuré ~3-4 min selon le nombre de stocks à pousser. On
+ * laisse 10 min de marge pour ne pas couper la requête avant la fin du
+ * traitement middleware.
  */
-export const maxDuration = 300;
+export const maxDuration = 600;
 
 /**
  * POST /api/shopify-stock-refresh
