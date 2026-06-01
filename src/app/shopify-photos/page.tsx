@@ -3,13 +3,31 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { FaUpload, FaFileCsv, FaCheckCircle, FaTimesCircle, FaSpinner, FaTimes, FaPlus } from "react-icons/fa";
 
 /**
- * Parser CSV — identique à shopify-catalogue (même format export caisse
- * Rezomatic, séparateur `;`, colonne "Code article"). Dupliqué volontairement
- * pour rester aligné si l'un des deux écrans évolue indépendamment.
+ * Parser CSV tolérant — supporte à la fois l'export caisse Rezomatic
+ * (séparateur `;`, colonne "Code article") et un export WooCommerce
+ * (séparateur `,`, colonne "UGS"/"SKU"). Le séparateur est détecté
+ * automatiquement à partir de la ligne d'en-tête.
  */
+const detectDelimiter = (headerLine: string): string => {
+  const candidates = [";", ",", "\t"];
+  let best = ";";
+  let bestCount = -1;
+  for (const d of candidates) {
+    // compte les occurrences hors guillemets (approx : suffisant pour un header)
+    const count = headerLine.split(d).length - 1;
+    if (count > bestCount) {
+      bestCount = count;
+      best = d;
+    }
+  }
+  return best;
+};
+
 const parseCsv = (raw: string): Record<string, string>[] => {
   const lines = raw.split(/\r?\n/).filter((l) => l.trim().length > 0);
   if (lines.length === 0) return [];
+
+  const delimiter = detectDelimiter(lines[0]);
 
   const parseLine = (line: string): string[] => {
     const cols: string[] = [];
@@ -20,7 +38,7 @@ const parseCsv = (raw: string): Record<string, string>[] => {
       if (c === '"') {
         if (inQuotes && line[i + 1] === '"') { buf += '"'; i++; }
         else inQuotes = !inQuotes;
-      } else if (c === ";" && !inQuotes) {
+      } else if (c === delimiter && !inQuotes) {
         cols.push(buf);
         buf = "";
       } else {
@@ -31,7 +49,7 @@ const parseCsv = (raw: string): Record<string, string>[] => {
     return cols;
   };
 
-  const headers = parseLine(lines[0]);
+  const headers = parseLine(lines[0]).map((h) => h.trim());
   return lines.slice(1).map((line) => {
     const cols = parseLine(line);
     const obj: Record<string, string> = {};
@@ -39,6 +57,14 @@ const parseCsv = (raw: string): Record<string, string>[] => {
     return obj;
   });
 };
+
+// Noms de colonne acceptés pour le SKU, selon la source du CSV (Rezomatic vs
+// WooCommerce export FR/EN). Comparaison insensible à la casse et aux espaces.
+const SKU_COLUMN_ALIASES = ["code article", "sku", "ugs", "référence", "reference", "ref"];
+const DESIGNATION_COLUMN_ALIASES = ["designation", "désignation", "nom", "name", "produit", "titre"];
+
+const findColumn = (headers: string[], aliases: string[]): string | undefined =>
+  headers.find((k) => aliases.includes(k.trim().toLowerCase()));
 
 type SkuRow = { codeArt: string; designation: string };
 
@@ -110,21 +136,31 @@ const ShopifyPhotosPage = () => {
           setSkus([]);
           return;
         }
-        const headerKey = Object.keys(rows[0]).find((k) => k.trim().toLowerCase() === "code article");
-        if (!headerKey) {
-          setParseError("Colonne 'Code article' introuvable dans le CSV");
+        const headers = Object.keys(rows[0]);
+        const skuKey = findColumn(headers, SKU_COLUMN_ALIASES);
+        if (!skuKey) {
+          setParseError(
+            `Colonne SKU introuvable. Colonnes acceptées : ${SKU_COLUMN_ALIASES.join(", ")}. ` +
+            `En-têtes détectés : ${headers.join(", ")}`
+          );
           setSkus([]);
           return;
         }
+        const designationKey = findColumn(headers, DESIGNATION_COLUMN_ALIASES);
         const extracted: SkuRow[] = [];
         const seen = new Set<string>();
         for (const r of rows) {
-          const sku = r[headerKey]?.trim();
+          const sku = r[skuKey]?.trim();
           if (!sku) continue;
           if (!/^[A-Za-z0-9_-]+$/.test(sku)) continue;
           if (seen.has(sku)) continue;
           seen.add(sku);
-          extracted.push({ codeArt: sku, designation: (r["Designation"] ?? "").trim() });
+          extracted.push({ codeArt: sku, designation: (designationKey ? r[designationKey] : "")?.trim() ?? "" });
+        }
+        if (extracted.length === 0) {
+          setParseError(`Colonne "${skuKey}" trouvée mais aucun SKU valide dedans (vérifiez le contenu).`);
+          setSkus([]);
+          return;
         }
         setSkus(extracted);
       } catch (err: unknown) {
