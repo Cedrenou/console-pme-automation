@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { FaUpload, FaFileCsv, FaCheckCircle, FaTimesCircle, FaSpinner, FaTimes, FaPlus, FaChevronLeft, FaChevronRight } from "react-icons/fa";
+import { FaUpload, FaFileCsv, FaCheckCircle, FaTimesCircle, FaSpinner, FaTimes, FaPlus } from "react-icons/fa";
 
 /**
  * Parser CSV tolérant — supporte à la fois l'export caisse Rezomatic
@@ -280,27 +280,22 @@ const ShopifyPhotosPage = () => {
     });
   };
 
-  // Réordonne une photo au sein de SON SKU (l'ordre d'affichage = l'ordre
-  // d'upload = la position côté Shopify). On échange les positions absolues
-  // des deux photos voisines dans le tableau `photos` : comme `photosBySku`
-  // préserve l'ordre du tableau, ça ne déplace que ces deux-là et n'affecte
-  // pas les autres SKUs.
-  const movePhotoWithinSku = (photoId: string, dir: "left" | "right") => {
+  // Drop d'une photo SUR une autre photo : on insère la photo glissée juste
+  // avant la photo cible, en lui attribuant le SKU de la cible. Gère donc à la
+  // fois le réordonnancement au sein d'un SKU et le déplacement vers un autre
+  // SKU à une position précise. Comme `photosBySku` préserve l'ordre du tableau
+  // `photos`, réordonner ce tableau = réordonner l'affichage = la position
+  // envoyée à Shopify.
+  const handleDropOnPhoto = (draggedPhotoId: string, targetPhotoId: string) => {
+    if (draggedPhotoId === targetPhotoId) return;
     setPhotos((prev) => {
-      const photo = prev.find((p) => p.id === photoId);
-      if (!photo) return prev;
-      const sameSkuIndices = prev
-        .map((p, i) => ({ p, i }))
-        .filter((x) => x.p.assignedTo === photo.assignedTo)
-        .map((x) => x.i);
-      const posInSku = sameSkuIndices.findIndex((i) => prev[i].id === photoId);
-      const targetPos = dir === "left" ? posInSku - 1 : posInSku + 1;
-      if (targetPos < 0 || targetPos >= sameSkuIndices.length) return prev;
-      const a = sameSkuIndices[posInSku];
-      const b = sameSkuIndices[targetPos];
-      const next = [...prev];
-      [next[a], next[b]] = [next[b], next[a]];
-      return next;
+      const dragged = prev.find((p) => p.id === draggedPhotoId);
+      const target = prev.find((p) => p.id === targetPhotoId);
+      if (!dragged || !target) return prev;
+      const without = prev.filter((p) => p.id !== draggedPhotoId);
+      const targetIdx = without.findIndex((p) => p.id === targetPhotoId);
+      const moved = { ...dragged, assignedTo: target.assignedTo };
+      return [...without.slice(0, targetIdx), moved, ...without.slice(targetIdx)];
     });
   };
 
@@ -467,7 +462,7 @@ const ShopifyPhotosPage = () => {
             <div>
               <h2 className="text-xl font-semibold">2. Affecter les photos aux SKUs</h2>
               <p className="text-sm text-gray-400">
-                Glissez les photos directement sur la ligne du SKU, ou cliquez pour les sélectionner. Max 4 Mo par photo (JPG/PNG/WebP).
+                Glissez les photos sur la ligne du SKU, ou cliquez pour les sélectionner. Pour changer l&apos;ordre, glissez une vignette sur une autre (la n°1 = image de couverture). Max 4 Mo par photo (JPG/PNG/WebP).
               </p>
             </div>
             <button
@@ -510,7 +505,7 @@ const ShopifyPhotosPage = () => {
                           onFilesPicked={(files) => addFilesToSku(files, s.codeArt)}
                           onPhotoDragStart={handleDragStart}
                           onPhotoRemove={removePhoto}
-                          onPhotoMove={movePhotoWithinSku}
+                          onPhotoDropReorder={handleDropOnPhoto}
                           getPhotoStatus={getPhotoStatus}
                           disabled={importing}
                         />
@@ -605,14 +600,14 @@ type SkuDropCellProps = {
   onFilesPicked: (files: FileList) => void;
   onPhotoDragStart: (e: React.DragEvent, photoId: string) => void;
   onPhotoRemove: (photoId: string) => void;
-  onPhotoMove: (photoId: string, dir: "left" | "right") => void;
+  onPhotoDropReorder: (draggedPhotoId: string, targetPhotoId: string) => void;
   getPhotoStatus: (photoId: string) => UploadResult | undefined;
   disabled: boolean;
 };
 
 const SkuDropCell: React.FC<SkuDropCellProps> = ({
   skuCode, photos, onDrop, onDragOver, onFilesPicked,
-  onPhotoDragStart, onPhotoRemove, onPhotoMove, getPhotoStatus, disabled,
+  onPhotoDragStart, onPhotoRemove, onPhotoDropReorder, getPhotoStatus, disabled,
 }) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -658,12 +653,9 @@ const SkuDropCell: React.FC<SkuDropCellProps> = ({
               photo={p}
               small
               position={idx + 1}
-              canMoveLeft={idx > 0}
-              canMoveRight={idx < photos.length - 1}
-              onMoveLeft={() => onPhotoMove(p.id, "left")}
-              onMoveRight={() => onPhotoMove(p.id, "right")}
               onRemove={() => onPhotoRemove(p.id)}
               onDragStart={(e) => onPhotoDragStart(e, p.id)}
+              onDropOnThis={(draggedId) => onPhotoDropReorder(draggedId, p.id)}
               status={getPhotoStatus(p.id)}
             />
           ))}
@@ -689,41 +681,64 @@ type PhotoThumbProps = {
   photo: PhotoItem;
   small?: boolean;
   position?: number;
-  canMoveLeft?: boolean;
-  canMoveRight?: boolean;
-  onMoveLeft?: () => void;
-  onMoveRight?: () => void;
   onRemove: () => void;
   onDragStart: (e: React.DragEvent) => void;
+  onDropOnThis?: (draggedPhotoId: string) => void;
   status?: UploadResult;
 };
 
 const PhotoThumb: React.FC<PhotoThumbProps> = ({
-  photo, small, position, canMoveLeft, canMoveRight, onMoveLeft, onMoveRight, onRemove, onDragStart, status,
+  photo, small, position, onRemove, onDragStart, onDropOnThis, status,
 }) => {
   const size = small ? "w-16 h-16" : "w-24 h-24";
   const showOverlay = status && status.status !== "pending";
   const editable = !status || status.status === "pending";
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  const handleDragOver = (e: React.DragEvent) => {
+    if (!editable || !onDropOnThis) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "move";
+    setIsDragOver(true);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    if (!onDropOnThis) return;
+    // Réordonnancement uniquement (drag d'une vignette). On laisse remonter
+    // les drops de fichiers OS à la cellule parente.
+    const draggedId = e.dataTransfer.getData("photo-id");
+    if (!draggedId) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    onDropOnThis(draggedId);
+  };
 
   return (
     <div
       draggable={editable}
       onDragStart={onDragStart}
-      className={`relative ${size} rounded-lg overflow-hidden border border-gray-700 bg-[#1c1f2e] cursor-grab active:cursor-grabbing group`}
+      onDragOver={handleDragOver}
+      onDragLeave={() => setIsDragOver(false)}
+      onDrop={handleDrop}
+      className={`relative ${size} rounded-lg overflow-hidden border bg-[#1c1f2e] cursor-grab active:cursor-grabbing group transition-shadow ${
+        isDragOver ? "border-blue-400 ring-2 ring-blue-400" : "border-gray-700"
+      }`}
       title={photo.file.name}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={photo.previewUrl}
         alt={photo.file.name}
-        className="w-full h-full object-cover"
+        className="w-full h-full object-cover pointer-events-none"
         draggable={false}
       />
 
       {/* Badge de position : 1 = image de couverture côté Shopify */}
       {position !== undefined && (
         <span
-          className="absolute top-0.5 left-0.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-blue-600 text-white text-[10px] font-bold shadow"
+          className="absolute top-0.5 left-0.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-blue-600 text-white text-[10px] font-bold shadow pointer-events-none"
           title={position === 1 ? "Image de couverture" : `Position ${position}`}
         >
           {position}
@@ -731,7 +746,7 @@ const PhotoThumb: React.FC<PhotoThumbProps> = ({
       )}
 
       {showOverlay && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+        <div className="absolute inset-0 flex items-center justify-center bg-black/60 pointer-events-none">
           {status?.status === "uploading" && <FaSpinner className="text-blue-400 text-xl animate-spin" />}
           {status?.status === "done" && <FaCheckCircle className="text-green-400 text-xl" />}
           {status?.status === "error" && <FaTimesCircle className="text-red-400 text-xl" />}
@@ -739,38 +754,14 @@ const PhotoThumb: React.FC<PhotoThumbProps> = ({
       )}
 
       {editable && (
-        <>
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onRemove(); }}
-            aria-label={`Retirer ${photo.file.name}`}
-            className="absolute top-0.5 right-0.5 w-5 h-5 flex items-center justify-center rounded-full bg-black/70 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-          >
-            <FaTimes className="text-[10px]" />
-          </button>
-
-          {/* Flèches de réordonnancement (apparaissent au survol) */}
-          <div className="absolute bottom-0 inset-x-0 flex justify-between px-0.5 pb-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onMoveLeft?.(); }}
-              disabled={!canMoveLeft}
-              aria-label="Déplacer vers la gauche"
-              className="w-5 h-5 flex items-center justify-center rounded bg-black/70 text-white hover:bg-blue-600 disabled:opacity-30 disabled:cursor-not-allowed"
-            >
-              <FaChevronLeft className="text-[10px]" />
-            </button>
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onMoveRight?.(); }}
-              disabled={!canMoveRight}
-              aria-label="Déplacer vers la droite"
-              className="w-5 h-5 flex items-center justify-center rounded bg-black/70 text-white hover:bg-blue-600 disabled:opacity-30 disabled:cursor-not-allowed"
-            >
-              <FaChevronRight className="text-[10px]" />
-            </button>
-          </div>
-        </>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onRemove(); }}
+          aria-label={`Retirer ${photo.file.name}`}
+          className="absolute top-0.5 right-0.5 w-5 h-5 flex items-center justify-center rounded-full bg-black/70 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+        >
+          <FaTimes className="text-[10px]" />
+        </button>
       )}
     </div>
   );
