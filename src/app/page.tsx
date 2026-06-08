@@ -2,8 +2,8 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  fetchVintedStats, fetchVintedTimeline, fetchVintedPatterns, fetchVintedTopArticles,
-  type VintedStats, type VintedTimeline, type VintedPatterns, type VintedTopArticles
+  fetchVintedStats, fetchVintedTimeline, fetchVintedPatterns, fetchVintedTopArticles, fetchShopifyTimeline,
+  type VintedStats, type VintedTimeline, type VintedPatterns, type VintedTopArticles, type ShopifyTimeline
 } from "@/lib/api";
 import { FaCalendarAlt, FaEuroSign, FaShoppingBag, FaRocket, FaUniversity, FaUndo, FaArrowRight, FaClock, FaTrophy, FaTshirt, FaLightbulb } from "react-icons/fa";
 import {
@@ -63,6 +63,7 @@ const VintedCockpitPage = () => {
   const [monthFilter, setMonthFilter] = useState<string>("");
   const [stats, setStats] = useState<VintedStats | null>(null);
   const [timeline, setTimeline] = useState<VintedTimeline | null>(null);
+  const [shopifyTimeline, setShopifyTimeline] = useState<ShopifyTimeline | null>(null);
   const [patterns, setPatterns] = useState<VintedPatterns | null>(null);
   const [topArticles, setTopArticles] = useState<VintedTopArticles | null>(null);
   const [loading, setLoading] = useState(true);
@@ -84,14 +85,19 @@ const VintedCockpitPage = () => {
         // La timeline charge toujours les 24 derniers mois (saisonnalité indépendante du sélecteur).
         const now = new Date();
         const timelineFrom = new Date(now.getFullYear() - 2, now.getMonth(), 1).toISOString();
-        const [s, tl, p, ta] = await Promise.all([
+        const [s, tl, stl, p, ta] = await Promise.all([
           fetchVintedStats(from, to),
           fetchVintedTimeline({ type: "revenue", granularity: "month", from: timelineFrom }),
+          // Non-bloquant : tant que la route /shopify/timeline n'est pas déployée
+          // (ou si Shopify throttle), on dégrade en masquant la série Shopify
+          // plutôt que de faire échouer tout le dashboard.
+          fetchShopifyTimeline({ granularity: "month", from: timelineFrom }).catch(() => null),
           fetchVintedPatterns({ from, to }),
           fetchVintedTopArticles({ from, to }),
         ]);
         setStats(s);
         setTimeline(tl);
+        setShopifyTimeline(stl);
         setPatterns(p);
         setTopArticles(ta);
       } catch (err) {
@@ -223,15 +229,18 @@ const VintedCockpitPage = () => {
             />
           </div>
 
-          {timeline && timeline.buckets.length > 0 && (
+          {((timeline && timeline.buckets.length > 0) || (shopifyTimeline && shopifyTimeline.buckets.length > 0)) && (
             <div className="bg-[#23263A] rounded-2xl shadow-lg p-6 mb-8">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h2 className="text-xl font-bold">Saisonnalité du CA — 24 derniers mois</h2>
-                  <p className="text-sm text-gray-400">Chiffre d&apos;affaires mensuel basé sur les transactions finalisées</p>
+                  <h2 className="text-xl font-bold">Saisonnalité du CA — Vinted vs Shopify</h2>
+                  <p className="text-sm text-gray-400">Chiffre d&apos;affaires mensuel — Vinted (transactions finalisées) et Shopify (commandes payées)</p>
                 </div>
               </div>
-              <SeasonalityChart buckets={timeline.buckets} />
+              <SeasonalityChart
+                vintedBuckets={timeline?.buckets ?? []}
+                shopifyBuckets={shopifyTimeline?.buckets ?? []}
+              />
             </div>
           )}
 
@@ -281,32 +290,47 @@ const VintedCockpitPage = () => {
   );
 };
 
+type TimelineBucket = { date: string; count: number; total: number };
 type SeasonalityChartProps = {
-  buckets: { date: string; count: number; total: number }[];
+  vintedBuckets: TimelineBucket[];
+  shopifyBuckets: TimelineBucket[];
 };
 
 const MONTH_LABELS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
 
-const SeasonalityChart: React.FC<SeasonalityChartProps> = ({ buckets }) => {
-  const data = buckets.map(b => {
-    const d = new Date(b.date);
-    const month = MONTH_LABELS[d.getMonth()];
-    const year = String(d.getFullYear()).slice(2);
-    return {
-      label: `${month} ${year}`,
-      monthIdx: d.getMonth(),
-      total: b.total,
-      count: b.count
-    };
-  });
+const SHOPIFY_COLOR = "#10b981"; // vert émeraude — couleur signature de la série Shopify
 
-  // Couleur saisonnière : printemps/été en chaud (orange), automne/hiver en froid (bleu).
+const SeasonalityChart: React.FC<SeasonalityChartProps> = ({ vintedBuckets, shopifyBuckets }) => {
+  // Fusion des deux séries par mois (clé YYYY-MM-01) pour des barres groupées.
+  type Row = { label: string; monthIdx: number; vinted: number; shopify: number; vintedCount: number; shopifyCount: number };
+  const byDate = new Map<string, Row>();
+  const ensureRow = (dateStr: string): Row => {
+    let row = byDate.get(dateStr);
+    if (!row) {
+      const d = new Date(dateStr);
+      row = {
+        label: `${MONTH_LABELS[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`,
+        monthIdx: d.getMonth(),
+        vinted: 0, shopify: 0, vintedCount: 0, shopifyCount: 0,
+      };
+      byDate.set(dateStr, row);
+    }
+    return row;
+  };
+  for (const b of vintedBuckets) { const r = ensureRow(b.date); r.vinted = b.total; r.vintedCount = b.count; }
+  for (const b of shopifyBuckets) { const r = ensureRow(b.date); r.shopify = b.total; r.shopifyCount = b.count; }
+  const data = [...byDate.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([, v]) => v);
+
+  // Couleur saisonnière de la série Vinted : printemps/été chaud (orange), automne/hiver froid (bleu).
   const seasonalColor = (monthIdx: number): string => {
     if (monthIdx >= 2 && monthIdx <= 8) return "#f97316"; // mars-sept
     return "#3b82f6"; // oct-fév
   };
 
-  const maxTotal = data.reduce((m, d) => Math.max(m, d.total), 0);
+  // Le record doré ne s'applique qu'à la série Vinted (canal historique).
+  const maxVinted = data.reduce((m, d) => Math.max(m, d.vinted), 0);
 
   return (
     <div className="w-full h-72">
@@ -353,13 +377,16 @@ const SeasonalityChart: React.FC<SeasonalityChartProps> = ({ buckets }) => {
             labelStyle={{ color: "#e5e7eb", fontWeight: "600", marginBottom: "0.25rem" }}
             itemStyle={{ color: "#e5e7eb" }}
             formatter={(value, name) => {
-              if (name === "total" && typeof value === "number") return [formatEur(value), "CA"];
+              if (typeof value === "number") {
+                if (name === "vinted") return [formatEur(value), "CA Vinted"];
+                if (name === "shopify") return [formatEur(value), "CA Shopify"];
+              }
               return [String(value ?? ""), String(name ?? "")];
             }}
           />
-          <Bar dataKey="total" radius={[6, 6, 0, 0]}>
+          <Bar dataKey="vinted" radius={[6, 6, 0, 0]}>
             {data.map((d, i) => {
-              const isRecord = d.total === maxTotal && maxTotal > 0;
+              const isRecord = d.vinted === maxVinted && maxVinted > 0;
               return (
                 <Cell
                   key={i}
@@ -371,23 +398,28 @@ const SeasonalityChart: React.FC<SeasonalityChartProps> = ({ buckets }) => {
               );
             })}
           </Bar>
+          <Bar dataKey="shopify" radius={[6, 6, 0, 0]} fill={SHOPIFY_COLOR} />
         </BarChart>
       </ResponsiveContainer>
-      <div className="flex items-center justify-end gap-4 text-xs text-gray-400 mt-2">
+      <div className="flex flex-wrap items-center justify-end gap-4 text-xs text-gray-400 mt-2">
         <span className="flex items-center gap-1.5">
           <span className="inline-block w-3 h-3 rounded-sm" style={{ background: "#f97316" }} />
-          Saison haute (mars-sept.)
+          Vinted — saison haute (mars-sept.)
         </span>
         <span className="flex items-center gap-1.5">
           <span className="inline-block w-3 h-3 rounded-sm" style={{ background: "#3b82f6" }} />
-          Saison basse
+          Vinted — saison basse
         </span>
         <span className="flex items-center gap-1.5">
           <span
             className="inline-block w-3 h-3 rounded-sm"
             style={{ background: "linear-gradient(180deg, #fff7c2 0%, #fcd34d 35%, #f59e0b 65%, #b45309 100%)" }}
           />
-          Record
+          Record Vinted
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block w-3 h-3 rounded-sm" style={{ background: SHOPIFY_COLOR }} />
+          Shopify
         </span>
       </div>
     </div>

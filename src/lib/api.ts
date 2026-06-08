@@ -506,6 +506,37 @@ export async function fetchVintedTimeline(opts: {
   return parseApiResponse<VintedTimeline>(res);
 }
 
+// === Shopify cockpit ===
+// CA Shopify (commandes payées, net des remboursements) servi par
+// lambda-sunset-shopify-api. Même shape que la timeline Vinted pour pouvoir
+// superposer les deux séries sur le graphe « Saisonnalité du CA ».
+export type ShopifyTimeline = {
+  type: 'revenue';
+  granularity: 'day' | 'week' | 'month';
+  period: { from: string | null; to: string | null };
+  buckets: VintedTimelineBucket[];
+};
+
+export async function fetchShopifyTimeline(opts: {
+  from?: string;
+  to?: string;
+  granularity?: 'day' | 'week' | 'month';
+} = {}): Promise<ShopifyTimeline> {
+  if (shouldUseMock()) {
+    await new Promise(r => setTimeout(r, 200));
+    return mockShopifyTimeline(opts);
+  }
+  const params = new URLSearchParams();
+  params.set('type', 'revenue');
+  if (opts.from) params.set('from', opts.from);
+  if (opts.to) params.set('to', opts.to);
+  if (opts.granularity) params.set('granularity', opts.granularity);
+  const url = `${process.env.NEXT_PUBLIC_API_URL}/clients/${VINTED_CLIENT_ID}/shopify/timeline?${params}`;
+  const res = await fetch(url, { headers: await authHeader() });
+  if (!res.ok) throw new Error("Erreur lors de la récupération de la timeline Shopify");
+  return parseApiResponse<ShopifyTimeline>(res);
+}
+
 // === Feedback / demandes utilisateur (bouton sidebar) ===
 // POST /feedback → lambda-sunset-create-trello-ticket → carte sur le board
 // "Cockpit Sunset — Demandes clients" (liste "📥 Nouvelles demandes").
@@ -734,6 +765,30 @@ function mockVintedTimeline(opts: { granularity?: 'day' | 'week' | 'month' }): V
   }
   return {
     type: 'transaction',
+    granularity,
+    period: { from: null, to: null },
+    buckets
+  };
+}
+
+function mockShopifyTimeline(opts: { granularity?: 'day' | 'week' | 'month' }): ShopifyTimeline {
+  const granularity = opts.granularity ?? 'month';
+  const now = new Date();
+  const buckets: VintedTimelineBucket[] = [];
+  for (let i = 23; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+    // Boutique Shopify récente : CA nul jusqu'au "cutover" simulé (~6 mois en
+    // arrière) puis montée progressive. Reste sous le CA Vinted, comme attendu
+    // pendant le démarrage du canal Shopify.
+    const monthsSinceLaunch = 6 - i;
+    const total = monthsSinceLaunch > 0
+      ? Math.round(monthsSinceLaunch * 720 + Math.random() * 500)
+      : 0;
+    buckets.push({ date: key, count: total > 0 ? Math.round(total / 75) : 0, total });
+  }
+  return {
+    type: 'revenue',
     granularity,
     period: { from: null, to: null },
     buckets
