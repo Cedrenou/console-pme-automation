@@ -233,8 +233,8 @@ const VintedCockpitPage = () => {
             <div className="bg-[#23263A] rounded-2xl shadow-lg p-6 mb-8">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h2 className="text-xl font-bold">Saisonnalité du CA — Vinted vs Shopify</h2>
-                  <p className="text-sm text-gray-400">Chiffre d&apos;affaires mensuel — Vinted (transactions finalisées) et Shopify (commandes payées)</p>
+                  <h2 className="text-xl font-bold">Saisonnalité du CA — Vinted + Shopify</h2>
+                  <p className="text-sm text-gray-400">Chiffre d&apos;affaires mensuel cumulé — Vinted (transactions finalisées) + Shopify (commandes payées) empilé</p>
                 </div>
               </div>
               <SeasonalityChart
@@ -298,7 +298,7 @@ type SeasonalityChartProps = {
 
 const MONTH_LABELS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
 
-const SHOPIFY_COLOR = "#10b981"; // vert émeraude — couleur signature de la série Shopify
+const SHOPIFY_COLOR = "#95BF47"; // vert Shopify officiel — segment empilé au-dessus du CA Vinted
 
 const SeasonalityChart: React.FC<SeasonalityChartProps> = ({ vintedBuckets, shopifyBuckets }) => {
   // Fusion des deux séries par mois (clé YYYY-MM-01) pour des barres groupées.
@@ -384,7 +384,8 @@ const SeasonalityChart: React.FC<SeasonalityChartProps> = ({ vintedBuckets, shop
               return [String(value ?? ""), String(name ?? "")];
             }}
           />
-          <Bar dataKey="vinted" radius={[6, 6, 0, 0]}>
+          {/* Empilement : Vinted (bas, sans arrondi) + Shopify (haut, coins arrondis). */}
+          <Bar dataKey="vinted" stackId="ca">
             {data.map((d, i) => {
               const isRecord = d.vinted === maxVinted && maxVinted > 0;
               return (
@@ -398,7 +399,7 @@ const SeasonalityChart: React.FC<SeasonalityChartProps> = ({ vintedBuckets, shop
               );
             })}
           </Bar>
-          <Bar dataKey="shopify" radius={[6, 6, 0, 0]} fill={SHOPIFY_COLOR} />
+          <Bar dataKey="shopify" stackId="ca" radius={[6, 6, 0, 0]} fill={SHOPIFY_COLOR} />
         </BarChart>
       </ResponsiveContainer>
       <div className="flex flex-wrap items-center justify-end gap-4 text-xs text-gray-400 mt-2">
