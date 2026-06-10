@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import {
-  FaCogs, FaUserCircle, FaChartLine, FaShoppingBag, FaShoppingCart, FaSignOutAlt, FaFileInvoiceDollar, FaUsers, FaBars, FaTimes, FaStore, FaImages, FaMagic, FaBoxOpen,
+  FaCogs, FaUserCircle, FaChartLine, FaShoppingBag, FaShoppingCart, FaSignOutAlt, FaFileInvoiceDollar, FaUsers, FaBars, FaTimes, FaStore, FaImages, FaMagic, FaBoxOpen, FaPenNib,
 } from "react-icons/fa";
 import { createClient } from "@/utils/supabase/client";
 import { useUserRole, type UserRole } from "@/utils/supabase/useUserRole";
@@ -16,6 +16,7 @@ const links: LinkDef[] = [
   { href: "/", label: "Cockpit Vinted", icon: <FaChartLine />, roles: ["admin"] },
   { href: "/vinted-ventes", label: "Ventes Vinted", icon: <FaShoppingBag />, roles: ["admin"] },
   { href: "/vinted-achats", label: "Achats Vinted", icon: <FaShoppingCart />, roles: ["admin"] },
+  { href: "/vinted-annonces", label: "Générer annonces Vinted", icon: <FaPenNib />, roles: ["admin"] },
   { href: "/clients", label: "Clients", icon: <FaUsers />, roles: ["admin"] },
   { href: "/compta", label: "Compta", icon: <FaFileInvoiceDollar /> },
   { href: "/shopify-import-complet", label: "Import complet Shopify", icon: <FaBoxOpen />, roles: ["admin"] },

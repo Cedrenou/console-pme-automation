@@ -642,6 +642,68 @@ export async function enrichShopifyProducts(rows: ShopifyEnrichRow[]): Promise<S
   return parseApiResponse<ShopifyEnrichResponse>(res);
 }
 
+// POST /create-vinted-text-claude → lambda-sunset-create-vinted-text-claude
+// Génère les annonces Vinted (titre + corps) via Claude. Même découpage en batches
+// côté cockpit que l'enrichissement Shopify (limite API Gateway 29s).
+export type VintedTextRow = Record<string, string>;
+export type VintedTextResult = {
+  code_article: string;
+  status: 'ok' | 'error';
+  titre?: string;
+  corps?: string;
+  error?: string;
+};
+export type VintedTextResponse = {
+  summary: Partial<Record<'ok' | 'error', number>>;
+  results: VintedTextResult[];
+  usage?: ShopifyBatchUsage | null;
+};
+
+export async function generateVintedText(rows: VintedTextRow[]): Promise<VintedTextResponse> {
+  if (shouldUseMock()) {
+    await new Promise(r => setTimeout(r, 800));
+    const results: VintedTextResult[] = rows.map((row, i) => {
+      const code = row['Code article'] ?? row['UGS'] ?? `MOCK-${i}`;
+      if (i % 7 === 6) {
+        return { code_article: code, status: 'error', error: 'Erreur de génération (mock)' };
+      }
+      const designation = row['Designation'] ?? 'Article';
+      return {
+        code_article: code,
+        status: 'ok',
+        titre: `${designation} – ${row['Taille'] ?? ''} – Sunset Rider`.replace(/\s+/g, ' ').trim(),
+        corps: `🥇100% Satisfait ou Remboursé!\nSunset Rider – seconde main moto reconditionnée.\n\n✅ Taille : ${row['Taille'] ?? ''} - Mesures en photo\n🎯 Matière : ${row['Matière'] ?? ''}\n\n🧥 ${designation}\nDescription générée (mock) — texte d'exemple pour visualiser le rendu de la carte.\n\n#sunsetrider #moto`,
+      };
+    });
+    const summary = results.reduce<Partial<Record<'ok' | 'error', number>>>(
+      (acc, r) => ({ ...acc, [r.status]: (acc[r.status] ?? 0) + 1 }),
+      {},
+    );
+    const okCount = summary.ok ?? 0;
+    const usage: ShopifyBatchUsage = {
+      model: 'claude-sonnet-4-6',
+      input_tokens: 900 * okCount,
+      output_tokens: 180 * okCount,
+      cache_read_input_tokens: 0,
+      cache_creation_input_tokens: 0,
+      cost_usd: 0.0035 * okCount,
+      cost_eur: 0.0032 * okCount,
+    };
+    return { summary, results, usage };
+  }
+
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/create-vinted-text-claude`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
+    body: JSON.stringify({ rows }),
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Génération Vinted échouée : ${txt || res.status}`);
+  }
+  return parseApiResponse<VintedTextResponse>(res);
+}
+
 export async function fetchVintedEvents(opts: {
   type: VintedEvent['eventType'];
   from?: string;
