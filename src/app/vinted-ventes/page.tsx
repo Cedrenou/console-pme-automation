@@ -1,11 +1,11 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  fetchVintedEvents, fetchVintedBordereau, checkVintedBordereauxBatch, fetchShopifyOrders,
+  fetchVintedEvents, fetchVintedBordereau, checkVintedBordereauxBatch, fetchShopifyOrders, setVintedCancellation,
   type VintedEvent, type ShopifySale
 } from "@/lib/api";
 import {
-  FaCalendarAlt, FaUser, FaFileDownload, FaSearch, FaPrint, FaMapMarkerAlt, FaEnvelope, FaRegCopy, FaCheck, FaExternalLinkAlt, FaBoxOpen
+  FaCalendarAlt, FaUser, FaFileDownload, FaSearch, FaPrint, FaMapMarkerAlt, FaEnvelope, FaRegCopy, FaCheck, FaExternalLinkAlt, FaBoxOpen, FaBan, FaUndo, FaSpinner
 } from "react-icons/fa";
 import { MONTH_OPTIONS, monthToDates } from "@/lib/months";
 import { MonthPicker } from "@/components/MonthPicker";
@@ -58,8 +58,16 @@ const formatDateShopify = (iso: string): string => {
   return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
 };
 
+// Normalisation de titre pour le matching vente ↔ demande d'annulation (#17).
+const normTitle = (s?: string): string =>
+  (s ?? "").toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+
+type CancelStatus = "active" | "pending" | "cancelled" | "kept";
+
+type StatusFilter = "active" | "cancelled" | "all";
+
 type UnifiedSale =
-  | { source: "vinted"; date: string; key: string; vinted: VintedEvent }
+  | { source: "vinted"; date: string; key: string; vinted: VintedEvent; cancelStatus: CancelStatus; cancelRequest?: VintedEvent }
   | { source: "shopify"; date: string; key: string; shopify: ShopifySale };
 
 const VintedVentesPage = () => {
@@ -68,6 +76,11 @@ const VintedVentesPage = () => {
   const [search, setSearch] = useState<string>("");
   const [items, setItems] = useState<VintedEvent[]>([]);
   const [shopifyItems, setShopifyItems] = useState<ShopifySale[]>([]);
+  const [cancellations, setCancellations] = useState<VintedEvent[]>([]);
+  // Arbitrages faits dans la session (optimiste, prioritaire sur le statut serveur).
+  const [cancelOverride, setCancelOverride] = useState<Record<string, "cancelled" | "kept">>({});
+  const [cancelBusy, setCancelBusy] = useState<Record<string, boolean>>({});
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("active");
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -98,6 +111,7 @@ const VintedVentesPage = () => {
       setError(null);
       setItems([]);
       setShopifyItems([]);
+      setCancellations([]);
       setCursor(null);
       try {
         const { from, to } = effectiveDates;
@@ -106,6 +120,12 @@ const VintedVentesPage = () => {
         fetchShopifyOrders({ from, to })
           .then(res => { if (requestId.current === myId) setShopifyItems(res.items); })
           .catch(err => { console.error("Ventes Shopify:", err); });
+        // Demandes d'annulation (best-effort) : fenêtre élargie de 14j après `to` car une
+        // demande arrive souvent quelques jours après la vente.
+        const annulTo = to ? new Date(new Date(to).getTime() + 14 * 86400_000).toISOString() : undefined;
+        fetchVintedEvents({ type: "annulation", from, to: annulTo, limit: 200 })
+          .then(res => { if (requestId.current === myId) setCancellations(res.items); })
+          .catch(err => { console.error("Demandes d'annulation:", err); });
         if (autoLoadAll) {
           const accumulator: VintedEvent[] = [];
           let nextCursor: string | null = null;
@@ -198,18 +218,68 @@ const VintedVentesPage = () => {
     return hay.includes(q);
   });
 
-  // Liste unifiée Vinted + Shopify, triée par date décroissante.
+  // Index des demandes d'annulation par clé "titre normalisé|pseudo".
+  const cancelByKey = new Map<string, VintedEvent>();
+  for (const c of cancellations) {
+    const p = c.payload as { article_titre?: string; acheteur_username?: string };
+    const key = `${normTitle(p.article_titre)}|${(p.acheteur_username ?? "").toLowerCase()}`;
+    if (key !== "|") cancelByKey.set(key, c);
+  }
+
+  // Statut d'annulation effectif d'une vente : override session > statut serveur > demande détectée.
+  const venteCancelInfo = (v: VintedEvent): { status: CancelStatus; request?: VintedEvent } => {
+    const resolved = cancelOverride[v.gmailMessageId] ?? v.cancellation_status ?? null;
+    if (resolved === "cancelled") return { status: "cancelled" };
+    const p = v.payload as { article_titre?: string; acheteur_username?: string };
+    const key = `${normTitle(p.article_titre)}|${(p.acheteur_username ?? "").toLowerCase()}`;
+    const req = cancelByKey.get(key);
+    const matched = req && req.eventDate >= v.eventDate ? req : undefined;
+    if (resolved === "kept") return { status: "kept", request: matched };
+    if (matched) return { status: "pending", request: matched };
+    return { status: "active" };
+  };
+
+  const vintedWithStatus = filteredVinted.map(v => ({ v, ...venteCancelInfo(v) }));
+
+  const passesStatus = (s: CancelStatus): boolean => {
+    if (statusFilter === "all") return true;
+    if (statusFilter === "cancelled") return s === "cancelled";
+    return s !== "cancelled"; // "active" : tout sauf annulées
+  };
+
+  const visibleVinted = vintedWithStatus.filter(x => passesStatus(x.status));
+  const visibleShopify = statusFilter === "cancelled" ? [] : filteredShopify;
+
+  // Liste unifiée triée par date décroissante.
   const unifiedSales: UnifiedSale[] = [
-    ...filteredVinted.map((v): UnifiedSale => ({ source: "vinted", date: v.eventDate, key: `v-${v.gmailMessageId}`, vinted: v })),
-    ...filteredShopify.map((s): UnifiedSale => ({ source: "shopify", date: s.date, key: `s-${s.id}`, shopify: s })),
+    ...visibleVinted.map(({ v, status, request }): UnifiedSale => ({
+      source: "vinted", date: v.eventDate, key: `v-${v.gmailMessageId}`, vinted: v, cancelStatus: status, cancelRequest: request,
+    })),
+    ...visibleShopify.map((s): UnifiedSale => ({ source: "shopify", date: s.date, key: `s-${s.id}`, shopify: s })),
   ].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
 
+  // CA = ventes Vinted non annulées + Shopify (toujours hors annulées).
   const totalRevenue =
-    filteredVinted.reduce((acc, it) => {
-      const p = it.payload as { prix_vente?: number };
+    vintedWithStatus.filter(x => x.status !== "cancelled").reduce((acc, x) => {
+      const p = x.v.payload as { prix_vente?: number };
       return acc + (typeof p.prix_vente === "number" ? p.prix_vente : 0);
     }, 0) + filteredShopify.reduce((acc, s) => acc + (s.amount || 0), 0);
-  const totalCount = filteredVinted.length + filteredShopify.length;
+  const totalCount = visibleVinted.length + visibleShopify.length;
+  const cancelledCount = vintedWithStatus.filter(x => x.status === "cancelled").length;
+  const pendingCount = vintedWithStatus.filter(x => x.status === "pending").length;
+
+  // Arbitrage d'une demande d'annulation (optimiste + appel API).
+  const handleArbitrate = async (messageId: string, status: "cancelled" | "kept") => {
+    setCancelBusy(prev => ({ ...prev, [messageId]: true }));
+    try {
+      await setVintedCancellation(messageId, status);
+      setCancelOverride(prev => ({ ...prev, [messageId]: status }));
+    } catch (err) {
+      console.error("Arbitrage annulation:", err);
+    } finally {
+      setCancelBusy(prev => ({ ...prev, [messageId]: false }));
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#151826] text-white p-4 md:p-8">
@@ -272,16 +342,41 @@ const VintedVentesPage = () => {
                 CA : {formatEur(totalRevenue)}
               </span>
             )}
+            {!loading && pendingCount > 0 && (
+              <span className="text-sm bg-orange-500/15 text-orange-300 px-3 py-1 rounded-full font-semibold">
+                {pendingCount} annulation{pendingCount > 1 ? "s" : ""} à arbitrer
+              </span>
+            )}
           </div>
-          <div className="relative">
-            <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm" />
-            <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Filtrer par titre ou acheteur..."
-              className="pl-9 pr-3 py-2 rounded-lg bg-[#1c1f2e] border border-[#2c3048] text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64"
-            />
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1 bg-[#1c1f2e] rounded-lg p-1">
+              {(["active", "cancelled", "all"] as StatusFilter[]).map(id => {
+                const label = id === "active" ? "Actives" : id === "cancelled" ? "Annulées" : "Toutes";
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setStatusFilter(id)}
+                    aria-pressed={statusFilter === id}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                      statusFilter === id ? "bg-blue-600 text-white" : "text-gray-300 hover:bg-[#2c3048]"
+                    }`}
+                  >
+                    {label}{id === "cancelled" && cancelledCount > 0 ? ` (${cancelledCount})` : ""}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="relative">
+              <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm" />
+              <input
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Filtrer par titre ou acheteur..."
+                className="pl-9 pr-3 py-2 rounded-lg bg-[#1c1f2e] border border-[#2c3048] text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64"
+              />
+            </div>
           </div>
         </div>
 
@@ -307,6 +402,10 @@ const VintedVentesPage = () => {
                     <SaleRow
                       sale={u.vinted}
                       bordereauStatus={bordereauStatuses[u.vinted.gmailMessageId] ?? "checking"}
+                      cancelStatus={u.cancelStatus}
+                      cancelReason={(u.cancelRequest?.payload as { raison?: string } | undefined)?.raison}
+                      cancelBusy={!!cancelBusy[u.vinted.gmailMessageId]}
+                      onArbitrate={(status) => handleArbitrate(u.vinted.gmailMessageId, status)}
                     />
                   ) : (
                     <ShopifySaleRow sale={u.shopify} />
@@ -374,7 +473,11 @@ const CopyableField: React.FC<{
 const SaleRow: React.FC<{
   sale: VintedEvent;
   bordereauStatus: "checking" | "ready" | "missing";
-}> = ({ sale, bordereauStatus }) => {
+  cancelStatus: CancelStatus;
+  cancelReason?: string;
+  cancelBusy: boolean;
+  onArbitrate: (status: "cancelled" | "kept") => void;
+}> = ({ sale, bordereauStatus, cancelStatus, cancelReason, cancelBusy, onArbitrate }) => {
   const p = sale.payload as {
     acheteur_username?: string;
     acheteur_email?: string;
@@ -464,7 +567,8 @@ const SaleRow: React.FC<{
   };
 
   return (
-    <div className="bg-[#1c1f2e] rounded-lg p-4 flex gap-3 items-start">
+    <div className={`bg-[#1c1f2e] rounded-lg p-4 ${cancelStatus === "cancelled" ? "opacity-60" : ""}`}>
+      <div className="flex gap-3 items-start">
       {p.article_image_url ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -566,6 +670,80 @@ const SaleRow: React.FC<{
         <div className="text-lg font-bold text-green-400">
           {p.prix_vente !== undefined ? formatEur(p.prix_vente) : "—"}
         </div>
+      </div>
+      </div>
+      <CancellationBanner status={cancelStatus} reason={cancelReason} busy={cancelBusy} onArbitrate={onArbitrate} />
+    </div>
+  );
+};
+
+// Bandeau d'arbitrage d'une demande d'annulation sur une carte vente Vinted (#17).
+const CancellationBanner: React.FC<{
+  status: CancelStatus;
+  reason?: string;
+  busy: boolean;
+  onArbitrate: (status: "cancelled" | "kept") => void;
+}> = ({ status, reason, busy, onArbitrate }) => {
+  if (status === "active") return null;
+
+  if (status === "cancelled") {
+    return (
+      <div className="mt-3 pt-3 border-t border-[#2c3048] flex items-center justify-between gap-2">
+        <span className="text-sm text-red-300 font-semibold flex items-center gap-2">
+          <FaBan /> Vente annulée
+        </span>
+        <button
+          type="button"
+          onClick={() => onArbitrate("kept")}
+          disabled={busy}
+          className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md bg-[#23263A] text-gray-200 hover:bg-[#2c3048] border border-[#2c3048] transition-colors disabled:opacity-50"
+        >
+          {busy ? <FaSpinner className="animate-spin" /> : <FaUndo />} Rétablir
+        </button>
+      </div>
+    );
+  }
+
+  if (status === "kept") {
+    return (
+      <div className="mt-3 pt-3 border-t border-[#2c3048] flex items-center justify-between gap-2">
+        <span className="text-xs text-gray-400 italic">Demande d&apos;annulation refusée</span>
+        <button
+          type="button"
+          onClick={() => onArbitrate("cancelled")}
+          disabled={busy}
+          className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md bg-[#23263A] text-gray-200 hover:bg-red-600/20 hover:text-red-300 border border-[#2c3048] transition-colors disabled:opacity-50"
+        >
+          {busy ? <FaSpinner className="animate-spin" /> : <FaBan />} Annuler la vente
+        </button>
+      </div>
+    );
+  }
+
+  // pending : demande détectée, à arbitrer
+  return (
+    <div className="mt-3 pt-3 border-t border-orange-500/30 bg-orange-500/5 -mx-4 -mb-4 px-4 pb-4 pt-3 rounded-b-lg">
+      <div className="text-sm text-orange-300 font-semibold flex items-center gap-2 mb-1">
+        <FaBan /> Demande d&apos;annulation de l&apos;acheteur
+      </div>
+      {reason && <div className="text-xs text-gray-400 italic mb-3">Raison : {reason}</div>}
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => onArbitrate("cancelled")}
+          disabled={busy}
+          className="inline-flex items-center gap-1.5 text-sm font-medium px-3.5 py-2 rounded-md bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+        >
+          {busy ? <FaSpinner className="animate-spin" /> : <FaBan />} Confirmer l&apos;annulation
+        </button>
+        <button
+          type="button"
+          onClick={() => onArbitrate("kept")}
+          disabled={busy}
+          className="inline-flex items-center gap-1.5 text-sm font-medium px-3.5 py-2 rounded-md bg-[#23263A] text-gray-200 hover:bg-[#2c3048] border border-[#2c3048] transition-colors disabled:opacity-50"
+        >
+          <FaUndo /> Refuser
+        </button>
       </div>
     </div>
   );

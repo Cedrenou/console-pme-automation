@@ -246,10 +246,13 @@ export type VintedStats = {
 export type VintedEvent = {
   clientId: string;
   gmailMessageId: string;
-  eventType: 'achat' | 'vente' | 'boost' | 'vitrine' | 'transfert' | 'refund' | 'transaction';
+  eventType: 'achat' | 'vente' | 'boost' | 'vitrine' | 'transfert' | 'refund' | 'transaction' | 'annulation';
   validated_at?: string;
   validated_by?: string;
   compta_label?: string;
+  cancellation_status?: 'cancelled' | 'kept' | null;
+  cancellation_at?: string;
+  cancellation_by?: string;
   eventDate: string;
   eventTypeIndex: string;
   payload: Record<string, unknown>;
@@ -417,6 +420,7 @@ export type VintedValidateResponse = {
   validated_at: string | null;
   validated_by: string | null;
   compta_label: string | null;
+  cancellation_status?: 'cancelled' | 'kept' | null;
 };
 
 export async function setVintedEventValidated(messageId: string, validated: boolean): Promise<VintedValidateResponse> {
@@ -451,6 +455,29 @@ export async function setVintedEventComptaLabel(messageId: string, comptaLabel: 
   if (!res.ok) {
     const txt = await res.text();
     throw new Error(`Erreur lors de la mise à jour : ${txt}`);
+  }
+  return parseApiResponse<VintedValidateResponse>(res);
+}
+
+// Arbitrage d'une demande d'annulation de vente (#17). `messageId` = la VENTE.
+//   'cancelled' → vente annulée (masquée) · 'kept' → demande refusée · null → remet "à arbitrer"
+export async function setVintedCancellation(messageId: string, status: 'cancelled' | 'kept' | null): Promise<VintedValidateResponse> {
+  if (shouldUseMock()) {
+    await new Promise(r => setTimeout(r, 200));
+    return { messageId, validated_at: null, validated_by: null, compta_label: null, cancellation_status: status };
+  }
+  const url = `${process.env.NEXT_PUBLIC_API_URL}/clients/${VINTED_CLIENT_ID}/vinted/validate`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(await authHeader()),
+    },
+    body: JSON.stringify({ messageId, cancellationStatus: status }),
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Erreur lors de l'arbitrage de l'annulation : ${txt}`);
   }
   return parseApiResponse<VintedValidateResponse>(res);
 }
