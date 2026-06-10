@@ -14,7 +14,7 @@ type LinkDef = { href: string; label: string; icon: React.ReactNode; roles?: Use
 // Sans `roles`, le lien est visible pour tous. Le rôle "comptable" ne voit que /compta.
 const links: LinkDef[] = [
   { href: "/", label: "Cockpit Vinted", icon: <FaChartLine />, roles: ["admin"] },
-  { href: "/vinted-ventes", label: "Ventes Vinted", icon: <FaShoppingBag />, roles: ["admin"] },
+  { href: "/vinted-ventes", label: "Ventes", icon: <FaShoppingBag />, roles: ["admin"] },
   { href: "/vinted-achats", label: "Achats Vinted", icon: <FaShoppingCart />, roles: ["admin"] },
   { href: "/vinted-annonces", label: "Générer annonces Vinted", icon: <FaPenNib />, roles: ["admin"] },
   { href: "/clients", label: "Clients", icon: <FaUsers />, roles: ["admin"] },

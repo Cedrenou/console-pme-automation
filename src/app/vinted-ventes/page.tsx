@@ -1,11 +1,11 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  fetchVintedEvents, fetchVintedBordereau, checkVintedBordereauxBatch,
-  type VintedEvent
+  fetchVintedEvents, fetchVintedBordereau, checkVintedBordereauxBatch, fetchShopifyOrders,
+  type VintedEvent, type ShopifySale
 } from "@/lib/api";
 import {
-  FaCalendarAlt, FaUser, FaFileDownload, FaSearch, FaPrint, FaMapMarkerAlt, FaEnvelope, FaRegCopy, FaCheck
+  FaCalendarAlt, FaUser, FaFileDownload, FaSearch, FaPrint, FaMapMarkerAlt, FaEnvelope, FaRegCopy, FaCheck, FaExternalLinkAlt, FaBoxOpen
 } from "react-icons/fa";
 import { MONTH_OPTIONS, monthToDates } from "@/lib/months";
 import { MonthPicker } from "@/components/MonthPicker";
@@ -51,11 +51,23 @@ const formatDate = (iso: string): string => {
   return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
 };
 
+// Les commandes Shopify sont horodatées en UTC réel → affichage en heure de Paris
+// (gère automatiquement l'heure d'été/hiver) pour montrer la vraie heure de vente.
+const formatDateShopify = (iso: string): string => {
+  const d = new Date(iso);
+  return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
+};
+
+type UnifiedSale =
+  | { source: "vinted"; date: string; key: string; vinted: VintedEvent }
+  | { source: "shopify"; date: string; key: string; shopify: ShopifySale };
+
 const VintedVentesPage = () => {
   const [period, setPeriod] = useState<PeriodId>("month");
   const [monthFilter, setMonthFilter] = useState<string>("");
   const [search, setSearch] = useState<string>("");
   const [items, setItems] = useState<VintedEvent[]>([]);
+  const [shopifyItems, setShopifyItems] = useState<ShopifySale[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -85,9 +97,15 @@ const VintedVentesPage = () => {
       setLoading(true);
       setError(null);
       setItems([]);
+      setShopifyItems([]);
       setCursor(null);
       try {
         const { from, to } = effectiveDates;
+        // Ventes Shopify : un seul appel, en parallèle du chargement Vinted. Best-effort —
+        // un échec côté Shopify n'empêche pas l'affichage des ventes Vinted.
+        fetchShopifyOrders({ from, to })
+          .then(res => { if (requestId.current === myId) setShopifyItems(res.items); })
+          .catch(err => { console.error("Ventes Shopify:", err); });
         if (autoLoadAll) {
           const accumulator: VintedEvent[] = [];
           let nextCursor: string | null = null;
@@ -170,26 +188,35 @@ const VintedVentesPage = () => {
     }
   };
 
-  const filteredItems = search.trim().length === 0
-    ? items
-    : items.filter(it => {
-        const p = it.payload as { article_titre?: string; acheteur_username?: string };
-        const haystack = `${p.article_titre ?? ""} ${p.acheteur_username ?? ""}`.toLowerCase();
-        return haystack.includes(search.toLowerCase());
-      });
+  const q = search.trim().toLowerCase();
+  const filteredVinted = q.length === 0 ? items : items.filter(it => {
+    const p = it.payload as { article_titre?: string; acheteur_username?: string };
+    return `${p.article_titre ?? ""} ${p.acheteur_username ?? ""}`.toLowerCase().includes(q);
+  });
+  const filteredShopify = q.length === 0 ? shopifyItems : shopifyItems.filter(s => {
+    const hay = `${s.articles.map(a => a.title).join(" ")} ${s.customerName ?? ""} ${s.name}`.toLowerCase();
+    return hay.includes(q);
+  });
 
-  const totalRevenue = filteredItems.reduce((acc, it) => {
-    const p = it.payload as { prix_vente?: number };
-    return acc + (typeof p.prix_vente === "number" ? p.prix_vente : 0);
-  }, 0);
-  const pricedCount = filteredItems.filter(it => typeof (it.payload as { prix_vente?: number }).prix_vente === "number").length;
+  // Liste unifiée Vinted + Shopify, triée par date décroissante.
+  const unifiedSales: UnifiedSale[] = [
+    ...filteredVinted.map((v): UnifiedSale => ({ source: "vinted", date: v.eventDate, key: `v-${v.gmailMessageId}`, vinted: v })),
+    ...filteredShopify.map((s): UnifiedSale => ({ source: "shopify", date: s.date, key: `s-${s.id}`, shopify: s })),
+  ].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+
+  const totalRevenue =
+    filteredVinted.reduce((acc, it) => {
+      const p = it.payload as { prix_vente?: number };
+      return acc + (typeof p.prix_vente === "number" ? p.prix_vente : 0);
+    }, 0) + filteredShopify.reduce((acc, s) => acc + (s.amount || 0), 0);
+  const totalCount = filteredVinted.length + filteredShopify.length;
 
   return (
     <div className="min-h-screen bg-[#151826] text-white p-4 md:p-8">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold mb-2">Ventes Vinted</h1>
-          <p className="text-gray-400">Consulte tes ventes et télécharge les bordereaux d&apos;envoi.</p>
+          <h1 className="text-3xl font-bold mb-2">Ventes</h1>
+          <p className="text-gray-400">Ventes Vinted et Shopify réunies. Bordereaux d&apos;envoi pour les ventes Vinted.</p>
         </div>
         <div className="flex flex-wrap gap-2 items-center">
           <PeriodSelect
@@ -235,12 +262,12 @@ const VintedVentesPage = () => {
                 ? autoLoadAll
                   ? `Chargement… (${items.length})`
                   : "Chargement…"
-                : `${filteredItems.length}${cursor ? "+" : ""} affichées`}
+                : `${totalCount}${cursor ? "+" : ""} affichées`}
             </span>
-            {!loading && filteredItems.length > 0 && (
+            {!loading && unifiedSales.length > 0 && (
               <span
                 className="text-sm bg-emerald-600/15 text-emerald-300 px-3 py-1 rounded-full font-semibold"
-                title={pricedCount < filteredItems.length ? `${filteredItems.length - pricedCount} vente(s) sans prix` : "Somme des prix de vente"}
+                title="Somme des prix de vente (Vinted + Shopify)"
               >
                 CA : {formatEur(totalRevenue)}
               </span>
@@ -264,21 +291,27 @@ const VintedVentesPage = () => {
           </div>
         )}
 
-        {loading && items.length === 0 ? (
+        {loading && unifiedSales.length === 0 ? (
           <div className="text-gray-400 italic py-8 text-center">Chargement des ventes…</div>
-        ) : filteredItems.length === 0 ? (
+        ) : unifiedSales.length === 0 ? (
           <div className="text-gray-500 italic py-8 text-center">
             {search ? "Aucune vente ne matche ce filtre." : "Aucune vente sur la période sélectionnée."}
           </div>
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-              {filteredItems.map(sale => (
-                <SaleRow
-                  key={sale.gmailMessageId}
-                  sale={sale}
-                  bordereauStatus={bordereauStatuses[sale.gmailMessageId] ?? "checking"}
-                />
+              {unifiedSales.map(u => (
+                <div key={u.key} className="relative">
+                  <SourceBadge source={u.source} />
+                  {u.source === "vinted" ? (
+                    <SaleRow
+                      sale={u.vinted}
+                      bordereauStatus={bordereauStatuses[u.vinted.gmailMessageId] ?? "checking"}
+                    />
+                  ) : (
+                    <ShopifySaleRow sale={u.shopify} />
+                  )}
+                </div>
               ))}
             </div>
             {cursor && !autoLoadAll && (
@@ -533,6 +566,97 @@ const SaleRow: React.FC<{
         <div className="text-lg font-bold text-green-400">
           {p.prix_vente !== undefined ? formatEur(p.prix_vente) : "—"}
         </div>
+      </div>
+    </div>
+  );
+};
+
+// Pastille de source (le "petit logo" pour distinguer Vinted / Shopify).
+const SourceBadge: React.FC<{ source: "vinted" | "shopify" }> = ({ source }) => (
+  <span
+    className={`absolute top-1.5 left-1.5 z-10 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide shadow ${
+      source === "shopify" ? "bg-[#5E8E3E] text-white" : "bg-[#0b96a5] text-white"
+    }`}
+  >
+    {source === "shopify" ? "Shopify" : "Vinted"}
+  </span>
+);
+
+const FULFILLMENT_LABEL: Record<string, string> = {
+  FULFILLED: "Expédiée",
+  UNFULFILLED: "À expédier",
+  PARTIALLY_FULFILLED: "Partielle",
+  IN_PROGRESS: "En cours",
+  ON_HOLD: "En attente",
+  SCHEDULED: "Planifiée",
+  RESTOCKED: "Réintégrée",
+};
+const fulfillmentLabel = (s: string | null): string | null => (s ? FULFILLMENT_LABEL[s] ?? s : null);
+
+const ShopifySaleRow: React.FC<{ sale: ShopifySale }> = ({ sale }) => {
+  const firstImage = sale.articles.find(a => a.imageUrl)?.imageUrl ?? null;
+  const mainTitle = sale.articles[0]?.title ?? "Commande";
+  const extra = sale.articles.length - 1;
+  const totalQty = sale.articles.reduce((a, x) => a + (x.quantity || 0), 0);
+  const fullAddress = sale.shipping
+    ? [
+        sale.shipping.address1,
+        sale.shipping.address2,
+        [sale.shipping.zip, sale.shipping.city].filter(Boolean).join(" "),
+        sale.shipping.country,
+      ].filter(Boolean).join(", ")
+    : "";
+  const statut = fulfillmentLabel(sale.fulfillmentStatus);
+  const hasContact = sale.customerName || fullAddress;
+
+  return (
+    <div className="bg-[#1c1f2e] rounded-lg p-4 flex gap-3 items-start h-full">
+      {firstImage ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={firstImage} alt={mainTitle} className="w-16 h-20 object-cover rounded flex-shrink-0" loading="lazy" />
+      ) : (
+        <div className="w-16 h-20 bg-[#23263A] rounded flex items-center justify-center text-gray-600 flex-shrink-0">
+          <FaBoxOpen />
+        </div>
+      )}
+      <div className="flex-1 min-w-0">
+        <div className="font-semibold text-sm leading-tight line-clamp-2">
+          {mainTitle}
+          {extra > 0 && <span className="text-gray-400 font-normal"> +{extra} article{extra > 1 ? "s" : ""}</span>}
+        </div>
+        <div className="text-xs text-gray-400 mt-1 flex items-center gap-2 flex-wrap">
+          <span className="font-mono">{sale.name}</span>
+          {statut && <span className="bg-[#23263A] text-gray-300 px-1.5 py-0.5 rounded">{statut}</span>}
+        </div>
+        <div className="text-xs text-gray-500 mt-1">{formatDateShopify(sale.date)}</div>
+
+        {hasContact && (
+          <div className="mt-3 pt-3 border-t border-[#2c3048] space-y-1.5">
+            {sale.customerName && (
+              <CopyableField label="le nom" value={sale.customerName} icon={<FaUser className="text-[10px]" />} />
+            )}
+            {fullAddress && (
+              <CopyableField label="l'adresse" value={fullAddress} icon={<FaMapMarkerAlt className="text-[10px]" />} />
+            )}
+          </div>
+        )}
+
+        {sale.adminUrl && (
+          <div className="mt-3">
+            <a
+              href={sale.adminUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-sm font-medium px-3.5 py-2 rounded-md bg-[#23263A] text-gray-200 hover:bg-[#2c3048] transition-colors border border-[#2c3048]"
+            >
+              <FaExternalLinkAlt className="text-xs" /> Voir dans Shopify
+            </a>
+          </div>
+        )}
+      </div>
+      <div className="text-right flex-shrink-0">
+        <div className="text-lg font-bold text-green-400">{formatEur(sale.amount)}</div>
+        {totalQty > 1 && <div className="text-[10px] text-gray-500 mt-0.5">{totalQty} art.</div>}
       </div>
     </div>
   );

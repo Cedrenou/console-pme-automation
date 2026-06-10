@@ -537,6 +537,76 @@ export async function fetchShopifyTimeline(opts: {
   return parseApiResponse<ShopifyTimeline>(res);
 }
 
+// Liste des ventes Shopify (commandes payées) servie par lambda-sunset-shopify-api
+// (GET /shopify/orders). Affichée mélangée aux ventes Vinted sur la page "Ventes".
+export type ShopifySaleArticle = { title: string; quantity: number; imageUrl: string | null };
+export type ShopifySaleShipping = {
+  name: string | null;
+  address1: string | null;
+  address2: string | null;
+  zip: string | null;
+  city: string | null;
+  country: string | null;
+};
+export type ShopifySale = {
+  source: 'shopify';
+  id: string;
+  name: string; // n° de commande, ex. "#1042"
+  date: string; // ISO
+  amount: number;
+  currency: string;
+  fulfillmentStatus: string | null;
+  customerName: string | null;
+  shipping: ShopifySaleShipping | null;
+  articles: ShopifySaleArticle[];
+  adminUrl: string | null;
+};
+export type ShopifyOrdersResponse = {
+  period: { from: string | null; to: string | null };
+  count: number;
+  items: ShopifySale[];
+};
+
+export async function fetchShopifyOrders(opts: { from?: string; to?: string } = {}): Promise<ShopifyOrdersResponse> {
+  if (shouldUseMock()) {
+    await new Promise(r => setTimeout(r, 250));
+    return mockShopifyOrders(opts);
+  }
+  const params = new URLSearchParams();
+  if (opts.from) params.set('from', opts.from);
+  if (opts.to) params.set('to', opts.to);
+  const url = `${process.env.NEXT_PUBLIC_API_URL}/clients/${VINTED_CLIENT_ID}/shopify/orders${params.toString() ? `?${params}` : ''}`;
+  const res = await fetch(url, { headers: await authHeader() });
+  if (!res.ok) throw new Error("Erreur lors de la récupération des ventes Shopify");
+  return parseApiResponse<ShopifyOrdersResponse>(res);
+}
+
+function mockShopifyOrders(opts: { from?: string; to?: string }): ShopifyOrdersResponse {
+  const now = Date.now();
+  const samples: Array<Partial<ShopifySale> & { titles: string[] }> = [
+    { name: "#1042", amount: 189.9, customerName: "Marie Dupont", titles: ["Blouson cuir Helstons Ace L"] },
+    { name: "#1041", amount: 312.0, customerName: "Lucas Bernard", titles: ["Bottes Sidi 43", "Gants Five XL"] },
+    { name: "#1040", amount: 95.0, customerName: "Sophie Martin", titles: ["Veste textile Segura Lady M"] },
+  ];
+  const items: ShopifySale[] = samples.map((s, i) => ({
+    source: 'shopify',
+    id: `gid://shopify/Order/mock-${i}`,
+    name: s.name!,
+    date: new Date(now - i * 20 * 3600_000).toISOString(),
+    amount: s.amount!,
+    currency: "EUR",
+    fulfillmentStatus: i % 2 === 0 ? "UNFULFILLED" : "FULFILLED",
+    customerName: s.customerName ?? null,
+    shipping: {
+      name: s.customerName ?? null, address1: "12 rue des Motards", address2: null,
+      zip: "69000", city: "Lyon", country: "France",
+    },
+    articles: s.titles.map(t => ({ title: t, quantity: 1, imageUrl: null })),
+    adminUrl: "https://admin.shopify.com/store/fkv106-kq/orders/mock",
+  }));
+  return { period: { from: opts.from ?? null, to: opts.to ?? null }, count: items.length, items };
+}
+
 // === Feedback / demandes utilisateur (bouton sidebar) ===
 // POST /feedback → lambda-sunset-create-trello-ticket → carte sur le board
 // "Cockpit Sunset — Demandes clients" (liste "📥 Nouvelles demandes").
