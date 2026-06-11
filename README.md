@@ -16,48 +16,28 @@ Cette application front-end est une interface d'administration permettant à des
 
 ## 🌿 Workflow Git & Environnements
 
-### **Branches et environnements :**
+Deux environnements, deux branches, deux apps Amplify :
 
-- **`main`** → **Production** (stable, déployé automatiquement)
-  - URL : `https://console-pme-automation.amplifyapp.com`
-  - Variables d'environnement : Gérées dans AWS Amplify
+- **`main`** → **Production** (app Amplify `console-pme-automation-prod`)
+  - URL : `https://cockpit.sunsetridershop.com`
+  - API : API Gateway stage `prod` → données réelles
   
-- **`staging`** → **Staging/Pré-production** (tests avant prod)
-  - URL : `https://staging.console-pme-automation.amplifyapp.com`
-  - Variables d'environnement : Gérées dans AWS Amplify
-  
-- **`develop`** → **Développement** (intégration des features)
-  - URL : `https://dev.console-pme-automation.amplifyapp.com`
-  - Variables d'environnement : Gérées dans AWS Amplify
+- **`dev`** → **Développement** (app Amplify `console-pme-automation-dev`)
+  - URL : `https://dev.d40n9ewnxexgk.amplifyapp.com`
+  - API : API Gateway stage `dev` → tables DynamoDB `ClientLambdas-dev` / `VintedEvents-dev`
+    (copies de la prod, isolées : aucune écriture ne touche les vraies données)
 
 ### **Workflow de développement :**
 
-1. **Nouvelle feature :** `feature/nom-de-la-feature` ← `develop`
-2. **Tests :** `develop` → `staging`
-3. **Déploiement :** `staging` → `main` (après validation)
+1. Développer sur `dev` (commits directs) — chaque push déploie l'app Amplify dev
+2. Valider sur l'URL dev
+3. Déployer en prod : `git checkout main && git merge dev && git push origin main`
 
-### **Commandes Git utiles :**
-
-```bash
-# Créer une nouvelle feature
-git checkout develop
-git checkout -b feature/nouvelle-feature
-
-# Merger une feature
-git checkout develop
-git merge feature/nouvelle-feature
-git push origin develop
-
-# Déployer en staging
-git checkout staging
-git merge develop
-git push origin staging
-
-# Déployer en production
-git checkout main
-git merge staging
-git push origin main
-```
+L'isolation des données est faite côté Lambdas : les fonctions lisent
+`event.requestContext.stage` et basculent sur les tables `-dev` quand elles sont
+appelées via le stage `dev`. La Lambda `csv-to-shopify` passe en dry-run en dev
+(aucune mutation Shopify) et les routes proxy `/api/shopify-*` répondent une
+erreur propre en dev (pas de `SHOPIFY_MIDDLEWARE_*` configuré sur l'app dev).
 
 ---
 
@@ -91,14 +71,22 @@ console-pme-automation/
 
 ### **Développement local (`.env.local`)**
 ```env
-NEXT_PUBLIC_ENVIRONMENT=development
+# Stage dev de l'API Gateway → données isolées (tables -dev)
+NEXT_PUBLIC_API_URL=https://l4jr2s7xn4.execute-api.eu-west-3.amazonaws.com/dev
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 ```
+Sans `NEXT_PUBLIC_API_URL` (ou avec `NEXT_PUBLIC_ENVIRONMENT=development`),
+l'app bascule sur les mocks (`src/lib/*.mock.ts`).
 
-### **Staging et Production (AWS Amplify)**
-Les variables d'environnement sont configurées directement dans la console AWS Amplify pour chaque branche :
-- `NEXT_PUBLIC_API_URL` : URL de l'API Gateway
-- `NEXT_PUBLIC_ENVIRONMENT` : Environnement (staging/production)
-- Autres variables sensibles (clés API, etc.)
+### **Dev et Production (AWS Amplify)**
+Les variables sont configurées au niveau de chaque app Amplify :
+- `NEXT_PUBLIC_API_URL` : URL de l'API Gateway (stage `dev` ou `prod`)
+- `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` : auth (projet partagé)
+- `NEXT_PUBLIC_S3_BUCKET` : bucket images
+- `SHOPIFY_MIDDLEWARE_URL` / `SHOPIFY_MIDDLEWARE_ADMIN_PASSWORD` : **prod uniquement**
+  (proxys server-side vers le middleware Rezomatic — absents en dev pour bloquer
+  les écritures Shopify)
 
 ## 📦 Installation
 
@@ -114,19 +102,12 @@ pnpm dev
 
 ## 📤 Déploiement
 
-### **AWS Amplify (Recommandé)**
-1. Connecter le dépôt GitHub à AWS Amplify
-2. Configurer les branches :
-   - `main` → Production
-   - `staging` → Staging  
-   - `develop` → Développement
-3. Renseigner les variables d'environnement par environnement dans la console Amplify
-4. Amplify s'occupe de la build, du hosting et du cache
+### **AWS Amplify**
+Deux apps Amplify distinctes (région `eu-west-3`, profil CLI `sunset`) :
+- `console-pme-automation-prod` (`d2x6hnbsxh6apq`) — branche `main`, build auto
+- `console-pme-automation-dev` (`d40n9ewnxexgk`) — branche `dev`, build auto
 
-### **Configuration Amplify par branche :**
-- **main** : Build automatique, déploiement en production
-- **staging** : Build automatique, déploiement en staging
-- **develop** : Build automatique, déploiement en développement
+Les variables d'environnement sont gérées au niveau app dans la console Amplify.
 
 ### **Option 2 : auto-hébergé sur EC2 ou autre**
 Build : npm build

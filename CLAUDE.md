@@ -37,22 +37,24 @@ Path alias `@/*` → `src/*` is configured in `tsconfig.json`.
 
 ## Environments & deployment
 
-AWS Amplify hosts three branches with env vars managed in the Amplify console:
+Two environments, two Amplify apps (env vars managed at app level in the Amplify console):
 
-- `main` → production (`https://console-pme-automation.amplifyapp.com`)
-- `staging` → pre-prod
-- `develop` → dev (uses mock data because `NEXT_PUBLIC_ENVIRONMENT=development` triggers `shouldUseMock`)
+- `main` → production: app `console-pme-automation-prod` (`d2x6hnbsxh6apq`), `https://cockpit.sunsetridershop.com`, API Gateway stage `prod` (real data).
+- `dev` → development: app `console-pme-automation-dev` (`d40n9ewnxexgk`), `https://dev.d40n9ewnxexgk.amplifyapp.com`, API Gateway stage `dev`.
 
-`env.config.js` maps branch → env var set but is not currently imported by `next.config.ts`; Amplify applies the real values at build time (`amplify.yml`). `.env.local` is for local dev only.
+Data isolation is implemented in the Lambdas, not the front: each cockpit Lambda reads `event.requestContext.stage` and switches to the `ClientLambdas-dev` / `VintedEvents-dev` DynamoDB tables when called through the `dev` stage. `csv-to-shopify` runs dry-run in dev (no Shopify mutation); the `/api/shopify-*` Next proxy routes fail cleanly in dev because `SHOPIFY_MIDDLEWARE_*` is only set on the prod app. Writes from the dev environment never touch production data.
+
+`.env.local` is for local dev; point `NEXT_PUBLIC_API_URL` at the `dev` stage to hit isolated data, or unset it to use mocks.
 
 Key env vars:
-- `NEXT_PUBLIC_API_URL` — API Gateway base URL
+- `NEXT_PUBLIC_API_URL` — API Gateway base URL (stage `dev` or `prod`)
 - `NEXT_PUBLIC_ENVIRONMENT` — `development` forces mocks
 - `NEXT_PUBLIC_S3_BUCKET` — bucket used by `downloadImageBatch` (defaults to `sunset-s3`)
+- `SHOPIFY_MIDDLEWARE_URL` / `SHOPIFY_MIDDLEWARE_ADMIN_PASSWORD` — prod app only (server-side proxies to the Rezomatic middleware)
 
 ## Git workflow
 
-Feature branches branch from `develop`, merge into `develop`, then promote `develop → staging → main`. `scripts/git-workflow.sh` wraps this (`feature <name>`, `merge-feature`, `deploy-staging`, `deploy-prod`). Never push directly to `main` or `staging`; each is tied to an Amplify deployment.
+Day-to-day work happens on `dev` (direct commits, each push auto-deploys the dev Amplify app). Promote to prod by merging `dev` into `main` and pushing. The old `develop → staging → main` flow and `scripts/git-workflow.sh` are gone.
 
 ## Reference docs in-repo
 
