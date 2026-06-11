@@ -17,19 +17,13 @@ type ConfigShape = {
   maxTokens: string;
   systemPrompt: string;
   claudePrompt: string;
-  quiSommesNous: string;
-  infosSupp: string;
-  hashtags: string;
 };
 
 const DEFAULT_CONFIG: ConfigShape = {
   model: "claude-sonnet-4-6",
-  maxTokens: "1024",
+  maxTokens: "2048",
   systemPrompt: "",
   claudePrompt: "",
-  quiSommesNous: "",
-  infosSupp: "",
-  hashtags: "",
 };
 
 const VintedAnnoncesParametresPage = () => {
@@ -49,9 +43,6 @@ const VintedAnnoncesParametresPage = () => {
           maxTokens: String(data.config?.maxTokens ?? DEFAULT_CONFIG.maxTokens),
           systemPrompt: String(data.config?.systemPrompt ?? ""),
           claudePrompt: String(data.config?.claudePrompt ?? ""),
-          quiSommesNous: String(data.config?.quiSommesNous ?? ""),
-          infosSupp: String(data.config?.infosSupp ?? ""),
-          hashtags: String(data.config?.hashtags ?? ""),
         });
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "Erreur de chargement";
@@ -74,6 +65,11 @@ const VintedAnnoncesParametresPage = () => {
       setSaving(false);
       return;
     }
+    if (config.systemPrompt.trim().length === 0) {
+      setSaveError("Le system prompt est obligatoire (la Lambda refuse de générer sans prompt)");
+      setSaving(false);
+      return;
+    }
     if (config.claudePrompt.trim().length < 50) {
       setSaveError("Le prompt principal est trop court (50 caractères minimum)");
       setSaving(false);
@@ -81,16 +77,11 @@ const VintedAnnoncesParametresPage = () => {
     }
 
     try {
-      // Tous les champs sont renvoyés à chaque sauvegarde (la Lambda d'update
-      // remplace la config) afin de ne pas perdre les textes fixes.
       await updateLambda(LAMBDA_NAME, {
         model: config.model,
         maxTokens: String(parsedTokens),
         systemPrompt: config.systemPrompt,
         claudePrompt: config.claudePrompt,
-        quiSommesNous: config.quiSommesNous,
-        infosSupp: config.infosSupp,
-        hashtags: config.hashtags,
       });
       setSaveSuccess(true);
     } catch (err: unknown) {
@@ -155,7 +146,7 @@ const VintedAnnoncesParametresPage = () => {
           <label className="block">
             <span className="text-lg font-semibold mb-1 block">Max tokens par réponse</span>
             <span className="text-sm text-gray-400 mb-3 block">
-              La description Vinted est courte (220-300 caractères) — 1024 suffit largement.
+              Claude génère l&apos;annonce complète (titre + corps, ~600 tokens) — 2048 recommandé.
             </span>
             <input
               type="number"
@@ -172,7 +163,7 @@ const VintedAnnoncesParametresPage = () => {
         {/* System prompt */}
         <section className="bg-[#23263A] rounded-2xl shadow-lg p-6">
           <label className="block">
-            <span className="text-lg font-semibold mb-1 block">System prompt (persona)</span>
+            <span className="text-lg font-semibold mb-1 block">System prompt (persona) — obligatoire</span>
             <span className="text-sm text-gray-400 mb-3 block">
               Définit le rôle et le ton du rédacteur. Reste stable entre les articles.
             </span>
@@ -188,10 +179,12 @@ const VintedAnnoncesParametresPage = () => {
         {/* Claude prompt */}
         <section className="bg-[#23263A] rounded-2xl shadow-lg p-6">
           <label className="block">
-            <span className="text-lg font-semibold mb-1 block">Prompt principal (consignes de rédaction)</span>
+            <span className="text-lg font-semibold mb-1 block">Prompt principal — obligatoire</span>
             <span className="text-sm text-gray-400 mb-3 block">
-              Règles de rédaction de la description. Placeholders disponibles, remplacés automatiquement par
-              article : <code className="text-blue-300">{"{PRODUCT_DATA}"}</code> (toutes les données de la ligne),{" "}
+              Pilote la génération de l&apos;annonce <strong className="text-gray-300">complète</strong> (titre +
+              corps : accroche, blocs caractéristiques, ligne d&apos;évaluations, hashtags, UGS) — il n&apos;y a plus
+              aucun bloc fixe côté code. Placeholders remplacés automatiquement par article :{" "}
+              <code className="text-blue-300">{"{PRODUCT_DATA}"}</code> (toutes les données de la ligne),{" "}
               <code className="text-blue-300">{"{SPECIFIC_ASSETS}"}</code> (colonne Indications),{" "}
               <code className="text-blue-300">{"{VARIATION_SEED}"}</code> (graine 1-6 pour varier les tournures).
             </span>
@@ -202,43 +195,6 @@ const VintedAnnoncesParametresPage = () => {
               className="w-full bg-[#1c1f2e] border border-gray-600 rounded-lg px-4 py-2 text-white font-mono text-xs focus:border-blue-500 focus:outline-none resize-y"
             />
             <p className="text-xs text-gray-500 mt-2">{config.claudePrompt.length} caractères</p>
-          </label>
-        </section>
-
-        {/* Textes fixes de l'annonce */}
-        <section className="bg-[#23263A] rounded-2xl shadow-lg p-6 space-y-5">
-          <div>
-            <h2 className="text-lg font-semibold">Blocs de texte fixes de l&apos;annonce</h2>
-            <p className="text-sm text-gray-400">
-              Insérés tels quels (sans passer par Claude) dans le corps de chaque annonce. Laisser vide pour omettre.
-            </p>
-          </div>
-          <label className="block">
-            <span className="text-sm font-semibold mb-1 block">Qui sommes-nous</span>
-            <textarea
-              value={config.quiSommesNous}
-              onChange={(e) => setConfig({ ...config, quiSommesNous: e.target.value })}
-              rows={3}
-              className="w-full bg-[#1c1f2e] border border-gray-600 rounded-lg px-4 py-2 text-white text-sm focus:border-blue-500 focus:outline-none resize-y"
-            />
-          </label>
-          <label className="block">
-            <span className="text-sm font-semibold mb-1 block">Infos supplémentaires</span>
-            <textarea
-              value={config.infosSupp}
-              onChange={(e) => setConfig({ ...config, infosSupp: e.target.value })}
-              rows={5}
-              className="w-full bg-[#1c1f2e] border border-gray-600 rounded-lg px-4 py-2 text-white text-sm focus:border-blue-500 focus:outline-none resize-y"
-            />
-          </label>
-          <label className="block">
-            <span className="text-sm font-semibold mb-1 block">Hashtags</span>
-            <textarea
-              value={config.hashtags}
-              onChange={(e) => setConfig({ ...config, hashtags: e.target.value })}
-              rows={3}
-              className="w-full bg-[#1c1f2e] border border-gray-600 rounded-lg px-4 py-2 text-white text-sm focus:border-blue-500 focus:outline-none resize-y"
-            />
           </label>
         </section>
 

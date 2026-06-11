@@ -1,8 +1,8 @@
 "use client";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { FaUpload, FaFileCsv, FaCheckCircle, FaTimesCircle, FaSpinner, FaPenNib, FaCog, FaCopy, FaCheck, FaDownload } from "react-icons/fa";
-import { generateVintedText, type ShopifyBatchUsage, type VintedTextResult, type VintedTextRow } from "@/lib/api";
+import { FaUpload, FaFileCsv, FaCheckCircle, FaTimesCircle, FaSpinner, FaPenNib, FaCog, FaCopy, FaCheck, FaDownload, FaExclamationTriangle } from "react-icons/fa";
+import { fetchLambdaDetails, generateVintedText, type ShopifyBatchUsage, type VintedTextResult, type VintedTextRow } from "@/lib/api";
 
 /**
  * Parser CSV qui gère les valeurs multi-lignes entre guillemets — le CSV Vinted
@@ -110,6 +110,26 @@ const VintedAnnoncesPage = () => {
   const [dragDepth, setDragDepth] = useState(0);
   const isDragging = dragDepth > 0;
 
+  // Garde-fou : les prompts (systemPrompt + claudePrompt) doivent exister dans la
+  // config DynamoDB — la Lambda refuse de générer sans (422 MISSING_PROMPT).
+  // null = vérification en cours ; en cas d'échec réseau on ne bloque pas (la
+  // Lambda reste le backstop).
+  const [promptsMissing, setPromptsMissing] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const checkPrompts = async () => {
+      try {
+        const data = await fetchLambdaDetails("vintedLambdaClaude") as { config?: Record<string, string | number> };
+        const systemPrompt = String(data.config?.systemPrompt ?? "").trim();
+        const claudePrompt = String(data.config?.claudePrompt ?? "").trim();
+        setPromptsMissing(systemPrompt.length === 0 || claudePrompt.length === 0);
+      } catch {
+        setPromptsMissing(false);
+      }
+    };
+    checkPrompts();
+  }, []);
+
   const handleFile = (file: File) => {
     if (!file.name.toLowerCase().endsWith(".csv") && file.type !== "text/csv") {
       setParseError(`Fichier ignoré : seuls les .csv sont acceptés (reçu ${file.name})`);
@@ -147,7 +167,7 @@ const VintedAnnoncesPage = () => {
   };
 
   const handleGenerate = async () => {
-    if (rows.length === 0 || state.kind === "running") return;
+    if (rows.length === 0 || state.kind === "running" || promptsMissing) return;
     const started = Date.now();
     const total = rows.length;
     setState({ kind: "running", done: 0, total });
@@ -296,6 +316,23 @@ const VintedAnnoncesPage = () => {
         </label>
       </div>
 
+      {promptsMissing && (
+        <div className="bg-yellow-900/40 border border-yellow-700 rounded-2xl p-4 mb-6 flex items-start gap-3">
+          <FaExclamationTriangle className="text-yellow-400 text-xl mt-0.5" />
+          <div>
+            <p className="text-yellow-200 font-semibold">Aucun prompt configuré — génération bloquée.</p>
+            <p className="text-yellow-300/80 text-sm mt-1">
+              La Lambda a besoin d&apos;un system prompt et d&apos;un prompt principal pour rédiger les annonces.
+              Ajoutez-les dans les{" "}
+              <Link href="/vinted-annonces/parametres" className="underline text-yellow-200 hover:text-white">
+                Paramètres
+              </Link>{" "}
+              puis revenez ici.
+            </p>
+          </div>
+        </div>
+      )}
+
       {parseError && (
         <div className="bg-red-900/40 border border-red-700 rounded-2xl p-4 mb-6 flex items-start gap-3">
           <FaTimesCircle className="text-red-400 text-xl mt-0.5" />
@@ -316,7 +353,7 @@ const VintedAnnoncesPage = () => {
             <button
               type="button"
               onClick={handleGenerate}
-              disabled={state.kind === "running"}
+              disabled={state.kind === "running" || promptsMissing === true}
               aria-label="Lancer la génération"
               className="px-6 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg font-semibold transition-colors flex items-center gap-2"
             >
