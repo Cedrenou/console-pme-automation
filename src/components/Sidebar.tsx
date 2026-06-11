@@ -11,6 +11,16 @@ import FeedbackButton from "./FeedbackButton";
 
 type LinkDef = { href: string; label: string; icon: React.ReactNode; roles?: UserRole[] };
 
+// Badge d'environnement : "MOCK" sans API (fixtures locales, cf. shouldUseMock),
+// "DEV" sur le stage dev de l'API Gateway, rien en prod. Les NEXT_PUBLIC_* sont
+// inlinées au build, le badge reflète donc l'app déployée, pas le navigateur.
+const ENV_BADGE = (() => {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (process.env.NEXT_PUBLIC_ENVIRONMENT === "development" || !apiUrl) return "MOCK";
+  if (apiUrl.endsWith("/dev")) return "DEV";
+  return null;
+})();
+
 // Sans `roles`, le lien est visible pour tous. Le rôle "comptable" ne voit que /compta.
 const links: LinkDef[] = [
   { href: "/", label: "Cockpit Vinted", icon: <FaChartLine />, roles: ["admin"] },
@@ -94,8 +104,13 @@ const Sidebar = () => {
         <div>
           <div className="flex items-center justify-between text-2xl font-bold px-6 py-6 md:py-8">
             <div className="flex items-center gap-2">
-              <span className="inline-block w-3 h-3 bg-blue-500 rounded-full mr-2"></span>
+              <span className={`inline-block w-3 h-3 rounded-full mr-2 ${ENV_BADGE ? "bg-amber-400" : "bg-blue-500"}`}></span>
               Sunset
+              {ENV_BADGE && (
+                <span className="bg-amber-500/20 text-amber-300 border border-amber-400/40 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded font-semibold">
+                  {ENV_BADGE}
+                </span>
+              )}
             </div>
             {/* Bouton fermer dans le drawer mobile */}
             <button
