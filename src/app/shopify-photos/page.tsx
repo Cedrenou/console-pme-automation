@@ -406,7 +406,7 @@ const ShopifyPhotosPage = () => {
   const getPhotoStatus = (photoId: string): UploadResult | undefined => uploadState[photoId];
 
   return (
-    <div className="min-h-screen bg-[#151826] text-white p-4 md:p-8">
+    <div className="min-h-screen bg-app text-fg p-4 md:p-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Import Photos Shopify</h1>
         <p className="text-gray-400">
@@ -416,7 +416,7 @@ const ShopifyPhotosPage = () => {
       </div>
 
       {/* Étape 1 : liste de SKUs (CSV ou saisie manuelle) */}
-      <div className="bg-[#23263A] rounded-2xl shadow-lg p-6 mb-6">
+      <div className="bg-card-2 rounded-2xl shadow-lg p-6 mb-6">
         <div className="flex items-center gap-4 mb-4">
           <FaFileCsv className="text-3xl text-blue-400" />
           <div>
@@ -430,14 +430,14 @@ const ShopifyPhotosPage = () => {
           onDragOver={handleCsvDragOver}
           onDragLeave={() => setCsvDragOver(false)}
           className={`flex items-center justify-center gap-3 px-6 py-6 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${
-            csvDragOver ? "border-blue-400 bg-[#1c1f2e]" : "border-gray-600 hover:border-blue-500 hover:bg-[#1c1f2e]"
+            csvDragOver ? "border-blue-400 bg-card" : "border-gray-600 hover:border-blue-500 hover:bg-card"
           }`}
           tabIndex={0}
         >
           <FaUpload className="text-2xl text-gray-400" />
           <span className="text-gray-300">
             {filename ? (
-              <strong className="text-white">{filename}</strong>
+              <strong className="text-fg">{filename}</strong>
             ) : csvDragOver ? (
               "Relâcher pour importer le CSV"
             ) : (
@@ -460,7 +460,7 @@ const ShopifyPhotosPage = () => {
             onChange={(e) => setManualSku(e.target.value)}
             onKeyDown={onManualSkuKey}
             placeholder="Saisir un code article (ex: R0186A51)"
-            className="flex-1 px-4 py-2 bg-[#1c1f2e] border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 font-mono text-sm"
+            className="flex-1 px-4 py-2 bg-card border border-gray-600 rounded-lg text-fg placeholder-gray-500 focus:outline-none focus:border-blue-500 font-mono text-sm"
             aria-label="Ajouter un SKU manuellement"
           />
           <button
@@ -475,7 +475,7 @@ const ShopifyPhotosPage = () => {
 
         {skus.length > 0 && (
           <p className="text-sm text-gray-400 mt-4">
-            <strong className="text-white">{skus.length}</strong> SKU(s) dans la liste — dont{" "}
+            <strong className="text-fg">{skus.length}</strong> SKU(s) dans la liste — dont{" "}
             <strong className="text-green-400">{skusWithPhotos}</strong> avec au moins une photo associée.
           </p>
         )}
@@ -490,7 +490,7 @@ const ShopifyPhotosPage = () => {
 
       {/* Étape 2 : tableau SKUs avec drop zone par ligne */}
       {skus.length > 0 && (
-        <div className="bg-[#23263A] rounded-2xl shadow-lg p-6 mb-6">
+        <div className="bg-card-2 rounded-2xl shadow-lg p-6 mb-6">
           <div className="flex items-center justify-between mb-4 gap-4">
             <div>
               <h2 className="text-xl font-semibold">2. Affecter les photos aux SKUs</h2>
@@ -527,7 +527,7 @@ const ShopifyPhotosPage = () => {
                   const skuPhotos = photosBySku.get(s.codeArt) ?? [];
                   return (
                     <tr key={s.codeArt} className="border-b border-gray-700/60 align-top">
-                      <td className="py-3 pr-4 font-mono text-white">{s.codeArt}</td>
+                      <td className="py-3 pr-4 font-mono text-fg">{s.codeArt}</td>
                       <td className="py-3 pr-4 text-gray-300">{s.designation || <span className="italic text-gray-500">(vide)</span>}</td>
                       <td className="py-3">
                         <SkuDropCell
@@ -566,7 +566,7 @@ const ShopifyPhotosPage = () => {
 
       {/* Récap final */}
       {done && (
-        <div className="bg-[#23263A] rounded-2xl shadow-lg p-6 mb-6">
+        <div className="bg-card-2 rounded-2xl shadow-lg p-6 mb-6">
           <div className="flex items-center gap-3 mb-4">
             {errorCount === 0 ? (
               <FaCheckCircle className="text-green-400 text-3xl" />
@@ -577,7 +577,7 @@ const ShopifyPhotosPage = () => {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-            <div className="bg-[#1c1f2e] rounded-xl p-4">
+            <div className="bg-card rounded-xl p-4">
               <div className="text-gray-400 text-sm">Total</div>
               <div className="text-2xl font-bold">{totalToUpload}</div>
             </div>
@@ -585,14 +585,14 @@ const ShopifyPhotosPage = () => {
               <div className="text-green-300 text-sm">Uploadées</div>
               <div className="text-2xl font-bold text-green-400">{uploadedCount}</div>
             </div>
-            <div className={`rounded-xl p-4 border ${errorCount > 0 ? "bg-red-900/30 border-red-700" : "bg-[#1c1f2e] border-gray-700"}`}>
+            <div className={`rounded-xl p-4 border ${errorCount > 0 ? "bg-red-900/30 border-red-700" : "bg-card border-gray-700"}`}>
               <div className={`text-sm ${errorCount > 0 ? "text-red-300" : "text-gray-400"}`}>Erreurs</div>
-              <div className={`text-2xl font-bold ${errorCount > 0 ? "text-red-400" : "text-white"}`}>{errorCount}</div>
+              <div className={`text-2xl font-bold ${errorCount > 0 ? "text-red-400" : "text-fg"}`}>{errorCount}</div>
             </div>
           </div>
 
           {errorCount > 0 && (
-            <div className="bg-[#1c1f2e] rounded-xl p-4 max-h-64 overflow-y-auto mb-4">
+            <div className="bg-card rounded-xl p-4 max-h-64 overflow-y-auto mb-4">
               <h3 className="text-sm font-semibold text-red-300 mb-2">Photos en erreur :</h3>
               <ul className="text-sm space-y-1">
                 {photos
@@ -613,7 +613,7 @@ const ShopifyPhotosPage = () => {
 
           <button
             onClick={resetAll}
-            className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+            className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-fg rounded-lg transition-colors"
           >
             Faire un nouvel import
           </button>
@@ -697,7 +697,7 @@ const SkuDropCell: React.FC<SkuDropCellProps> = ({
             onClick={handlePick}
             disabled={disabled}
             aria-label={`Ajouter une photo à ${skuCode}`}
-            className="w-16 h-16 flex flex-col items-center justify-center border-2 border-dashed border-gray-600 rounded-lg hover:border-blue-500 hover:bg-[#1c1f2e] transition-colors text-gray-400 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-16 h-16 flex flex-col items-center justify-center border-2 border-dashed border-gray-600 rounded-lg hover:border-blue-500 hover:bg-card transition-colors text-gray-400 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <FaPlus />
             <span>Ajouter</span>
@@ -755,7 +755,7 @@ const PhotoThumb: React.FC<PhotoThumbProps> = ({
       onDragOver={handleDragOver}
       onDragLeave={() => setIsDragOver(false)}
       onDrop={handleDrop}
-      className={`relative ${size} rounded-lg overflow-hidden border bg-[#1c1f2e] cursor-grab active:cursor-grabbing group transition-shadow ${
+      className={`relative ${size} rounded-lg overflow-hidden border bg-card cursor-grab active:cursor-grabbing group transition-shadow ${
         isDragOver ? "border-blue-400 ring-2 ring-blue-400" : "border-gray-700"
       }`}
       title={photo.file.name}

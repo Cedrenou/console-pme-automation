@@ -100,7 +100,7 @@ const CopyButton = ({ text, label }: { text: string; label: string }) => {
       onClick={handleCopy}
       aria-label={label}
       className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors ${
-        copied ? "bg-green-600 text-white" : "bg-[#1c1f2e] hover:bg-[#2c3046] text-gray-200 border border-gray-700"
+        copied ? "bg-green-600 text-white" : "bg-card hover:bg-edge text-gray-200 border border-gray-700"
       }`}
     >
       {copied ? <FaCheck /> : <FaCopy />} {copied ? "Copié" : label}
@@ -291,7 +291,7 @@ const VintedAnnoncesPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#151826] text-white p-4 md:p-8">
+    <div className="min-h-screen bg-app text-fg p-4 md:p-8">
       <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
@@ -306,7 +306,7 @@ const VintedAnnoncesPage = () => {
         </div>
         <Link
           href="/vinted-annonces/parametres"
-          className="shrink-0 px-4 py-2 bg-[#23263A] hover:bg-[#2c3046] border border-gray-700 hover:border-blue-500 text-gray-200 rounded-lg transition-colors flex items-center gap-2 text-sm"
+          className="shrink-0 px-4 py-2 bg-card-2 hover:bg-edge border border-gray-700 hover:border-blue-500 text-gray-200 rounded-lg transition-colors flex items-center gap-2 text-sm"
         >
           <FaCog />
           Paramètres
@@ -314,7 +314,7 @@ const VintedAnnoncesPage = () => {
       </div>
 
       {/* Upload */}
-      <div className="bg-[#23263A] rounded-2xl shadow-lg p-6 mb-6">
+      <div className="bg-card-2 rounded-2xl shadow-lg p-6 mb-6">
         <div className="flex items-center gap-4 mb-4">
           <FaFileCsv className="text-3xl text-blue-400" />
           <div>
@@ -335,7 +335,7 @@ const VintedAnnoncesPage = () => {
           className={`flex flex-col items-center justify-center gap-2 px-6 py-10 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${
             isDragging
               ? "border-purple-400 bg-purple-500/10"
-              : "border-gray-600 hover:border-blue-500 hover:bg-[#1c1f2e]"
+              : "border-gray-600 hover:border-blue-500 hover:bg-card"
           }`}
           tabIndex={0}
         >
@@ -344,7 +344,7 @@ const VintedAnnoncesPage = () => {
             {isDragging ? (
               <strong className="text-purple-200">Relâche pour charger le fichier</strong>
             ) : filename ? (
-              <strong className="text-white">{filename}</strong>
+              <strong className="text-fg">{filename}</strong>
             ) : (
               <>Glisser-déposer un CSV ici, ou <span className="text-blue-400 underline">cliquer pour choisir</span></>
             )}
@@ -362,7 +362,7 @@ const VintedAnnoncesPage = () => {
       </div>
 
       {/* Recherche dans les annonces sauvegardées */}
-      <div className="bg-[#23263A] rounded-2xl shadow-lg p-6 mb-6">
+      <div className="bg-card-2 rounded-2xl shadow-lg p-6 mb-6">
         <div className="flex items-center gap-4 mb-4">
           <FaSearch className="text-2xl text-purple-400" />
           <div>
@@ -382,7 +382,7 @@ const VintedAnnoncesPage = () => {
               onChange={(e) => setSavedQuery(e.target.value)}
               placeholder="SKU / UGS ou titre…"
               aria-label="Rechercher une annonce sauvegardée par SKU, UGS ou titre"
-              className="w-full bg-[#1c1f2e] border border-gray-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none"
+              className="w-full bg-card border border-gray-700 rounded-lg pl-9 pr-3 py-2 text-sm text-fg placeholder-gray-500 focus:border-purple-500 focus:outline-none"
             />
           </div>
           <button
@@ -418,21 +418,21 @@ const VintedAnnoncesPage = () => {
                   )}
                 </p>
                 {savedState.results.map((r) => (
-                  <div key={r.code_article} className="bg-[#1c1f2e] rounded-2xl p-5 border border-gray-800">
+                  <div key={r.code_article} className="bg-card rounded-2xl p-5 border border-gray-800">
                     <div className="flex items-start justify-between gap-4 mb-3">
                       <div className="min-w-0">
                         <span className="text-xs font-mono text-gray-500">
                           {r.code_article}
                           {r.created_at && <span className="ml-3 font-sans">générée le {formatSavedDate(r.created_at)}</span>}
                         </span>
-                        <h3 className="text-lg font-semibold text-white break-words">{r.titre}</h3>
+                        <h3 className="text-lg font-semibold text-fg break-words">{r.titre}</h3>
                       </div>
                       <div className="flex flex-col gap-2 shrink-0">
                         <CopyButton text={r.titre} label="Copier titre" />
                         <CopyButton text={r.corps} label="Copier description" />
                       </div>
                     </div>
-                    <pre className="whitespace-pre-wrap font-sans text-sm text-gray-300 bg-[#151826] rounded-xl p-4 border border-gray-800">
+                    <pre className="whitespace-pre-wrap font-sans text-sm text-gray-300 bg-app rounded-xl p-4 border border-gray-800">
                       {r.corps}
                     </pre>
                   </div>
@@ -451,7 +451,7 @@ const VintedAnnoncesPage = () => {
             <p className="text-yellow-300/80 text-sm mt-1">
               La Lambda a besoin d&apos;un system prompt et d&apos;un prompt principal pour rédiger les annonces.
               Ajoutez-les dans les{" "}
-              <Link href="/vinted-annonces/parametres" className="underline text-yellow-200 hover:text-white">
+              <Link href="/vinted-annonces/parametres" className="underline text-yellow-200 hover:text-fg">
                 Paramètres
               </Link>{" "}
               puis revenez ici.
@@ -469,12 +469,12 @@ const VintedAnnoncesPage = () => {
 
       {/* Preview & launch */}
       {rows.length > 0 && state.kind !== "done" && (
-        <div className="bg-[#23263A] rounded-2xl shadow-lg p-6 mb-6">
+        <div className="bg-card-2 rounded-2xl shadow-lg p-6 mb-6">
           <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
             <div>
               <h2 className="text-xl font-semibold">2. Vérifier &amp; générer</h2>
               <p className="text-sm text-gray-400">
-                <strong className="text-white">{rows.length}</strong> annonce(s) à générer.
+                <strong className="text-fg">{rows.length}</strong> annonce(s) à générer.
               </p>
             </div>
             <button
@@ -494,7 +494,7 @@ const VintedAnnoncesPage = () => {
 
           {state.kind === "running" && (
             <div className="mb-4">
-              <div className="w-full bg-[#1c1f2e] rounded-full h-2 overflow-hidden">
+              <div className="w-full bg-card rounded-full h-2 overflow-hidden">
                 <div
                   className="h-full bg-purple-500 transition-all duration-300"
                   style={{ width: `${Math.round((state.done / state.total) * 100)}%` }}
@@ -535,7 +535,7 @@ const VintedAnnoncesPage = () => {
       {state.kind === "done" && (
         <div className="space-y-6">
           {/* Barre de synthèse + actions globales */}
-          <div className="bg-[#23263A] rounded-2xl shadow-lg p-6">
+          <div className="bg-card-2 rounded-2xl shadow-lg p-6">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div className="flex items-center gap-3">
                 {errorResults.length === 0 ? (
@@ -557,7 +557,7 @@ const VintedAnnoncesPage = () => {
                     <button
                       type="button"
                       onClick={handleDownload}
-                      className="px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 bg-[#1c1f2e] hover:bg-[#2c3046] text-gray-200 border border-gray-700 transition-colors"
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 bg-card hover:bg-edge text-gray-200 border border-gray-700 transition-colors"
                     >
                       <FaDownload /> Télécharger .txt
                     </button>
@@ -566,7 +566,7 @@ const VintedAnnoncesPage = () => {
                 <button
                   type="button"
                   onClick={handleReset}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-700 hover:bg-gray-600 text-white transition-colors"
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-700 hover:bg-gray-600 text-fg transition-colors"
                 >
                   Nouveau lot
                 </button>
@@ -583,12 +583,12 @@ const VintedAnnoncesPage = () => {
                     onChange={(e) => setSkuQuery(e.target.value)}
                     placeholder="Rechercher par SKU / UGS ou titre…"
                     aria-label="Rechercher une annonce par SKU, UGS ou titre"
-                    className="w-full bg-[#1c1f2e] border border-gray-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none"
+                    className="w-full bg-card border border-gray-700 rounded-lg pl-9 pr-3 py-2 text-sm text-fg placeholder-gray-500 focus:border-purple-500 focus:outline-none"
                   />
                 </div>
                 {normalizedQuery.length > 0 && (
                   <span className="text-xs text-gray-400">
-                    <strong className="text-white">{filteredResults.length}</strong> / {okResults.length} annonce(s)
+                    <strong className="text-fg">{filteredResults.length}</strong> / {okResults.length} annonce(s)
                   </span>
                 )}
               </div>
@@ -619,7 +619,7 @@ const VintedAnnoncesPage = () => {
 
           {/* Erreurs */}
           {errorResults.length > 0 && (
-            <div className="bg-[#23263A] rounded-2xl shadow-lg p-4">
+            <div className="bg-card-2 rounded-2xl shadow-lg p-4">
               <h3 className="text-sm font-semibold text-red-300 mb-2">Articles en erreur :</h3>
               <ul className="text-sm space-y-1">
                 {errorResults.map((r) => (
@@ -633,23 +633,23 @@ const VintedAnnoncesPage = () => {
 
           {/* Cartes d'annonces */}
           {normalizedQuery.length > 0 && filteredResults.length === 0 && okResults.length > 0 && (
-            <div className="bg-[#23263A] rounded-2xl shadow-lg p-6 text-center text-gray-400">
+            <div className="bg-card-2 rounded-2xl shadow-lg p-6 text-center text-gray-400">
               Aucune annonce ne correspond à «&nbsp;{skuQuery.trim()}&nbsp;».
             </div>
           )}
           {filteredResults.map((r) => (
-            <div key={r.code_article} className="bg-[#23263A] rounded-2xl shadow-lg p-5">
+            <div key={r.code_article} className="bg-card-2 rounded-2xl shadow-lg p-5">
               <div className="flex items-start justify-between gap-4 mb-3">
                 <div className="min-w-0">
                   <span className="text-xs font-mono text-gray-500">{r.code_article}</span>
-                  <h3 className="text-lg font-semibold text-white break-words">{r.titre}</h3>
+                  <h3 className="text-lg font-semibold text-fg break-words">{r.titre}</h3>
                 </div>
                 <div className="flex flex-col gap-2 shrink-0">
                   <CopyButton text={r.titre ?? ""} label="Copier titre" />
                   <CopyButton text={r.corps ?? ""} label="Copier description" />
                 </div>
               </div>
-              <pre className="whitespace-pre-wrap font-sans text-sm text-gray-300 bg-[#1c1f2e] rounded-xl p-4 border border-gray-800">
+              <pre className="whitespace-pre-wrap font-sans text-sm text-gray-300 bg-card rounded-xl p-4 border border-gray-800">
                 {r.corps}
               </pre>
             </div>

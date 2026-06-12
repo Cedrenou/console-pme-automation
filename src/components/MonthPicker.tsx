@@ -80,7 +80,7 @@ export const MonthPicker: React.FC<Props> = ({ value, onChange, options, placeho
         className={`cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors text-sm shadow-sm ${
           hasValue
             ? "bg-blue-600 hover:bg-blue-700 text-white"
-            : "bg-[#23263A] hover:bg-[#2c3048] text-gray-300"
+            : "bg-card-2 hover:bg-edge text-gray-300"
         }`}
       >
         <FaCalendarAlt className="text-sm opacity-80" />
@@ -93,7 +93,7 @@ export const MonthPicker: React.FC<Props> = ({ value, onChange, options, placeho
           ref={popoverRef}
           role="dialog"
           aria-label="Sélecteur de mois"
-          className="absolute right-0 mt-2 z-50 w-72 bg-[#1c1f2e] border border-[#2c3048] rounded-xl shadow-2xl p-3"
+          className="absolute right-0 mt-2 z-50 w-72 bg-card border border-edge rounded-xl shadow-2xl p-3"
         >
           <div className="flex items-center justify-between mb-3">
             <button
@@ -101,17 +101,17 @@ export const MonthPicker: React.FC<Props> = ({ value, onChange, options, placeho
               onClick={() => setViewYear(y => y - 1)}
               disabled={viewYear <= minYear}
               aria-label="Année précédente"
-              className="cursor-pointer p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-[#2c3048] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="cursor-pointer p-1.5 rounded-md text-gray-400 hover:text-fg hover:bg-edge disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
               <FaChevronLeft className="text-xs" />
             </button>
-            <span className="text-base font-bold text-white tabular-nums">{viewYear}</span>
+            <span className="text-base font-bold text-fg tabular-nums">{viewYear}</span>
             <button
               type="button"
               onClick={() => setViewYear(y => y + 1)}
               disabled={viewYear >= maxYear}
               aria-label="Année suivante"
-              className="cursor-pointer p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-[#2c3048] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="cursor-pointer p-1.5 rounded-md text-gray-400 hover:text-fg hover:bg-edge disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
               <FaChevronRight className="text-xs" />
             </button>
@@ -144,8 +144,8 @@ export const MonthPicker: React.FC<Props> = ({ value, onChange, options, placeho
                     isSelected
                       ? "bg-blue-600 text-white shadow"
                       : isCurrent
-                      ? "bg-[#23263A] text-blue-300 ring-1 ring-blue-500/40 hover:bg-[#2c3048]"
-                      : "bg-[#23263A] text-gray-300 hover:bg-[#2c3048] hover:text-white"
+                      ? "bg-card-2 text-blue-300 ring-1 ring-blue-500/40 hover:bg-edge"
+                      : "bg-card-2 text-gray-300 hover:bg-edge hover:text-fg"
                   }`}
                   aria-pressed={isSelected}
                   title={isCurrent ? "Mois courant" : undefined}
@@ -156,18 +156,18 @@ export const MonthPicker: React.FC<Props> = ({ value, onChange, options, placeho
             })}
           </div>
 
-          <div className="mt-3 pt-3 border-t border-[#2c3048] flex justify-between gap-2">
+          <div className="mt-3 pt-3 border-t border-edge flex justify-between gap-2">
             <button
               type="button"
               onClick={() => handleSelect(todayMonth)}
-              className="cursor-pointer flex-1 px-3 py-1.5 rounded-md text-xs font-semibold bg-[#23263A] text-gray-300 hover:bg-[#2c3048] hover:text-white transition-colors"
+              className="cursor-pointer flex-1 px-3 py-1.5 rounded-md text-xs font-semibold bg-card-2 text-gray-300 hover:bg-edge hover:text-fg transition-colors"
             >
               Mois courant
             </button>
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="cursor-pointer px-3 py-1.5 rounded-md text-xs font-semibold text-gray-400 hover:text-white transition-colors"
+              className="cursor-pointer px-3 py-1.5 rounded-md text-xs font-semibold text-gray-400 hover:text-fg transition-colors"
             >
               Fermer
             </button>

@@ -28,7 +28,7 @@ export const PeriodSelect = <T extends string>({ value, onChange, options, inact
         aria-label="Filtre période"
         className={`appearance-none cursor-pointer pl-9 pr-9 py-2 rounded-lg font-semibold text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm ${
           inactive
-            ? "bg-[#23263A] text-gray-300 hover:bg-[#2c3048]"
+            ? "bg-card-2 text-gray-300 hover:bg-edge"
             : "bg-blue-600 hover:bg-blue-700 text-white"
         }`}
       >

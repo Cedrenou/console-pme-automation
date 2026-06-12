@@ -42,6 +42,15 @@ The `clientA` client id is currently hardcoded in lambda URLs with a `TODO` to w
 
 Path alias `@/*` → `src/*` is configured in `tsconfig.json`.
 
+### Theming
+
+Three themes driven by `data-theme` on `<html>` (none = dark default, `"light"`, `"sunset"` = boutique palette, amber accent). Defined in `src/app/globals.css`, switched by `src/components/ThemeSwitcher.tsx` (sidebar) + anti-flash script in `layout.tsx`, persisted in `localStorage("cockpit-theme")`. Tailwind 4 utilities resolve to CSS variables, so themes override variables — markup never changes per theme. Rules when writing pages:
+
+- Surfaces/borders: `bg-app`, `bg-card`, `bg-card-2`, `border-edge`, `border-edge-strong` — never raw hex like `bg-[#151826]`.
+- Main text: `text-fg`, NOT `text-white` — except on colored buttons/badges (`bg-blue-600` etc.) where text must stay white in every theme.
+- Text hierarchy: `text-gray-300/400/500` as usual (each theme remaps the gray scale).
+- Primary accent: keep using `blue-*` (becomes amber in the sunset theme via variable remap).
+
 ## Environments & deployment
 
 Two environments, two Amplify apps (env vars managed at app level in the Amplify console):

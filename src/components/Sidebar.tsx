@@ -8,6 +8,7 @@ import {
 import { createClient } from "@/utils/supabase/client";
 import { useUserRole, type UserRole } from "@/utils/supabase/useUserRole";
 import FeedbackButton from "./FeedbackButton";
+import ThemeSwitcher from "./ThemeSwitcher";
 
 type LinkDef = { href: string; label: string; icon: React.ReactNode; roles?: UserRole[] };
 
@@ -75,7 +76,7 @@ const Sidebar = () => {
         type="button"
         onClick={() => setMobileOpen(true)}
         aria-label="Ouvrir le menu"
-        className="md:hidden fixed top-3 left-3 z-30 p-2.5 rounded-lg bg-[#181C2A]/90 backdrop-blur text-white shadow-lg hover:bg-[#23263A] transition-colors"
+        className="md:hidden fixed top-3 left-3 z-30 p-2.5 rounded-lg bg-card/90 backdrop-blur text-fg shadow-lg hover:bg-card-2 transition-colors"
       >
         <FaBars className="text-lg" />
       </button>
@@ -94,7 +95,7 @@ const Sidebar = () => {
           la remettre dans le flux flex parent. */}
       <nav
         className={`
-          w-64 bg-[#181C2A] text-white h-screen flex flex-col justify-between shadow-lg overflow-y-auto z-50
+          w-64 bg-card text-fg h-screen flex flex-col justify-between shadow-lg overflow-y-auto z-50
           fixed top-0 left-0 transition-transform duration-300
           ${mobileOpen ? "translate-x-0" : "-translate-x-full"}
           md:sticky md:translate-x-0
@@ -116,7 +117,7 @@ const Sidebar = () => {
               type="button"
               onClick={() => setMobileOpen(false)}
               aria-label="Fermer le menu"
-              className="md:hidden p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-[#23263A] transition-colors"
+              className="md:hidden p-1.5 rounded-md text-gray-400 hover:text-fg hover:bg-card-2 transition-colors"
             >
               <FaTimes className="text-base" />
             </button>
@@ -137,7 +138,7 @@ const Sidebar = () => {
         </div>
         <div className="px-4 pb-6 flex flex-col gap-2">
           {email && (
-            <div className="flex items-center gap-3 px-2 py-3 rounded-lg bg-[#23263A]">
+            <div className="flex items-center gap-3 px-2 py-3 rounded-lg bg-card-2">
               <FaUserCircle className="text-2xl text-blue-400 flex-shrink-0" />
               <div className="min-w-0 flex-1">
                 <div className="font-semibold text-sm truncate" title={email}>
@@ -154,6 +155,7 @@ const Sidebar = () => {
               </div>
             </div>
           )}
+          <ThemeSwitcher />
           <FeedbackButton />
           <button
             type="button"

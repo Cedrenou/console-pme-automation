@@ -208,7 +208,7 @@ export const ComptaAchatsTab: React.FC<{ month: string; readOnly?: boolean }> = 
   };
 
   return (
-    <div className="bg-[#23263A] rounded-2xl shadow-lg p-4">
+    <div className="bg-card-2 rounded-2xl shadow-lg p-4">
       {error && (
         <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 mb-4 text-red-400 text-sm">{error}</div>
       )}
@@ -230,7 +230,7 @@ export const ComptaAchatsTab: React.FC<{ month: string; readOnly?: boolean }> = 
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Rechercher par montant ou nom…"
-              className="pl-8 pr-3 py-1.5 rounded-md bg-[#1c1f2e] border border-[#2c3048] text-xs text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 w-60"
+              className="pl-8 pr-3 py-1.5 rounded-md bg-card border border-edge text-xs text-fg placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 w-60"
             />
           </div>
         </div>
@@ -268,7 +268,7 @@ export const ComptaAchatsTab: React.FC<{ month: string; readOnly?: boolean }> = 
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
             <thead>
-              <tr className="text-left text-xs text-gray-400 border-b border-[#2c3048]">
+              <tr className="text-left text-xs text-gray-400 border-b border-edge">
                 <th className="py-2 px-2 font-semibold whitespace-nowrap">Date</th>
                 <th className="py-2 px-2 font-semibold whitespace-nowrap">Article</th>
                 <th className="py-2 px-2 font-semibold whitespace-nowrap hidden sm:table-cell">Bénéficiaire</th>
@@ -321,7 +321,7 @@ const AchatRow: React.FC<{
   const isValidated = Boolean(achat.validated_at);
 
   return (
-    <tr className="border-b border-[#2c3048] hover:bg-[#1c1f2e]/60">
+    <tr className="border-b border-edge hover:bg-card/60">
       <td className="py-2 px-2 text-xs whitespace-nowrap tabular-nums text-gray-300">
         {formatDateOnly(achat.eventDate)}
       </td>

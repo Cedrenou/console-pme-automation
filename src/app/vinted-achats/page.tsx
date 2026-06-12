@@ -157,7 +157,7 @@ const VintedAchatsPage = () => {
   const validatedCount = filteredItems.filter(it => it.validated_at).length;
 
   return (
-    <div className="min-h-screen bg-[#151826] text-white p-4 md:p-8">
+    <div className="min-h-screen bg-app text-fg p-4 md:p-8">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold mb-2">Achats Vinted</h1>
@@ -180,7 +180,7 @@ const VintedAchatsPage = () => {
                   onClick={() => handleSelectPeriod(p.id)}
                   aria-pressed={isActive}
                   className={`cursor-pointer px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 ${
-                    isActive ? "bg-blue-600 text-white" : "bg-[#23263A] text-gray-300 hover:bg-[#2c3048]"
+                    isActive ? "bg-blue-600 text-white" : "bg-card-2 text-gray-300 hover:bg-edge"
                   }`}
                 >
                   <FaCalendarAlt className="text-sm" />
@@ -189,7 +189,7 @@ const VintedAchatsPage = () => {
               );
             })}
           </div>
-          <div className="hidden md:block h-6 w-px bg-[#2c3048] mx-1" aria-hidden />
+          <div className="hidden md:block h-6 w-px bg-edge mx-1" aria-hidden />
           <MonthPicker
             value={monthFilter}
             onChange={setMonthFilter}
@@ -198,7 +198,7 @@ const VintedAchatsPage = () => {
         </div>
       </div>
 
-      <div className="bg-[#23263A] rounded-2xl shadow-lg p-6">
+      <div className="bg-card-2 rounded-2xl shadow-lg p-6">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-3 flex-wrap">
             <h2 className="text-xl font-bold">Liste des achats</h2>
@@ -243,7 +243,7 @@ const VintedAchatsPage = () => {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Filtrer par article ou vendeur..."
-              className="pl-9 pr-3 py-2 rounded-lg bg-[#1c1f2e] border border-[#2c3048] text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64"
+              className="pl-9 pr-3 py-2 rounded-lg bg-card border border-edge text-sm text-fg placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64"
             />
           </div>
         </div>
@@ -260,7 +260,7 @@ const VintedAchatsPage = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-xs text-gray-400 border-b border-[#2c3048]">
+                <tr className="text-left text-xs text-gray-400 border-b border-edge">
                   <th className="py-2 px-2 font-semibold w-8" aria-label="Validé"></th>
                   <th className="py-2 px-3 font-semibold whitespace-nowrap">Date</th>
                   <th className="py-2 px-3 font-semibold">Article</th>
@@ -370,8 +370,8 @@ const AchatTableRow: React.FC<{
 
   // Style "validé" : ligne légèrement teintée vert + texte estompé + total barré
   const rowClass = isValidated
-    ? "border-b border-[#2c3048]/60 bg-green-500/5 hover:bg-green-500/10 transition-colors"
-    : "border-b border-[#2c3048]/60 hover:bg-[#1c1f2e]/60 transition-colors";
+    ? "border-b border-edge/60 bg-green-500/5 hover:bg-green-500/10 transition-colors"
+    : "border-b border-edge/60 hover:bg-card/60 transition-colors";
   const textMutedClass = isValidated ? "opacity-60" : "";
 
   return (

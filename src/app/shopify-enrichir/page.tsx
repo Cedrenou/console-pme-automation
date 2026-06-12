@@ -195,7 +195,7 @@ const ShopifyEnrichirPage = () => {
   }, [state]);
 
   return (
-    <div className="min-h-screen bg-[#151826] text-white p-4 md:p-8">
+    <div className="min-h-screen bg-app text-fg p-4 md:p-8">
       <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
@@ -209,7 +209,7 @@ const ShopifyEnrichirPage = () => {
         </div>
         <Link
           href="/shopify-enrichir/parametres"
-          className="shrink-0 px-4 py-2 bg-[#23263A] hover:bg-[#2c3046] border border-gray-700 hover:border-blue-500 text-gray-200 rounded-lg transition-colors flex items-center gap-2 text-sm"
+          className="shrink-0 px-4 py-2 bg-card-2 hover:bg-edge border border-gray-700 hover:border-blue-500 text-gray-200 rounded-lg transition-colors flex items-center gap-2 text-sm"
         >
           <FaCog />
           Paramètres Claude
@@ -217,7 +217,7 @@ const ShopifyEnrichirPage = () => {
       </div>
 
       {/* Upload */}
-      <div className="bg-[#23263A] rounded-2xl shadow-lg p-6 mb-6">
+      <div className="bg-card-2 rounded-2xl shadow-lg p-6 mb-6">
         <div className="flex items-center gap-4 mb-4">
           <FaFileCsv className="text-3xl text-blue-400" />
           <div>
@@ -249,7 +249,7 @@ const ShopifyEnrichirPage = () => {
           className={`flex flex-col items-center justify-center gap-2 px-6 py-10 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${
             isDragging
               ? "border-purple-400 bg-purple-500/10"
-              : "border-gray-600 hover:border-blue-500 hover:bg-[#1c1f2e]"
+              : "border-gray-600 hover:border-blue-500 hover:bg-card"
           }`}
           tabIndex={0}
         >
@@ -258,7 +258,7 @@ const ShopifyEnrichirPage = () => {
             {isDragging ? (
               <strong className="text-purple-200">Relâche pour charger le fichier</strong>
             ) : filename ? (
-              <strong className="text-white">{filename}</strong>
+              <strong className="text-fg">{filename}</strong>
             ) : (
               <>Glisser-déposer un CSV ici, ou <span className="text-blue-400 underline">cliquer pour choisir</span></>
             )}
@@ -284,12 +284,12 @@ const ShopifyEnrichirPage = () => {
 
       {/* Preview & launch */}
       {rows.length > 0 && state.kind !== "done" && (
-        <div className="bg-[#23263A] rounded-2xl shadow-lg p-6 mb-6">
+        <div className="bg-card-2 rounded-2xl shadow-lg p-6 mb-6">
           <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
             <div>
               <h2 className="text-xl font-semibold">2. Vérifier &amp; enrichir</h2>
               <p className="text-sm text-gray-400">
-                <strong className="text-white">{rows.length}</strong> produit(s) à enrichir — estimation ~
+                <strong className="text-fg">{rows.length}</strong> produit(s) à enrichir — estimation ~
                 {Math.ceil((rows.length * 5) / 60)} min via Claude Sonnet 4.6.
               </p>
             </div>
@@ -310,7 +310,7 @@ const ShopifyEnrichirPage = () => {
 
           {state.kind === "running" && (
             <div className="mb-4">
-              <div className="w-full bg-[#1c1f2e] rounded-full h-2 overflow-hidden">
+              <div className="w-full bg-card rounded-full h-2 overflow-hidden">
                 <div
                   className="h-full bg-purple-500 transition-all duration-300"
                   style={{ width: `${Math.round((state.done / state.total) * 100)}%` }}
@@ -351,7 +351,7 @@ const ShopifyEnrichirPage = () => {
 
       {/* Result */}
       {state.kind === "done" && summary && (
-        <div className="bg-[#23263A] rounded-2xl shadow-lg p-6 mb-6">
+        <div className="bg-card-2 rounded-2xl shadow-lg p-6 mb-6">
           <div className="flex items-center gap-3 mb-4">
             {summary.error === 0 ? (
               <FaCheckCircle className="text-green-400 text-3xl" />
@@ -362,7 +362,7 @@ const ShopifyEnrichirPage = () => {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-            <div className="bg-[#1c1f2e] rounded-xl p-4">
+            <div className="bg-card rounded-xl p-4">
               <div className="text-gray-400 text-sm">Total traités</div>
               <div className="text-2xl font-bold">{state.results.length}</div>
             </div>
@@ -370,9 +370,9 @@ const ShopifyEnrichirPage = () => {
               <div className="text-green-300 text-sm">Enrichis</div>
               <div className="text-2xl font-bold text-green-400">{summary.ok}</div>
             </div>
-            <div className={`rounded-xl p-4 border ${summary.error > 0 ? "bg-red-900/30 border-red-700" : "bg-[#1c1f2e] border-gray-700"}`}>
+            <div className={`rounded-xl p-4 border ${summary.error > 0 ? "bg-red-900/30 border-red-700" : "bg-card border-gray-700"}`}>
               <div className={`text-sm ${summary.error > 0 ? "text-red-300" : "text-gray-400"}`}>Erreurs</div>
-              <div className={`text-2xl font-bold ${summary.error > 0 ? "text-red-400" : "text-white"}`}>{summary.error}</div>
+              <div className={`text-2xl font-bold ${summary.error > 0 ? "text-red-400" : "text-fg"}`}>{summary.error}</div>
             </div>
           </div>
 
@@ -399,7 +399,7 @@ const ShopifyEnrichirPage = () => {
           </div>
 
           {errorResults.length > 0 && (
-            <div className="bg-[#1c1f2e] rounded-xl p-4 max-h-64 overflow-y-auto">
+            <div className="bg-card rounded-xl p-4 max-h-64 overflow-y-auto">
               <h3 className="text-sm font-semibold text-red-300 mb-2">SKUs en erreur :</h3>
               <ul className="text-sm space-y-1">
                 {errorResults.map((r) => (
@@ -414,7 +414,7 @@ const ShopifyEnrichirPage = () => {
           <button
             type="button"
             onClick={handleReset}
-            className="mt-6 px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+            className="mt-6 px-6 py-2 bg-gray-700 hover:bg-gray-600 text-fg rounded-lg transition-colors"
           >
             Faire un nouvel enrichissement
           </button>

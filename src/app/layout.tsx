@@ -9,11 +9,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const hideSidebar = pathname === "/login" || pathname?.startsWith("/auth/");
 
   return (
-    <html lang="fr">
+    // suppressHydrationWarning : le script ci-dessous pose data-theme avant
+    // l'hydratation, l'attribut peut donc différer du HTML serveur — attendu.
+    <html lang="fr" suppressHydrationWarning>
+      <head>
+        {/* Anti-flash : applique le thème localStorage avant le premier paint.
+            Doit rester aligné avec ThemeSwitcher (clé "cockpit-theme"). */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem("cockpit-theme");if(t==="light"||t==="sunset")document.documentElement.setAttribute("data-theme",t)}catch(e){}`,
+          }}
+        />
+      </head>
       {/* overflow-x-clip plutôt que -hidden pour ne pas casser le sticky de la sidebar.
           Empêche le scroll horizontal au niveau page tout en laissant les tables
           (overflow-x-auto en interne) faire leur scroll local quand nécessaire. */}
-      <body className="bg-[#151826] overflow-x-clip">
+      <body className="bg-app overflow-x-clip">
         {hideSidebar ? (
           <main className="min-h-screen">{children}</main>
         ) : (

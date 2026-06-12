@@ -126,7 +126,7 @@ const VintedCockpitPage = () => {
     : "—";
 
   return (
-    <div className="min-h-screen bg-[#151826] text-white p-4 md:p-8">
+    <div className="min-h-screen bg-app text-fg p-4 md:p-8">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold mb-2">Cockpit Vinted</h1>
@@ -151,7 +151,7 @@ const VintedCockpitPage = () => {
                   onClick={() => handleSelectPeriod(p.id)}
                   aria-pressed={isActive}
                   className={`cursor-pointer px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 ${
-                    isActive ? "bg-blue-600 text-white" : "bg-[#23263A] text-gray-300 hover:bg-[#2c3048]"
+                    isActive ? "bg-blue-600 text-white" : "bg-card-2 text-gray-300 hover:bg-edge"
                   }`}
                 >
                   <FaCalendarAlt className="text-sm" />
@@ -160,7 +160,7 @@ const VintedCockpitPage = () => {
               );
             })}
           </div>
-          <div className="hidden md:block h-6 w-px bg-[#2c3048] mx-1" aria-hidden />
+          <div className="hidden md:block h-6 w-px bg-edge mx-1" aria-hidden />
           <MonthPicker
             value={monthFilter}
             onChange={setMonthFilter}
@@ -230,7 +230,7 @@ const VintedCockpitPage = () => {
           </div>
 
           {((timeline && timeline.buckets.length > 0) || (shopifyTimeline && shopifyTimeline.buckets.length > 0)) && (
-            <div className="bg-[#23263A] rounded-2xl shadow-lg p-6 mb-8">
+            <div className="bg-card-2 rounded-2xl shadow-lg p-6 mb-8">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="text-xl font-bold">Saisonnalité du CA — Vinted + Shopify</h2>
@@ -245,7 +245,7 @@ const VintedCockpitPage = () => {
           )}
 
           {topArticles && topArticles.total_count > 0 && (
-            <div className="bg-[#23263A] rounded-2xl shadow-lg p-6 mb-8">
+            <div className="bg-card-2 rounded-2xl shadow-lg p-6 mb-8">
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h2 className="text-xl font-bold flex items-center gap-2"><FaTshirt className="text-blue-400" /> Top articles vendus</h2>
@@ -259,7 +259,7 @@ const VintedCockpitPage = () => {
           )}
 
           {patterns && patterns.ventes_count > 0 && (
-            <div className="bg-[#23263A] rounded-2xl shadow-lg p-6 mb-8">
+            <div className="bg-card-2 rounded-2xl shadow-lg p-6 mb-8">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="text-xl font-bold flex items-center gap-2"><FaClock className="text-blue-400" /> Quand mes acheteurs achètent</h2>
@@ -276,7 +276,7 @@ const VintedCockpitPage = () => {
 
           <Link
             href="/vinted-ventes"
-            className="bg-[#23263A] hover:bg-[#2c3048] rounded-2xl shadow-lg p-6 flex items-center justify-between transition-colors group"
+            className="bg-card-2 hover:bg-edge rounded-2xl shadow-lg p-6 flex items-center justify-between transition-colors group"
           >
             <div>
               <div className="text-lg font-semibold">Voir le détail des ventes</div>
@@ -495,7 +495,7 @@ const TopArticlesView: React.FC<TopArticlesViewProps> = ({ data }) => {
             {data.top_titles.slice(0, 10).map((t, i) => (
               <div
                 key={i}
-                className="flex items-start gap-3 p-2.5 rounded bg-[#1c1f2e] hover:bg-[#252839] transition-colors"
+                className="flex items-start gap-3 p-2.5 rounded bg-card hover:bg-card-2 transition-colors"
                 title={t.title}
               >
                 <div className="text-amber-400 font-bold text-sm w-5 flex-shrink-0">#{i + 1}</div>
@@ -528,7 +528,7 @@ const CategoryRow: React.FC<{ label: string; count: number; total: number; pct: 
         <span className="text-xs text-green-400 font-medium tabular-nums">{formatEur(total)}</span>
       </div>
     </div>
-    <div className="h-1.5 bg-[#1c1f2e] rounded overflow-hidden">
+    <div className="h-1.5 bg-card rounded overflow-hidden">
       <div className="h-full transition-all" style={{ width: `${pct}%`, background: color }} />
     </div>
   </div>
@@ -586,7 +586,7 @@ const BestPostingTimes: React.FC<{ patterns: VintedPatterns }> = ({ patterns }) 
   const totalCount = patterns.ventes_count || 1;
 
   return (
-    <div className="mt-6 pt-6 border-t border-[#2c3048]">
+    <div className="mt-6 pt-6 border-t border-edge">
       <h3 className="text-base font-semibold mb-3 flex items-center gap-2">
         <FaLightbulb className="text-amber-400" />
         <span>Quand poster tes annonces pour qu&apos;elles tombent au pic</span>
@@ -605,11 +605,11 @@ const BestPostingTimes: React.FC<{ patterns: VintedPatterns }> = ({ patterns }) 
           return (
             <div
               key={i}
-              className="bg-[#1c1f2e] rounded-lg p-3 flex items-center gap-3 border border-[#2c3048]/60"
+              className="bg-card rounded-lg p-3 flex items-center gap-3 border border-edge/60"
             >
               <div className="text-amber-400 font-bold text-base w-6 flex-shrink-0">#{i + 1}</div>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold text-white">
+                <div className="text-sm font-semibold text-fg">
                   {dayLabel} <span className="text-orange-300">{slot}</span>
                 </div>
                 <div className="text-[11px] text-gray-400 mt-0.5">
@@ -711,7 +711,7 @@ const SalesHeatmap: React.FC<SalesHeatmapProps> = ({ patterns }) => {
           </div>
         ))}
         {/* Ligne totaux par heure */}
-        <div className="grid gap-0.5 mt-2 pt-2 border-t border-[#2c3048]" style={{ gridTemplateColumns: gridTemplate }}>
+        <div className="grid gap-0.5 mt-2 pt-2 border-t border-edge" style={{ gridTemplateColumns: gridTemplate }}>
           <div className="text-[10px] text-gray-400 font-semibold flex items-center">Total</div>
           {Array.from({ length: 24 }).map((_, h) => (
             <div
@@ -774,37 +774,37 @@ const HeatmapTooltip: React.FC<{
 
   return (
     <div
-      className="fixed z-50 pointer-events-none bg-[#1c1f2e]/95 backdrop-blur-sm border border-[#2c3048] rounded-lg shadow-2xl px-3.5 py-2.5 text-sm"
+      className="fixed z-50 pointer-events-none bg-card/95 backdrop-blur-sm border border-edge rounded-lg shadow-2xl px-3.5 py-2.5 text-sm"
       style={{ left, top, width: tooltipWidth }}
     >
-      <div className="font-semibold text-white mb-1.5 flex items-center justify-between">
+      <div className="font-semibold text-fg mb-1.5 flex items-center justify-between">
         <span>{DAY_LABELS_FULL[state.day]}</span>
         <span className="text-orange-400 text-xs">{state.hour.toString().padStart(2, '0')}h – {(state.hour + 1).toString().padStart(2, '0')}h</span>
       </div>
       <div className="flex items-baseline gap-1.5 mb-1">
-        <span className="text-2xl font-bold text-white">{state.count}</span>
+        <span className="text-2xl font-bold text-fg">{state.count}</span>
         <span className="text-xs text-gray-400">vente{state.count !== 1 ? 's' : ''}</span>
       </div>
       {state.revenue > 0 && (
         <div className="text-xs text-green-400 mb-1.5">{formatEur(state.revenue)}</div>
       )}
       {(hourAvg !== null || cellAvg !== null) && (
-        <div className="border-t border-[#2c3048] pt-1.5 mt-1.5 mb-1.5 space-y-0.5 text-[11px]">
+        <div className="border-t border-edge pt-1.5 mt-1.5 mb-1.5 space-y-0.5 text-[11px]">
           {hourAvg !== null && (
             <div className="flex items-center justify-between">
               <span className="text-gray-400">Panier moyen sur la tranche</span>
-              <span className="text-white font-medium">{formatEur(hourAvg)}</span>
+              <span className="text-fg font-medium">{formatEur(hourAvg)}</span>
             </div>
           )}
           {cellAvg !== null && cellAvg !== hourAvg && (
             <div className="flex items-center justify-between">
               <span className="text-gray-400">Panier moyen sur cette case</span>
-              <span className="text-white font-medium">{formatEur(cellAvg)}</span>
+              <span className="text-fg font-medium">{formatEur(cellAvg)}</span>
             </div>
           )}
         </div>
       )}
-      <div className="border-t border-[#2c3048] pt-1.5 flex items-center justify-between text-xs">
+      <div className="border-t border-edge pt-1.5 flex items-center justify-between text-xs">
         <span className="text-gray-400">{pct.toFixed(1)}% de la période</span>
         <span className="text-gray-500">{intensity >= 0.8 ? "🔥 pic" : intensity >= 0.5 ? "fort" : intensity >= 0.2 ? "modéré" : state.count > 0 ? "faible" : "—"}</span>
       </div>
@@ -840,7 +840,7 @@ type KpiCardProps = {
 };
 
 const KpiCard: React.FC<KpiCardProps> = ({ icon, label, value, hint, accent }) => (
-  <div className="bg-[#23263A] rounded-2xl shadow-lg p-5 border border-transparent hover:border-blue-600/40 transition-colors">
+  <div className="bg-card-2 rounded-2xl shadow-lg p-5 border border-transparent hover:border-blue-600/40 transition-colors">
     <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
       <span className="text-base">{icon}</span>
       <span>{label}</span>

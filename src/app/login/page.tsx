@@ -38,8 +38,8 @@ const LoginForm = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#151826] text-white flex items-center justify-center p-8">
-      <div className="bg-[#23263A] rounded-2xl shadow-lg p-8 w-full max-w-md">
+    <div className="min-h-screen bg-app text-fg flex items-center justify-center p-8">
+      <div className="bg-card-2 rounded-2xl shadow-lg p-8 w-full max-w-md">
         <div className="flex items-center gap-3 mb-6">
           <span className="inline-block w-3 h-3 bg-blue-500 rounded-full" />
           <h1 className="text-2xl font-bold">Console Sunset</h1>
@@ -56,7 +56,7 @@ const LoginForm = () => {
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
-              className="px-3 py-2 rounded bg-[#151826] text-white border border-[#2c3048] focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 rounded bg-app text-fg border border-edge focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="ton.email@example.com"
               autoComplete="email"
             />
@@ -69,7 +69,7 @@ const LoginForm = () => {
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
-              className="px-3 py-2 rounded bg-[#151826] text-white border border-[#2c3048] focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 rounded bg-app text-fg border border-edge focus:outline-none focus:ring-2 focus:ring-blue-500"
               autoComplete="current-password"
             />
           </label>
@@ -99,7 +99,7 @@ const LoginForm = () => {
 };
 
 const LoginPage = () => (
-  <Suspense fallback={<div className="min-h-screen bg-[#151826]" />}>
+  <Suspense fallback={<div className="min-h-screen bg-app" />}>
     <LoginForm />
   </Suspense>
 );

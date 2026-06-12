@@ -1,1 +1,114 @@
 @import "tailwindcss";
+
+/*
+ * Thèmes du cockpit — 3 thèmes pilotés par l'attribut `data-theme` sur <html>
+ * (posé par ThemeSwitcher + script anti-flash du layout, persisté en localStorage).
+ *
+ *   (aucun)  → "Sombre"  : le thème historique bleu-nuit (défaut, aucun changement pour les habitués)
+ *   "light"  → "Clair"
+ *   "sunset" → "Sunset Rider" : palette de la boutique sunsetridershop.com
+ *              (noir #111, texte #F5F5F5, accent ambre #F59E0B)
+ *
+ * Fonctionnement : Tailwind 4 compile chaque classe couleur vers une variable CSS
+ * (`bg-gray-800` → var(--color-gray-800)). Les thèmes clair/sunset SURCHARGENT ces
+ * variables sous [data-theme=…] — le markup des pages ne change donc jamais, seule
+ * la palette bouge. Les couleurs structurantes (fonds, bordures) passent par les
+ * tokens sémantiques ci-dessous plutôt que par des hex en dur dans les classes.
+ *
+ * Règle pour le code des pages :
+ *   - surfaces/bordures → bg-app, bg-card, bg-card-2, border-edge, border-edge-strong
+ *   - texte principal   → text-fg (PAS text-white, sauf sur un bouton/badge à fond
+ *     coloré où le texte doit rester blanc dans tous les thèmes)
+ *   - hiérarchie de texte → text-gray-300/400/500 comme avant (remappées par thème)
+ *   - accent/boutons primaires → blue-600 etc. comme avant (devient ambre en sunset)
+ */
+
+@theme {
+  /* Thème sombre (défaut) — valeurs historiques du cockpit */
+  --color-app: #151826; /* fond de page */
+  --color-card: #1c1f2e; /* panneaux, sidebar */
+  --color-card-2: #23263a; /* cartes imbriquées, inputs, hovers de panneau */
+  --color-edge: #2c3048; /* bordures, hovers discrets */
+  --color-edge-strong: #3c4060; /* bordures accentuées */
+  --color-fg: #ffffff; /* texte principal */
+}
+
+/* ---------------------------------------------------------------- */
+/* Thème clair                                                       */
+/* ---------------------------------------------------------------- */
+[data-theme="light"] {
+  --color-app: #f2f4f8;
+  --color-card: #ffffff;
+  --color-card-2: #e9ecf3;
+  --color-edge: #d5d9e4;
+  --color-edge-strong: #b3b9cc;
+  --color-fg: #181c2a;
+
+  /* Échelle gray inversée (texte sombre sur fond clair, bordures pâles).
+     Seuls les crans réellement utilisés dans le code sont remappés. */
+  --color-gray-100: #23283a;
+  --color-gray-200: #2e3345;
+  --color-gray-300: #3d4357;
+  --color-gray-400: #5b6172;
+  --color-gray-500: #6f7587;
+  --color-gray-600: #9aa0b1;
+  --color-gray-700: #d5d9e4;
+  --color-gray-800: #e4e7ef;
+  --color-gray-900: #eef0f6;
+
+  /* Accents : les crans clairs (texte/liens sur fond sombre) deviennent foncés
+     pour rester lisibles sur fond clair ; les 500-700 (boutons) ne bougent pas. */
+  --color-blue-200: #1e40af;
+  --color-blue-300: #1d4ed8;
+  --color-blue-400: #2563eb;
+  --color-red-200: #b91c1c;
+  --color-red-300: #dc2626;
+  --color-red-400: #dc2626;
+  --color-red-900: #fecaca;
+  --color-green-300: #15803d;
+  --color-green-400: #16a34a;
+  --color-emerald-300: #047857;
+  --color-emerald-400: #059669;
+  --color-yellow-300: #a16207;
+  --color-yellow-400: #ca8a04;
+  --color-amber-300: #b45309;
+  --color-amber-400: #d97706;
+  --color-orange-300: #c2410c;
+  --color-orange-400: #ea580c;
+  --color-purple-300: #7e22ce;
+  --color-purple-400: #9333ea;
+}
+
+/* ---------------------------------------------------------------- */
+/* Thème Sunset Rider — palette de la boutique en ligne              */
+/* ---------------------------------------------------------------- */
+[data-theme="sunset"] {
+  --color-app: #111111;
+  --color-card: #1c1917;
+  --color-card-2: #292524;
+  --color-edge: #44403c;
+  --color-edge-strong: #57534e;
+  --color-fg: #f5f5f5;
+
+  /* Gris chauds (stone) pour coller au noir charbon du site */
+  --color-gray-100: #f5f5f4;
+  --color-gray-200: #e7e5e4;
+  --color-gray-300: #d6d3d1;
+  --color-gray-400: #a8a29e;
+  --color-gray-500: #78716c;
+  --color-gray-600: #57534e;
+  --color-gray-700: #44403c;
+  --color-gray-800: #292524;
+  --color-gray-900: #1c1917;
+
+  /* L'accent du cockpit (blue) est remappé sur l'ambre du site (#F59E0B) :
+     boutons primaires, liens et icônes deviennent "sunset" sans toucher au markup. */
+  --color-blue-200: #fde68a;
+  --color-blue-300: #fcd34d;
+  --color-blue-400: #fbbf24;
+  --color-blue-500: #f59e0b;
+  --color-blue-600: #d97706;
+  --color-blue-700: #b45309;
+  --color-blue-800: #92400e;
+  --color-blue-900: #78350f;
+}

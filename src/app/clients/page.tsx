@@ -94,7 +94,7 @@ const VintedClientsPage = () => {
   const recurrents = useMemo(() => filtered.filter(c => c.nb_commandes > 1).length, [filtered]);
 
   return (
-    <div className="min-h-screen bg-[#151826] text-white p-4 md:p-8">
+    <div className="min-h-screen bg-app text-fg p-4 md:p-8">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold mb-2">Clients Sunset</h1>
@@ -107,7 +107,7 @@ const VintedClientsPage = () => {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Filtrer par nom, email, ville..."
-            className="pl-9 pr-3 py-2 rounded-lg bg-[#1c1f2e] border border-[#2c3048] text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-72"
+            className="pl-9 pr-3 py-2 rounded-lg bg-card border border-edge text-sm text-fg placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-72"
           />
         </div>
       </div>
@@ -120,7 +120,7 @@ const VintedClientsPage = () => {
         <KpiMini icon={<FaUser />} label="Clients récurrents" value={`${formatInt(recurrents)} / ${formatInt(filtered.length)}`} accent="text-amber-400" />
       </div>
 
-      <div className="bg-[#23263A] rounded-2xl shadow-lg p-4">
+      <div className="bg-card-2 rounded-2xl shadow-lg p-4">
         {error && (
           <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 mb-4 text-red-400 text-sm">{error}</div>
         )}
@@ -135,7 +135,7 @@ const VintedClientsPage = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-sm border-collapse">
               <thead>
-                <tr className="text-left text-xs text-gray-400 border-b border-[#2c3048]">
+                <tr className="text-left text-xs text-gray-400 border-b border-edge">
                   <SortableHeader label="Nom" active={sortKey === "nom"} onClick={() => handleSort("nom")} icon={sortIcon("nom")} />
                   <th className="py-2 px-3 font-semibold whitespace-nowrap hidden lg:table-cell">Username</th>
                   <th className="py-2 px-3 font-semibold whitespace-nowrap hidden md:table-cell">Email</th>
@@ -155,7 +155,7 @@ const VintedClientsPage = () => {
                   <tr
                     key={c.email}
                     onClick={() => setSelected(c)}
-                    className="border-b border-[#2c3048] hover:bg-[#1c1f2e]/60 cursor-pointer"
+                    className="border-b border-edge hover:bg-card/60 cursor-pointer"
                   >
                     <td className="py-2 px-3 text-sm font-medium whitespace-nowrap">{c.nom ?? <span className="text-gray-500 italic">—</span>}</td>
                     <td className="py-2 px-3 text-xs text-gray-400 whitespace-nowrap hidden lg:table-cell">{c.acheteur_username ?? "—"}</td>
@@ -183,7 +183,7 @@ const VintedClientsPage = () => {
 };
 
 const KpiMini: React.FC<{ icon: React.ReactNode; label: string; value: string; accent?: string }> = ({ icon, label, value, accent }) => (
-  <div className="bg-[#23263A] rounded-2xl shadow p-4 flex items-center gap-3">
+  <div className="bg-card-2 rounded-2xl shadow p-4 flex items-center gap-3">
     <div className={`text-2xl ${accent ?? "text-gray-400"}`}>{icon}</div>
     <div>
       <div className="text-xs text-gray-400 uppercase tracking-wider">{label}</div>
@@ -235,9 +235,9 @@ const ClientDrawer: React.FC<{ client: VintedCustomer; onClose: () => void }> = 
       <aside
         role="dialog"
         aria-label={`Détail client ${client.nom ?? client.email}`}
-        className="fixed top-0 right-0 bottom-0 w-full md:w-[520px] bg-[#1c1f2e] border-l border-[#2c3048] z-50 overflow-y-auto shadow-2xl"
+        className="fixed top-0 right-0 bottom-0 w-full md:w-[520px] bg-card border-l border-edge z-50 overflow-y-auto shadow-2xl"
       >
-        <div className="sticky top-0 bg-[#1c1f2e] border-b border-[#2c3048] p-5 flex items-start justify-between gap-3">
+        <div className="sticky top-0 bg-card border-b border-edge p-5 flex items-start justify-between gap-3">
           <div>
             <h2 className="text-xl font-bold mb-1">{client.nom ?? <span className="text-gray-500">Nom inconnu</span>}</h2>
             {client.acheteur_username && (
@@ -248,14 +248,14 @@ const ClientDrawer: React.FC<{ client: VintedCustomer; onClose: () => void }> = 
             type="button"
             onClick={onClose}
             aria-label="Fermer"
-            className="cursor-pointer p-2 rounded-md text-gray-400 hover:text-white hover:bg-[#2c3048] transition-colors"
+            className="cursor-pointer p-2 rounded-md text-gray-400 hover:text-fg hover:bg-edge transition-colors"
           >
             <FaTimes />
           </button>
         </div>
 
         <div className="p-5 space-y-4">
-          <div className="bg-[#23263A] rounded-lg p-4 space-y-2 text-sm">
+          <div className="bg-card-2 rounded-lg p-4 space-y-2 text-sm">
             <div className="flex items-start gap-2">
               <FaEnvelope className="text-gray-500 mt-0.5 flex-shrink-0" />
               <span className="text-gray-300 break-all">{client.email}</span>
@@ -291,7 +291,7 @@ const ClientDrawer: React.FC<{ client: VintedCustomer; onClose: () => void }> = 
             </h3>
             <div className="space-y-2">
               {client.orders.map(order => (
-                <div key={order.gmailMessageId} className="bg-[#23263A] rounded-lg p-3 flex gap-3">
+                <div key={order.gmailMessageId} className="bg-card-2 rounded-lg p-3 flex gap-3">
                   {order.article_image_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -301,7 +301,7 @@ const ClientDrawer: React.FC<{ client: VintedCustomer; onClose: () => void }> = 
                       loading="lazy"
                     />
                   ) : (
-                    <div className="w-14 h-16 bg-[#1c1f2e] rounded flex items-center justify-center text-gray-600 text-xs flex-shrink-0">—</div>
+                    <div className="w-14 h-16 bg-card rounded flex items-center justify-center text-gray-600 text-xs flex-shrink-0">—</div>
                   )}
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium truncate" title={order.article_titre ?? ""}>
@@ -327,7 +327,7 @@ const ClientDrawer: React.FC<{ client: VintedCustomer; onClose: () => void }> = 
 };
 
 const DrawerStat: React.FC<{ label: string; value: string; accent?: string; small?: boolean }> = ({ label, value, accent, small }) => (
-  <div className="bg-[#23263A] rounded-lg p-3">
+  <div className="bg-card-2 rounded-lg p-3">
     <div className="text-[10px] text-gray-500 uppercase tracking-wider">{label}</div>
     <div className={`font-bold ${small ? "text-xs" : "text-base"} ${accent ?? ""}`}>{value}</div>
   </div>

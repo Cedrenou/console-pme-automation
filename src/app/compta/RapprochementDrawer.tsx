@@ -222,9 +222,9 @@ export const RapprochementDrawer: React.FC<Props> = ({ month, onClose, onValidat
       <aside
         role="dialog"
         aria-label="Rapprochement bancaire"
-        className="fixed top-0 right-0 bottom-0 w-full md:w-[900px] bg-[#1c1f2e] border-l border-[#2c3048] z-50 overflow-y-auto shadow-2xl"
+        className="fixed top-0 right-0 bottom-0 w-full md:w-[900px] bg-card border-l border-edge z-50 overflow-y-auto shadow-2xl"
       >
-        <div className="sticky top-0 bg-[#1c1f2e] border-b border-[#2c3048] p-5 flex items-start justify-between gap-3 z-10">
+        <div className="sticky top-0 bg-card border-b border-edge p-5 flex items-start justify-between gap-3 z-10">
           <div>
             <h2 className="text-xl font-bold mb-1">Rapprochement bancaire</h2>
             <p className="text-sm text-gray-400">
@@ -236,7 +236,7 @@ export const RapprochementDrawer: React.FC<Props> = ({ month, onClose, onValidat
             type="button"
             onClick={onClose}
             aria-label="Fermer"
-            className="cursor-pointer p-2 rounded-md text-gray-400 hover:text-white hover:bg-[#2c3048] transition-colors flex-shrink-0"
+            className="cursor-pointer p-2 rounded-md text-gray-400 hover:text-fg hover:bg-edge transition-colors flex-shrink-0"
           >
             <FaTimes />
           </button>
@@ -260,7 +260,7 @@ export const RapprochementDrawer: React.FC<Props> = ({ month, onClose, onValidat
               onDragOver={e => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
               className={`border-2 border-dashed rounded-xl p-10 text-center transition-colors ${
-                dragOver ? "border-blue-400 bg-blue-500/10" : "border-[#2c3048] bg-[#23263A]"
+                dragOver ? "border-blue-400 bg-blue-500/10" : "border-edge bg-card-2"
               }`}
             >
               <FaUpload className="text-4xl text-gray-500 mx-auto mb-3" />
@@ -284,7 +284,7 @@ export const RapprochementDrawer: React.FC<Props> = ({ month, onClose, onValidat
           {/* Résultats */}
           {bankLines && (
             <>
-              <div className="bg-[#23263A] rounded-xl p-4 flex flex-wrap items-center gap-4">
+              <div className="bg-card-2 rounded-xl p-4 flex flex-wrap items-center gap-4">
                 <div className="flex items-center gap-2 text-sm">
                   <span className="text-gray-400">Fichier :</span>
                   <span className="font-semibold">{filename}</span>
@@ -405,7 +405,7 @@ export const RapprochementDrawer: React.FC<Props> = ({ month, onClose, onValidat
 };
 
 const Stat: React.FC<{ icon: React.ReactNode; label: string; value: number }> = ({ icon, label, value }) => (
-  <div className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-[#1c1f2e]">
+  <div className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-card">
     {icon}
     <span className="text-xs text-gray-400 uppercase tracking-wider">{label}</span>
     <span className="font-bold tabular-nums">{value}</span>
@@ -425,13 +425,13 @@ const Panel: React.FC<{
 }> = ({ title, icon, count, accent, open, onToggle, action, hint, children }) => {
   if (count === 0) return null;
   return (
-    <div className={`bg-[#23263A] rounded-xl border ${accent} overflow-hidden`}>
-      <div className="border-b border-[#2c3048] flex items-center justify-between gap-3 flex-wrap">
+    <div className={`bg-card-2 rounded-xl border ${accent} overflow-hidden`}>
+      <div className="border-b border-edge flex items-center justify-between gap-3 flex-wrap">
         <button
           type="button"
           onClick={onToggle}
           aria-expanded={open}
-          className="cursor-pointer flex items-center gap-2 px-4 py-3 flex-1 text-left hover:bg-[#1c1f2e]/40 transition-colors"
+          className="cursor-pointer flex items-center gap-2 px-4 py-3 flex-1 text-left hover:bg-card/40 transition-colors"
         >
           {open ? <FaChevronDown className="text-xs text-gray-400" /> : <FaChevronRight className="text-xs text-gray-400" />}
           {icon}
@@ -442,8 +442,8 @@ const Panel: React.FC<{
       </div>
       {open && (
         <>
-          {hint && <div className="px-4 py-2 text-xs text-gray-500 italic border-b border-[#2c3048]">{hint}</div>}
-          <div className="divide-y divide-[#2c3048]">{children}</div>
+          {hint && <div className="px-4 py-2 text-xs text-gray-500 italic border-b border-edge">{hint}</div>}
+          <div className="divide-y divide-edge">{children}</div>
         </>
       )}
     </div>
@@ -506,7 +506,7 @@ const BankRow: React.FC<{
   const resolvedCategory = resolvedEvent ? eventCategoryFromType(resolvedEvent.eventType) : null;
 
   return (
-    <div className="px-4 py-3 hover:bg-[#1c1f2e]/40">
+    <div className="px-4 py-3 hover:bg-card/40">
       <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-3 items-center">
         {/* Bank line */}
         <div className="min-w-0">
@@ -579,7 +579,7 @@ const BankRow: React.FC<{
                       className={`cursor-pointer w-full text-left px-3 py-2 rounded-md border transition-colors flex items-center gap-3 ${
                         isSelected
                           ? "border-blue-400 bg-blue-500/10"
-                          : "border-[#2c3048] bg-[#1c1f2e] hover:border-[#3c4060] hover:bg-[#1c1f2e]/80"
+                          : "border-edge bg-card hover:border-edge-strong hover:bg-card/80"
                       }`}
                     >
                       <span

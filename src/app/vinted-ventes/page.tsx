@@ -282,7 +282,7 @@ const VintedVentesPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#151826] text-white p-4 md:p-8">
+    <div className="min-h-screen bg-app text-fg p-4 md:p-8">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold mb-2">Ventes</h1>
@@ -305,7 +305,7 @@ const VintedVentesPage = () => {
                   onClick={() => handleSelectPeriod(p.id)}
                   aria-pressed={isActive}
                   className={`cursor-pointer px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 ${
-                    isActive ? "bg-blue-600 text-white" : "bg-[#23263A] text-gray-300 hover:bg-[#2c3048]"
+                    isActive ? "bg-blue-600 text-white" : "bg-card-2 text-gray-300 hover:bg-edge"
                   }`}
                 >
                   <FaCalendarAlt className="text-sm" />
@@ -314,7 +314,7 @@ const VintedVentesPage = () => {
               );
             })}
           </div>
-          <div className="hidden md:block h-6 w-px bg-[#2c3048] mx-1" aria-hidden />
+          <div className="hidden md:block h-6 w-px bg-edge mx-1" aria-hidden />
           <MonthPicker
             value={monthFilter}
             onChange={setMonthFilter}
@@ -323,7 +323,7 @@ const VintedVentesPage = () => {
         </div>
       </div>
 
-      <div className="bg-[#23263A] rounded-2xl shadow-lg p-6">
+      <div className="bg-card-2 rounded-2xl shadow-lg p-6">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-3 flex-wrap">
             <h2 className="text-xl font-bold">Liste des ventes</h2>
@@ -349,7 +349,7 @@ const VintedVentesPage = () => {
             )}
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex items-center gap-1 bg-[#1c1f2e] rounded-lg p-1">
+            <div className="flex items-center gap-1 bg-card rounded-lg p-1">
               {(["active", "cancelled", "all"] as StatusFilter[]).map(id => {
                 const label = id === "active" ? "Actives" : id === "cancelled" ? "Annulées" : "Toutes";
                 return (
@@ -359,7 +359,7 @@ const VintedVentesPage = () => {
                     onClick={() => setStatusFilter(id)}
                     aria-pressed={statusFilter === id}
                     className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                      statusFilter === id ? "bg-blue-600 text-white" : "text-gray-300 hover:bg-[#2c3048]"
+                      statusFilter === id ? "bg-blue-600 text-white" : "text-gray-300 hover:bg-edge"
                     }`}
                   >
                     {label}{id === "cancelled" && cancelledCount > 0 ? ` (${cancelledCount})` : ""}
@@ -374,7 +374,7 @@ const VintedVentesPage = () => {
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Filtrer par titre ou acheteur..."
-                className="pl-9 pr-3 py-2 rounded-lg bg-[#1c1f2e] border border-[#2c3048] text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64"
+                className="pl-9 pr-3 py-2 rounded-lg bg-card border border-edge text-sm text-fg placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64"
               />
             </div>
           </div>
@@ -567,7 +567,7 @@ const SaleRow: React.FC<{
   };
 
   return (
-    <div className={`bg-[#1c1f2e] rounded-lg p-4 ${cancelStatus === "cancelled" ? "opacity-60" : ""}`}>
+    <div className={`bg-card rounded-lg p-4 ${cancelStatus === "cancelled" ? "opacity-60" : ""}`}>
       <div className="flex gap-3 items-start">
       {p.article_image_url ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -578,7 +578,7 @@ const SaleRow: React.FC<{
           loading="lazy"
         />
       ) : (
-        <div className="w-16 h-20 bg-[#23263A] rounded flex items-center justify-center text-gray-600 text-xs flex-shrink-0">
+        <div className="w-16 h-20 bg-card-2 rounded flex items-center justify-center text-gray-600 text-xs flex-shrink-0">
           —
         </div>
       )}
@@ -604,7 +604,7 @@ const SaleRow: React.FC<{
         <div className="text-xs text-gray-500 mt-1">{formatDate(sale.eventDate)}</div>
 
         {hasContact && (
-          <div className="mt-3 pt-3 border-t border-[#2c3048] space-y-1.5">
+          <div className="mt-3 pt-3 border-t border-edge space-y-1.5">
             {p.nom && (
               <CopyableField
                 label="le nom"
@@ -655,7 +655,7 @@ const SaleRow: React.FC<{
             type="button"
             onClick={handleDownloadBordereau}
             disabled={bordereauLoading !== "none" || bordereauStatus !== "ready"}
-            className="cursor-pointer inline-flex items-center justify-center w-9 h-9 rounded-md text-gray-400 hover:text-blue-300 hover:bg-blue-600/15 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-[#2c3048]"
+            className="cursor-pointer inline-flex items-center justify-center w-9 h-9 rounded-md text-gray-400 hover:text-blue-300 hover:bg-blue-600/15 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-edge"
             aria-label="Télécharger le bordereau d'envoi"
             title={bordereauStatus === "ready" ? "Télécharger le PDF" : "Bordereau pas dispo"}
           >
@@ -688,7 +688,7 @@ const CancellationBanner: React.FC<{
 
   if (status === "cancelled") {
     return (
-      <div className="mt-3 pt-3 border-t border-[#2c3048] flex items-center justify-between gap-2">
+      <div className="mt-3 pt-3 border-t border-edge flex items-center justify-between gap-2">
         <span className="text-sm text-red-300 font-semibold flex items-center gap-2">
           <FaBan /> Vente annulée
         </span>
@@ -696,7 +696,7 @@ const CancellationBanner: React.FC<{
           type="button"
           onClick={() => onArbitrate("kept")}
           disabled={busy}
-          className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md bg-[#23263A] text-gray-200 hover:bg-[#2c3048] border border-[#2c3048] transition-colors disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md bg-card-2 text-gray-200 hover:bg-edge border border-edge transition-colors disabled:opacity-50"
         >
           {busy ? <FaSpinner className="animate-spin" /> : <FaUndo />} Rétablir
         </button>
@@ -706,13 +706,13 @@ const CancellationBanner: React.FC<{
 
   if (status === "kept") {
     return (
-      <div className="mt-3 pt-3 border-t border-[#2c3048] flex items-center justify-between gap-2">
+      <div className="mt-3 pt-3 border-t border-edge flex items-center justify-between gap-2">
         <span className="text-xs text-gray-400 italic">Demande d&apos;annulation refusée</span>
         <button
           type="button"
           onClick={() => onArbitrate("cancelled")}
           disabled={busy}
-          className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md bg-[#23263A] text-gray-200 hover:bg-red-600/20 hover:text-red-300 border border-[#2c3048] transition-colors disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md bg-card-2 text-gray-200 hover:bg-red-600/20 hover:text-red-300 border border-edge transition-colors disabled:opacity-50"
         >
           {busy ? <FaSpinner className="animate-spin" /> : <FaBan />} Annuler la vente
         </button>
@@ -740,7 +740,7 @@ const CancellationBanner: React.FC<{
           type="button"
           onClick={() => onArbitrate("kept")}
           disabled={busy}
-          className="inline-flex items-center gap-1.5 text-sm font-medium px-3.5 py-2 rounded-md bg-[#23263A] text-gray-200 hover:bg-[#2c3048] border border-[#2c3048] transition-colors disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 text-sm font-medium px-3.5 py-2 rounded-md bg-card-2 text-gray-200 hover:bg-edge border border-edge transition-colors disabled:opacity-50"
         >
           <FaUndo /> Refuser
         </button>
@@ -788,12 +788,12 @@ const ShopifySaleRow: React.FC<{ sale: ShopifySale }> = ({ sale }) => {
   const hasContact = sale.customerName || fullAddress;
 
   return (
-    <div className="bg-[#1c1f2e] rounded-lg p-4 flex gap-3 items-start h-full">
+    <div className="bg-card rounded-lg p-4 flex gap-3 items-start h-full">
       {firstImage ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={firstImage} alt={mainTitle} className="w-16 h-20 object-cover rounded flex-shrink-0" loading="lazy" />
       ) : (
-        <div className="w-16 h-20 bg-[#23263A] rounded flex items-center justify-center text-gray-600 flex-shrink-0">
+        <div className="w-16 h-20 bg-card-2 rounded flex items-center justify-center text-gray-600 flex-shrink-0">
           <FaBoxOpen />
         </div>
       )}
@@ -804,12 +804,12 @@ const ShopifySaleRow: React.FC<{ sale: ShopifySale }> = ({ sale }) => {
         </div>
         <div className="text-xs text-gray-400 mt-1 flex items-center gap-2 flex-wrap">
           <span className="font-mono">{sale.name}</span>
-          {statut && <span className="bg-[#23263A] text-gray-300 px-1.5 py-0.5 rounded">{statut}</span>}
+          {statut && <span className="bg-card-2 text-gray-300 px-1.5 py-0.5 rounded">{statut}</span>}
         </div>
         <div className="text-xs text-gray-500 mt-1">{formatDateShopify(sale.date)}</div>
 
         {hasContact && (
-          <div className="mt-3 pt-3 border-t border-[#2c3048] space-y-1.5">
+          <div className="mt-3 pt-3 border-t border-edge space-y-1.5">
             {sale.customerName && (
               <CopyableField label="le nom" value={sale.customerName} icon={<FaUser className="text-[10px]" />} />
             )}
@@ -825,7 +825,7 @@ const ShopifySaleRow: React.FC<{ sale: ShopifySale }> = ({ sale }) => {
               href={sale.adminUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-sm font-medium px-3.5 py-2 rounded-md bg-[#23263A] text-gray-200 hover:bg-[#2c3048] transition-colors border border-[#2c3048]"
+              className="inline-flex items-center gap-2 text-sm font-medium px-3.5 py-2 rounded-md bg-card-2 text-gray-200 hover:bg-edge transition-colors border border-edge"
             >
               <FaExternalLinkAlt className="text-xs" /> Voir dans Shopify
             </a>

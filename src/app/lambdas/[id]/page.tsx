@@ -66,10 +66,10 @@ const LambdaConfigPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#151826] text-white p-4 md:p-8">
+    <div className="min-h-screen bg-app text-fg p-4 md:p-8">
       <div className="max-w-2xl w-full mx-auto">
         <button onClick={() => router.back()} className="mb-6 text-blue-400 hover:underline">&larr; Retour</button>
-        <div className="bg-[#23263A] rounded-2xl shadow-lg px-8 py-10">
+        <div className="bg-card-2 rounded-2xl shadow-lg px-8 py-10">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-3xl font-bold mb-2">{lambda?.displayName}</h1>
@@ -93,7 +93,7 @@ const LambdaConfigPage = () => {
                   <textarea
                     value={value}
                     onChange={e => setConfig(prev => ({ ...prev, [key]: e.target.value }))}
-                    className="w-full px-3 py-2 rounded bg-[#151826] text-white border border-[#23263A] focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[400px]"
+                    className="w-full px-3 py-2 rounded bg-app text-fg border border-edge focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[400px]"
                     placeholder={`Valeur pour ${key}`}
                   />
                 </div>
@@ -118,7 +118,7 @@ const LambdaConfigPage = () => {
                 type="button"
                 disabled={saving}
                 onClick={() => router.back()}
-                className={`${saving ? 'bg-gray-400 cursor-not-allowed' : 'bg-gray-600 hover:bg-gray-700'} text-white font-semibold py-2 px-6 rounded-lg transition-colors`}
+                className={`${saving ? 'bg-gray-400 cursor-not-allowed' : 'bg-gray-600 hover:bg-gray-700'} text-fg font-semibold py-2 px-6 rounded-lg transition-colors`}
               >
                 Annuler
               </button>
@@ -148,9 +148,9 @@ const LambdaConfigPage = () => {
           </form>
         </div>
 
-        <div className="bg-[#23263A] rounded-2xl shadow-lg px-8 py-10 mt-8">
+        <div className="bg-card-2 rounded-2xl shadow-lg px-8 py-10 mt-8">
             <h2 className="text-xl font-semibold mb-4">Logs d&apos;exécution</h2>
-            <div className="bg-[#151826] rounded-lg p-4 h-96 overflow-y-auto font-mono text-sm">
+            <div className="bg-app rounded-lg p-4 h-96 overflow-y-auto font-mono text-sm">
               {logs.length > 0 ? (
                 logs.map((log, index) => (
                   <LogItem key={index} log={log} />

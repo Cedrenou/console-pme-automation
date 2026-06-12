@@ -581,7 +581,7 @@ const ShopifyImportCompletPage = () => {
   const estimateMin = Math.ceil((articles.length * 5) / 60);
 
   return (
-    <div className="min-h-screen bg-[#151826] text-white p-4 md:p-8">
+    <div className="min-h-screen bg-app text-fg p-4 md:p-8">
       <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
@@ -596,7 +596,7 @@ const ShopifyImportCompletPage = () => {
         </div>
         <Link
           href="/shopify-enrichir/parametres"
-          className="shrink-0 px-4 py-2 bg-[#23263A] hover:bg-[#2c3046] border border-gray-700 hover:border-blue-500 text-gray-200 rounded-lg transition-colors flex items-center gap-2 text-sm"
+          className="shrink-0 px-4 py-2 bg-card-2 hover:bg-edge border border-gray-700 hover:border-blue-500 text-gray-200 rounded-lg transition-colors flex items-center gap-2 text-sm"
         >
           <FaCog />
           Paramètres Claude
@@ -604,7 +604,7 @@ const ShopifyImportCompletPage = () => {
       </div>
 
       {/* Étape 1 : CSV */}
-      <div className="bg-[#23263A] rounded-2xl shadow-lg p-6 mb-6">
+      <div className="bg-card-2 rounded-2xl shadow-lg p-6 mb-6">
         <div className="flex items-center gap-4 mb-4">
           <FaFileCsv className="text-3xl text-blue-400" />
           <div>
@@ -621,14 +621,14 @@ const ShopifyImportCompletPage = () => {
           onDragLeave={() => setCsvDragOver(false)}
           className={`flex items-center justify-center gap-3 px-6 py-8 border-2 border-dashed rounded-xl transition-colors ${
             importing ? "opacity-50 cursor-not-allowed border-gray-700" :
-            csvDragOver ? "border-blue-400 bg-[#1c1f2e] cursor-pointer" : "border-gray-600 hover:border-blue-500 hover:bg-[#1c1f2e] cursor-pointer"
+            csvDragOver ? "border-blue-400 bg-card cursor-pointer" : "border-gray-600 hover:border-blue-500 hover:bg-card cursor-pointer"
           }`}
           tabIndex={0}
         >
           <FaUpload className="text-2xl text-gray-400" />
           <span className="text-gray-300">
             {filename ? (
-              <strong className="text-white">{filename}</strong>
+              <strong className="text-fg">{filename}</strong>
             ) : csvDragOver ? (
               "Relâcher pour importer le CSV"
             ) : (
@@ -639,7 +639,7 @@ const ShopifyImportCompletPage = () => {
         </label>
         {articles.length > 0 && (
           <p className="text-sm text-gray-400 mt-4">
-            <strong className="text-white">{articles.length}</strong> article(s) — dont{" "}
+            <strong className="text-fg">{articles.length}</strong> article(s) — dont{" "}
             <strong className="text-green-400">{Array.from(photosBySku.keys()).filter((k) => articles.some((a) => a.codeArt === k)).length}</strong>{" "}
             avec au moins une photo · <strong className="text-blue-300">{totalPhotos}</strong> photo(s) au total.
           </p>
@@ -665,7 +665,7 @@ const ShopifyImportCompletPage = () => {
 
       {/* Étape 2 : liste + photos + lancement */}
       {articles.length > 0 && (
-        <div className="bg-[#23263A] rounded-2xl shadow-lg p-6 mb-6">
+        <div className="bg-card-2 rounded-2xl shadow-lg p-6 mb-6">
           <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
             <div>
               <h2 className="text-xl font-semibold">2. Photos &amp; import</h2>
@@ -697,7 +697,7 @@ const ShopifyImportCompletPage = () => {
                 <FaSpinner className="animate-spin text-blue-400" />
                 {phaseLabel()}
               </div>
-              <div className="w-full bg-[#1c1f2e] rounded-full h-2 overflow-hidden">
+              <div className="w-full bg-card rounded-full h-2 overflow-hidden">
                 <div
                   className={`h-full transition-all duration-300 ${phaseProgress === null ? "bg-blue-500 animate-pulse w-1/3" : "bg-blue-500"}`}
                   style={phaseProgress === null ? undefined : { width: `${phaseProgress}%` }}
@@ -727,7 +727,7 @@ const ShopifyImportCompletPage = () => {
                   const ps = photoSummaryFor(a.codeArt);
                   return (
                     <tr key={a.codeArt} className="border-b border-gray-700/60 align-top">
-                      <td className="py-3 pr-4 font-mono text-white">{a.codeArt}</td>
+                      <td className="py-3 pr-4 font-mono text-fg">{a.codeArt}</td>
                       <td className="py-3 pr-4 text-gray-300">
                         {a.designation || <span className="italic text-gray-500">(vide)</span>}
                       </td>
@@ -786,7 +786,7 @@ const ShopifyImportCompletPage = () => {
 
       {/* Récap final */}
       {phase.kind === "done" && (
-        <div className="bg-[#23263A] rounded-2xl shadow-lg p-6 mb-6">
+        <div className="bg-card-2 rounded-2xl shadow-lg p-6 mb-6">
           <div className="flex items-center gap-3 mb-4">
             {finalSummary.catalogErrors === 0 && finalSummary.photosError === 0 && finalSummary.enrichError === 0 ? (
               <FaCheckCircle className="text-green-400 text-3xl" />
@@ -798,7 +798,7 @@ const ShopifyImportCompletPage = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             {/* Catalogue */}
-            <div className="bg-[#1c1f2e] rounded-xl p-4">
+            <div className="bg-card rounded-xl p-4">
               <div className="text-sm font-semibold text-gray-300 mb-2 flex items-center gap-2"><FaBoxOpen className="text-blue-400" /> Catalogue</div>
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
                 <span className="text-green-400">{finalSummary.created} créé(s)</span>
@@ -807,7 +807,7 @@ const ShopifyImportCompletPage = () => {
               </div>
             </div>
             {/* Photos */}
-            <div className="bg-[#1c1f2e] rounded-xl p-4">
+            <div className="bg-card rounded-xl p-4">
               <div className="text-sm font-semibold text-gray-300 mb-2 flex items-center gap-2"><FaUpload className="text-blue-400" /> Photos</div>
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
                 <span className="text-green-400">{finalSummary.photosDone} ajoutée(s)</span>
@@ -816,7 +816,7 @@ const ShopifyImportCompletPage = () => {
               </div>
             </div>
             {/* Enrichissement */}
-            <div className="bg-[#1c1f2e] rounded-xl p-4">
+            <div className="bg-card rounded-xl p-4">
               <div className="text-sm font-semibold text-gray-300 mb-2 flex items-center gap-2"><FaMagic className="text-purple-400" /> Enrichissement</div>
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
                 <span className="text-green-400">{finalSummary.enrichOk} enrichi(s)</span>
@@ -844,7 +844,7 @@ const ShopifyImportCompletPage = () => {
           </div>
 
           {(finalSummary.updated > 0 || finalSummary.photosSkipped > 0 || finalSummary.enrichSkipped > 0) && (
-            <div className="bg-[#1c1f2e] border border-gray-700 rounded-xl p-4 mb-4 text-sm text-gray-300">
+            <div className="bg-card border border-gray-700 rounded-xl p-4 mb-4 text-sm text-gray-300">
               <p>
                 Les articles déjà existants ont été <strong>mis à jour</strong> sans réimporter leurs photos ni leur
                 description (pour éviter doublons et coût IA inutile). Pour (re)traiter un cas précis, utilisez les
@@ -866,7 +866,7 @@ const ShopifyImportCompletPage = () => {
 
           <button
             onClick={resetAll}
-            className="mt-6 px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+            className="mt-6 px-6 py-2 bg-gray-700 hover:bg-gray-600 text-fg rounded-lg transition-colors"
           >
             Faire un nouvel import
           </button>
@@ -931,7 +931,7 @@ const ErrorDetails: React.FC<{
   if (catalogErrors.length === 0 && photoErrors.length === 0 && enrichErrors.length === 0) return null;
 
   return (
-    <div className="bg-[#1c1f2e] rounded-xl p-4 max-h-72 overflow-y-auto space-y-3">
+    <div className="bg-card rounded-xl p-4 max-h-72 overflow-y-auto space-y-3">
       {catalogErrors.length > 0 && (
         <div>
           <h3 className="text-sm font-semibold text-red-300 mb-1">Catalogue — erreurs :</h3>
@@ -1050,7 +1050,7 @@ const SkuDropCell: React.FC<SkuDropCellProps> = ({
               type="button"
               onClick={handlePick}
               aria-label={`Ajouter une photo à ${skuCode}`}
-              className="w-16 h-16 flex flex-col items-center justify-center border-2 border-dashed border-gray-600 rounded-lg hover:border-blue-500 hover:bg-[#1c1f2e] transition-colors text-gray-400 text-xs"
+              className="w-16 h-16 flex flex-col items-center justify-center border-2 border-dashed border-gray-600 rounded-lg hover:border-blue-500 hover:bg-card transition-colors text-gray-400 text-xs"
             >
               <FaPlus />
               <span>Ajouter</span>
@@ -1103,7 +1103,7 @@ const PhotoThumb: React.FC<PhotoThumbProps> = ({ photo, position, onRemove, onDr
       onDragOver={handleDragOver}
       onDragLeave={() => setIsDragOver(false)}
       onDrop={handleDrop}
-      className={`relative w-16 h-16 rounded-lg overflow-hidden border bg-[#1c1f2e] ${editable ? "cursor-grab active:cursor-grabbing" : ""} group transition-shadow ${
+      className={`relative w-16 h-16 rounded-lg overflow-hidden border bg-card ${editable ? "cursor-grab active:cursor-grabbing" : ""} group transition-shadow ${
         isDragOver ? "border-blue-400 ring-2 ring-blue-400" : "border-gray-700"
       }`}
       title={photo.file.name}

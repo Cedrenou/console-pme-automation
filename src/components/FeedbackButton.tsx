@@ -178,10 +178,10 @@ const FeedbackButton = () => {
           onClick={handleClose}
         >
           <div
-            className="relative w-full max-w-lg rounded-xl bg-[#1E2235] text-white shadow-2xl ring-1 ring-white/10"
+            className="relative w-full max-w-lg rounded-xl bg-card text-fg shadow-2xl ring-1 ring-white/10"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-edge">
               <h2 id="feedback-title" className="text-lg font-semibold flex items-center gap-2">
                 <FaCommentAlt className="text-blue-400" />
                 Signaler / Demander
@@ -191,7 +191,7 @@ const FeedbackButton = () => {
                 onClick={handleClose}
                 disabled={submitting}
                 aria-label="Fermer"
-                className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50"
+                className="p-1.5 rounded-md text-gray-400 hover:text-fg hover:bg-edge transition-colors disabled:opacity-50"
               >
                 <FaTimes />
               </button>
@@ -211,7 +211,7 @@ const FeedbackButton = () => {
                         className={`flex flex-col items-center gap-1 px-3 py-3 rounded-lg border transition-colors text-sm ${
                           type === t.value
                             ? "border-blue-500 bg-blue-500/10 text-blue-300"
-                            : "border-white/10 bg-white/5 text-gray-300 hover:border-white/20 hover:bg-white/10"
+                            : "border-edge bg-card-2 text-gray-300 hover:border-edge-strong hover:bg-edge"
                         }`}
                       >
                         <span className="text-lg">{t.icon}</span>
@@ -234,7 +234,7 @@ const FeedbackButton = () => {
                     maxLength={200}
                     required
                     placeholder="Résume ta demande en une phrase"
-                    className="px-3 py-2 rounded-lg bg-[#13162A] border border-white/10 focus:border-blue-500 focus:outline-none text-sm placeholder-gray-500"
+                    className="px-3 py-2 rounded-lg bg-app border border-edge focus:border-blue-500 focus:outline-none text-sm placeholder-gray-500"
                   />
                 </div>
 
@@ -249,7 +249,7 @@ const FeedbackButton = () => {
                     maxLength={5000}
                     rows={5}
                     placeholder="Étapes pour reproduire, contexte, copier-coller d'erreur, etc."
-                    className="px-3 py-2 rounded-lg bg-[#13162A] border border-white/10 focus:border-blue-500 focus:outline-none text-sm placeholder-gray-500 resize-none"
+                    className="px-3 py-2 rounded-lg bg-app border border-edge focus:border-blue-500 focus:outline-none text-sm placeholder-gray-500 resize-none"
                   />
                   <div className="text-xs text-gray-500 self-end">{description.length} / 5000</div>
                 </div>
@@ -259,14 +259,14 @@ const FeedbackButton = () => {
                     Capture d&apos;écran <span className="text-gray-500 font-normal">(optionnel)</span>
                   </label>
                   {screenshot ? (
-                    <div className="relative group rounded-lg overflow-hidden border border-white/10 bg-[#13162A]">
+                    <div className="relative group rounded-lg overflow-hidden border border-edge bg-app">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={screenshot.dataUrl}
                         alt="Aperçu de la capture"
                         className="w-full max-h-64 object-contain bg-black/30"
                       />
-                      <div className="flex items-center justify-between px-3 py-2 text-xs text-gray-400 border-t border-white/10">
+                      <div className="flex items-center justify-between px-3 py-2 text-xs text-gray-400 border-t border-edge">
                         <span className="truncate flex items-center gap-1.5">
                           <FaPaperclip className="text-gray-500" />
                           {screenshot.name} · {screenshot.sizeKb} KB
@@ -305,7 +305,7 @@ const FeedbackButton = () => {
                       className={`flex flex-col items-center justify-center gap-2 px-4 py-6 rounded-lg border-2 border-dashed cursor-pointer transition-colors text-sm ${
                         dragActive
                           ? "border-blue-500 bg-blue-500/10 text-blue-300"
-                          : "border-white/15 bg-white/5 text-gray-400 hover:border-white/30 hover:bg-white/10"
+                          : "border-edge bg-card-2 text-gray-400 hover:border-edge-strong hover:bg-edge"
                       }`}
                     >
                       <FaImage className="text-2xl" />
@@ -332,7 +332,7 @@ const FeedbackButton = () => {
                     type="checkbox"
                     checked={urgent}
                     onChange={(e) => setUrgent(e.target.checked)}
-                    className="w-4 h-4 rounded border-white/20 bg-[#13162A] accent-orange-500"
+                    className="w-4 h-4 rounded border-white/20 bg-app accent-orange-500"
                   />
                   Marquer comme urgent
                 </label>
@@ -348,7 +348,7 @@ const FeedbackButton = () => {
                     type="button"
                     onClick={handleClose}
                     disabled={submitting}
-                    className="px-4 py-2 rounded-lg text-sm text-gray-300 hover:bg-white/10 transition-colors disabled:opacity-50"
+                    className="px-4 py-2 rounded-lg text-sm text-gray-300 hover:bg-edge transition-colors disabled:opacity-50"
                   >
                     Annuler
                   </button>

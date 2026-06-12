@@ -90,7 +90,7 @@ const ComptaPageInner: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#151826] text-white p-4 md:p-8">
+    <div className="min-h-screen bg-app text-fg p-4 md:p-8">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold mb-2">Compta</h1>
@@ -106,7 +106,7 @@ const ComptaPageInner: React.FC = () => {
                 onClick={() => bulkToggleAll(true)}
                 disabled={bulkLoading !== null}
                 title="DEV — Cocher tous les Vérifié du mois (5 catégories)"
-                className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors bg-[#23263A] text-gray-400 hover:text-white hover:bg-[#2c3048] disabled:opacity-50"
+                className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors bg-card-2 text-gray-400 hover:text-fg hover:bg-edge disabled:opacity-50"
               >
                 <FaCheckSquare className="text-xs" />
                 {bulkLoading === "check" ? "…" : "Tout cocher"}
@@ -116,7 +116,7 @@ const ComptaPageInner: React.FC = () => {
                 onClick={() => bulkToggleAll(false)}
                 disabled={bulkLoading !== null}
                 title="DEV — Décocher tous les Vérifié du mois (5 catégories)"
-                className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors bg-[#23263A] text-gray-400 hover:text-white hover:bg-[#2c3048] disabled:opacity-50"
+                className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors bg-card-2 text-gray-400 hover:text-fg hover:bg-edge disabled:opacity-50"
               >
                 <FaSquare className="text-xs" />
                 {bulkLoading === "uncheck" ? "…" : "Tout décocher"}
@@ -140,7 +140,7 @@ const ComptaPageInner: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-1 mb-4 border-b border-[#2c3048]">
+      <div className="flex flex-wrap gap-1 mb-4 border-b border-edge">
         {TABS.map(t => {
           const isActive = t.id === tab;
           return (
@@ -151,8 +151,8 @@ const ComptaPageInner: React.FC = () => {
               aria-pressed={isActive}
               className={`cursor-pointer inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold transition-colors rounded-t-lg border-b-2 ${
                 isActive
-                  ? "text-blue-300 border-blue-400 bg-[#23263A]"
-                  : "text-gray-400 border-transparent hover:text-gray-200 hover:bg-[#1c1f2e]/60"
+                  ? "text-blue-300 border-blue-400 bg-card-2"
+                  : "text-gray-400 border-transparent hover:text-gray-200 hover:bg-card/60"
               }`}
             >
               {t.icon}
@@ -180,7 +180,7 @@ const ComptaPageInner: React.FC = () => {
 };
 
 const ComptaPage = () => (
-  <Suspense fallback={<div className="min-h-screen bg-[#151826] text-white p-4 md:p-8">Chargement…</div>}>
+  <Suspense fallback={<div className="min-h-screen bg-app text-fg p-4 md:p-8">Chargement…</div>}>
     <ComptaPageInner />
   </Suspense>
 );

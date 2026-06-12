@@ -231,7 +231,7 @@ const ShopifyCataloguePage = () => {
   const previewToShow = useMemo(() => previewRows.slice(0, 10), [previewRows]);
 
   return (
-    <div className="min-h-screen bg-[#151826] text-white p-4 md:p-8">
+    <div className="min-h-screen bg-app text-fg p-4 md:p-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Import catalogue Shopify</h1>
         <p className="text-gray-400">
@@ -240,7 +240,7 @@ const ShopifyCataloguePage = () => {
       </div>
 
       {/* Mise à jour stock global */}
-      <div className="bg-[#23263A] rounded-2xl shadow-lg p-6 mb-6">
+      <div className="bg-card-2 rounded-2xl shadow-lg p-6 mb-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-4">
             <FaSync className={`text-3xl text-green-400 ${refreshing ? "animate-spin" : ""}`} />
@@ -273,7 +273,7 @@ const ShopifyCataloguePage = () => {
         )}
 
         {refreshResult && (
-          <div className="mt-4 bg-[#1c1f2e] rounded-xl p-4">
+          <div className="mt-4 bg-card rounded-xl p-4">
             <div className="flex items-center gap-2 mb-3">
               {refreshResult.success ? (
                 <FaCheckCircle className="text-green-400" />
@@ -285,7 +285,7 @@ const ShopifyCataloguePage = () => {
               </span>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-              <div className="bg-[#23263A] rounded-lg p-3">
+              <div className="bg-card-2 rounded-lg p-3">
                 <div className="text-gray-400">Total</div>
                 <div className="text-lg font-bold">{refreshResult.total}</div>
               </div>
@@ -293,11 +293,11 @@ const ShopifyCataloguePage = () => {
                 <div className="text-green-300">Synchronisés</div>
                 <div className="text-lg font-bold text-green-400">{refreshResult.synced}</div>
               </div>
-              <div className="bg-[#23263A] rounded-lg p-3">
+              <div className="bg-card-2 rounded-lg p-3">
                 <div className="text-gray-400">Inchangés</div>
                 <div className="text-lg font-bold">{refreshResult.skipped}</div>
               </div>
-              <div className={`rounded-lg p-3 border ${refreshResult.errors > 0 ? "bg-red-900/30 border-red-700" : "bg-[#23263A] border-transparent"}`}>
+              <div className={`rounded-lg p-3 border ${refreshResult.errors > 0 ? "bg-red-900/30 border-red-700" : "bg-card-2 border-transparent"}`}>
                 <div className={refreshResult.errors > 0 ? "text-red-300" : "text-gray-400"}>Erreurs</div>
                 <div className={`text-lg font-bold ${refreshResult.errors > 0 ? "text-red-400" : ""}`}>{refreshResult.errors}</div>
               </div>
@@ -307,7 +307,7 @@ const ShopifyCataloguePage = () => {
       </div>
 
       {/* Upload zone */}
-      <div className="bg-[#23263A] rounded-2xl shadow-lg p-6 mb-6">
+      <div className="bg-card-2 rounded-2xl shadow-lg p-6 mb-6">
         <div className="flex items-center gap-4 mb-4">
           <FaFileCsv className="text-3xl text-blue-400" />
           <div>
@@ -320,14 +320,14 @@ const ShopifyCataloguePage = () => {
           onDragOver={handleCsvDragOver}
           onDragLeave={() => setCsvDragOver(false)}
           className={`flex items-center justify-center gap-3 px-6 py-8 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${
-            csvDragOver ? "border-blue-400 bg-[#1c1f2e]" : "border-gray-600 hover:border-blue-500 hover:bg-[#1c1f2e]"
+            csvDragOver ? "border-blue-400 bg-card" : "border-gray-600 hover:border-blue-500 hover:bg-card"
           }`}
           tabIndex={0}
         >
           <FaUpload className="text-2xl text-gray-400" />
           <span className="text-gray-300">
             {filename ? (
-              <strong className="text-white">{filename}</strong>
+              <strong className="text-fg">{filename}</strong>
             ) : csvDragOver ? (
               "Relâcher pour importer le CSV"
             ) : (
@@ -348,12 +348,12 @@ const ShopifyCataloguePage = () => {
 
       {/* Aperçu + lancement */}
       {skus.length > 0 && !result && (
-        <div className="bg-[#23263A] rounded-2xl shadow-lg p-6 mb-6">
+        <div className="bg-card-2 rounded-2xl shadow-lg p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-xl font-semibold">2. Vérifier &amp; importer</h2>
               <p className="text-sm text-gray-400">
-                <strong className="text-white">{skus.length}</strong> SKU(s) détecté(s) dans le fichier.
+                <strong className="text-fg">{skus.length}</strong> SKU(s) détecté(s) dans le fichier.
               </p>
             </div>
             <button
@@ -400,7 +400,7 @@ const ShopifyCataloguePage = () => {
 
       {/* Résultat */}
       {result && (
-        <div className="bg-[#23263A] rounded-2xl shadow-lg p-6 mb-6">
+        <div className="bg-card-2 rounded-2xl shadow-lg p-6 mb-6">
           <div className="flex items-center gap-3 mb-4">
             {result.success ? (
               <FaCheckCircle className="text-green-400 text-3xl" />
@@ -411,7 +411,7 @@ const ShopifyCataloguePage = () => {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-[#1c1f2e] rounded-xl p-4">
+            <div className="bg-card rounded-xl p-4">
               <div className="text-gray-400 text-sm">Total traités</div>
               <div className="text-2xl font-bold">{result.total}</div>
             </div>
@@ -423,9 +423,9 @@ const ShopifyCataloguePage = () => {
               <div className="text-blue-300 text-sm">Mis à jour</div>
               <div className="text-2xl font-bold text-blue-400">{result.updated}</div>
             </div>
-            <div className={`rounded-xl p-4 border ${result.errors > 0 ? "bg-red-900/30 border-red-700" : "bg-[#1c1f2e] border-gray-700"}`}>
+            <div className={`rounded-xl p-4 border ${result.errors > 0 ? "bg-red-900/30 border-red-700" : "bg-card border-gray-700"}`}>
               <div className={`text-sm ${result.errors > 0 ? "text-red-300" : "text-gray-400"}`}>Erreurs</div>
-              <div className={`text-2xl font-bold ${result.errors > 0 ? "text-red-400" : "text-white"}`}>{result.errors}</div>
+              <div className={`text-2xl font-bold ${result.errors > 0 ? "text-red-400" : "text-fg"}`}>{result.errors}</div>
             </div>
           </div>
 
@@ -434,7 +434,7 @@ const ShopifyCataloguePage = () => {
           </p>
 
           {result.errors > 0 && (
-            <div className="bg-[#1c1f2e] rounded-xl p-4 max-h-64 overflow-y-auto">
+            <div className="bg-card rounded-xl p-4 max-h-64 overflow-y-auto">
               <h3 className="text-sm font-semibold text-red-300 mb-2">SKUs en erreur :</h3>
               <ul className="text-sm space-y-1">
                 {result.results.filter((r) => !r.ok).map((r) => (
@@ -448,7 +448,7 @@ const ShopifyCataloguePage = () => {
 
           <button
             onClick={() => { setResult(null); setSkus([]); setPreviewRows([]); setFilename(null); }}
-            className="mt-6 px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+            className="mt-6 px-6 py-2 bg-gray-700 hover:bg-gray-600 text-fg rounded-lg transition-colors"
           >
             Faire un nouvel import
           </button>

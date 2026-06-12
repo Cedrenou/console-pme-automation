@@ -91,18 +91,18 @@ const ShopifyEnrichirParametresPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#151826] text-white p-8 flex items-center justify-center">
+      <div className="min-h-screen bg-app text-fg p-8 flex items-center justify-center">
         <FaSpinner className="animate-spin text-3xl text-blue-400" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#151826] text-white p-4 md:p-8">
+    <div className="min-h-screen bg-app text-fg p-4 md:p-8">
       <div className="mb-6">
         <Link
           href="/shopify-enrichir"
-          className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors"
+          className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-fg transition-colors"
         >
           <FaArrowLeft /> Retour à l&apos;enrichissement
         </Link>
@@ -122,7 +122,7 @@ const ShopifyEnrichirParametresPage = () => {
 
       <div className="space-y-6">
         {/* Model */}
-        <section className="bg-[#23263A] rounded-2xl shadow-lg p-6">
+        <section className="bg-card-2 rounded-2xl shadow-lg p-6">
           <label className="block">
             <span className="text-lg font-semibold mb-1 block">Modèle Claude</span>
             <span className="text-sm text-gray-400 mb-3 block">
@@ -131,7 +131,7 @@ const ShopifyEnrichirParametresPage = () => {
             <select
               value={config.model}
               onChange={(e) => setConfig({ ...config, model: e.target.value })}
-              className="w-full bg-[#1c1f2e] border border-gray-600 rounded-lg px-4 py-2 text-white focus:border-blue-500 focus:outline-none"
+              className="w-full bg-card border border-gray-600 rounded-lg px-4 py-2 text-fg focus:border-blue-500 focus:outline-none"
             >
               {MODEL_OPTIONS.map(opt => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -141,7 +141,7 @@ const ShopifyEnrichirParametresPage = () => {
         </section>
 
         {/* Max tokens */}
-        <section className="bg-[#23263A] rounded-2xl shadow-lg p-6">
+        <section className="bg-card-2 rounded-2xl shadow-lg p-6">
           <label className="block">
             <span className="text-lg font-semibold mb-1 block">Max tokens par réponse</span>
             <span className="text-sm text-gray-400 mb-3 block">
@@ -155,13 +155,13 @@ const ShopifyEnrichirParametresPage = () => {
               step={128}
               value={config.maxTokens}
               onChange={(e) => setConfig({ ...config, maxTokens: e.target.value })}
-              className="w-32 bg-[#1c1f2e] border border-gray-600 rounded-lg px-4 py-2 text-white focus:border-blue-500 focus:outline-none"
+              className="w-32 bg-card border border-gray-600 rounded-lg px-4 py-2 text-fg focus:border-blue-500 focus:outline-none"
             />
           </label>
         </section>
 
         {/* System prompt */}
-        <section className="bg-[#23263A] rounded-2xl shadow-lg p-6">
+        <section className="bg-card-2 rounded-2xl shadow-lg p-6">
           <label className="block">
             <span className="text-lg font-semibold mb-1 block">System prompt (persona)</span>
             <span className="text-sm text-gray-400 mb-3 block">
@@ -172,14 +172,14 @@ const ShopifyEnrichirParametresPage = () => {
               value={config.systemPrompt}
               onChange={(e) => setConfig({ ...config, systemPrompt: e.target.value })}
               rows={6}
-              className="w-full bg-[#1c1f2e] border border-gray-600 rounded-lg px-4 py-2 text-white font-mono text-sm focus:border-blue-500 focus:outline-none resize-y"
+              className="w-full bg-card border border-gray-600 rounded-lg px-4 py-2 text-fg font-mono text-sm focus:border-blue-500 focus:outline-none resize-y"
               placeholder="Tu es en charge de rédiger des fiches produit pour SUNSET RIDER..."
             />
           </label>
         </section>
 
         {/* Claude prompt */}
-        <section className="bg-[#23263A] rounded-2xl shadow-lg p-6">
+        <section className="bg-card-2 rounded-2xl shadow-lg p-6">
           <label className="block">
             <span className="text-lg font-semibold mb-1 block">Prompt principal (consignes)</span>
             <span className="text-sm text-gray-400 mb-3 block">
@@ -191,7 +191,7 @@ const ShopifyEnrichirParametresPage = () => {
               value={config.claudePrompt}
               onChange={(e) => setConfig({ ...config, claudePrompt: e.target.value })}
               rows={20}
-              className="w-full bg-[#1c1f2e] border border-gray-600 rounded-lg px-4 py-2 text-white font-mono text-xs focus:border-blue-500 focus:outline-none resize-y"
+              className="w-full bg-card border border-gray-600 rounded-lg px-4 py-2 text-fg font-mono text-xs focus:border-blue-500 focus:outline-none resize-y"
             />
             <p className="text-xs text-gray-500 mt-2">
               {config.claudePrompt.length} caractères
