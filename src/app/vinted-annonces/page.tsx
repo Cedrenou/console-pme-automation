@@ -361,6 +361,88 @@ const VintedAnnoncesPage = () => {
         </label>
       </div>
 
+      {/* Recherche dans les annonces sauvegardées */}
+      <div className="bg-[#23263A] rounded-2xl shadow-lg p-6 mb-6">
+        <div className="flex items-center gap-4 mb-4">
+          <FaSearch className="text-2xl text-purple-400" />
+          <div>
+            <h2 className="text-xl font-semibold">Retrouver une annonce déjà générée</h2>
+            <p className="text-sm text-gray-400">
+              Chaque annonce générée est conservée <strong className="text-gray-300">2 mois</strong> —
+              recherchez par SKU / UGS ou titre pour la récupérer sans regénérer. Recherche vide = dernières annonces.
+            </p>
+          </div>
+        </div>
+        <form onSubmit={handleSavedSearch} className="flex items-center gap-3 flex-wrap">
+          <div className="relative flex-1 min-w-[220px] max-w-xl">
+            <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm pointer-events-none" />
+            <input
+              type="search"
+              value={savedQuery}
+              onChange={(e) => setSavedQuery(e.target.value)}
+              placeholder="SKU / UGS ou titre…"
+              aria-label="Rechercher une annonce sauvegardée par SKU, UGS ou titre"
+              className="w-full bg-[#1c1f2e] border border-gray-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={savedState.kind === "loading"}
+            aria-label="Lancer la recherche d'annonces sauvegardées"
+            className="px-5 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg text-sm font-semibold transition-colors flex items-center gap-2"
+          >
+            {savedState.kind === "loading" ? <FaSpinner className="animate-spin" /> : <FaSearch />}
+            Rechercher
+          </button>
+        </form>
+
+        {savedState.kind === "error" && (
+          <p className="mt-4 text-sm text-red-300 flex items-center gap-2">
+            <FaTimesCircle /> {savedState.message}
+          </p>
+        )}
+
+        {savedState.kind === "done" && (
+          <div className="mt-5 space-y-4">
+            {savedState.results.length === 0 ? (
+              <p className="text-sm text-gray-400 italic">
+                Aucune annonce sauvegardée ne correspond
+                {savedState.query ? <> à «&nbsp;{savedState.query}&nbsp;»</> : null}.
+              </p>
+            ) : (
+              <>
+                <p className="text-xs text-gray-500">
+                  <strong className="text-gray-300">{savedState.total}</strong> annonce(s) trouvée(s)
+                  {savedState.total > savedState.results.length && (
+                    <> — les {savedState.results.length} plus récentes affichées, affinez la recherche</>
+                  )}
+                </p>
+                {savedState.results.map((r) => (
+                  <div key={r.code_article} className="bg-[#1c1f2e] rounded-2xl p-5 border border-gray-800">
+                    <div className="flex items-start justify-between gap-4 mb-3">
+                      <div className="min-w-0">
+                        <span className="text-xs font-mono text-gray-500">
+                          {r.code_article}
+                          {r.created_at && <span className="ml-3 font-sans">générée le {formatSavedDate(r.created_at)}</span>}
+                        </span>
+                        <h3 className="text-lg font-semibold text-white break-words">{r.titre}</h3>
+                      </div>
+                      <div className="flex flex-col gap-2 shrink-0">
+                        <CopyButton text={r.titre} label="Copier titre" />
+                        <CopyButton text={r.corps} label="Copier description" />
+                      </div>
+                    </div>
+                    <pre className="whitespace-pre-wrap font-sans text-sm text-gray-300 bg-[#151826] rounded-xl p-4 border border-gray-800">
+                      {r.corps}
+                    </pre>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
       {promptsMissing && (
         <div className="bg-yellow-900/40 border border-yellow-700 rounded-2xl p-4 mb-6 flex items-start gap-3">
           <FaExclamationTriangle className="text-yellow-400 text-xl mt-0.5" />
