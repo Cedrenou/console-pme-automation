@@ -28,9 +28,16 @@ The `clientA` client id is currently hardcoded in lambda URLs with a `TODO` to w
 
 ### Routes
 
-- `src/app/page.tsx` — dashboard, lists available lambdas
+- `src/app/page.tsx` — home: Vinted cockpit dashboard (CA graph Vinted + Shopify)
+- `src/app/vinted-ventes/`, `vinted-achats/` — sales (Vinted + Shopify, source badge) and purchases
+- `src/app/vinted-annonces/` (+ `parametres/`) — Vinted listing text generation (Claude)
+- `src/app/compta/` — unified accounting page (tabs, incl. Transferts)
+- `src/app/clients/`, `automatisations/` — client list, automations
 - `src/app/lambdas/[id]/page.tsx` — dynamic lambda configuration form
-- `src/app/renouvellement-annonces/page.tsx` — S3 image-batch browser + ZIP download
+- `src/app/shopify-catalogue/`, `shopify-photos/`, `shopify-enrichir/` (+ `parametres/`) — the 3 standalone Shopify import/enrichment flows
+- `src/app/_shopify-import-complet/` — **disabled route** (Next.js private folder): the all-in-one Shopify import page, shelved 2026-06-12; rename without `_` and re-add the Sidebar entry to bring it back
+- `src/app/vinted-cockpit/`, `vinted-compta-achats/` — legacy redirects (bookmarks)
+- `src/app/login/`, `auth/callback/` — Supabase auth
 - `src/app/layout.tsx` — shared shell with `Sidebar` and `PageLoader`; sidebar links are defined statically in `src/components/Sidebar.tsx` (add new routes there)
 
 Path alias `@/*` → `src/*` is configured in `tsconfig.json`.
