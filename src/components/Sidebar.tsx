@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import {
-  FaCogs, FaUserCircle, FaChartLine, FaShoppingBag, FaShoppingCart, FaSignOutAlt, FaFileInvoiceDollar, FaUsers, FaBars, FaTimes, FaStore, FaImages, FaMagic, FaBoxOpen, FaPenNib,
+  FaCogs, FaUserCircle, FaChartLine, FaShoppingBag, FaShoppingCart, FaSignOutAlt, FaFileInvoiceDollar, FaUsers, FaBars, FaTimes, FaStore, FaImages, FaMagic, FaPenNib,
 } from "react-icons/fa";
 import { createClient } from "@/utils/supabase/client";
 import { useUserRole, type UserRole } from "@/utils/supabase/useUserRole";
@@ -29,7 +29,6 @@ const links: LinkDef[] = [
   { href: "/vinted-annonces", label: "Générer annonces Vinted", icon: <FaPenNib />, roles: ["admin"] },
   { href: "/clients", label: "Clients", icon: <FaUsers />, roles: ["admin"] },
   { href: "/compta", label: "Compta", icon: <FaFileInvoiceDollar /> },
-  { href: "/shopify-import-complet", label: "Import complet Shopify", icon: <FaBoxOpen />, roles: ["admin"] },
   { href: "/shopify-catalogue", label: "Import Catalogue Shopify", icon: <FaStore />, roles: ["admin"] },
   { href: "/shopify-photos", label: "Import Photos Shopify", icon: <FaImages />, roles: ["admin"] },
   { href: "/shopify-enrichir", label: "Enrichir descriptions Shopify", icon: <FaMagic />, roles: ["admin"] },

@@ -801,6 +801,55 @@ export async function generateVintedText(rows: VintedTextRow[]): Promise<VintedT
   return parseApiResponse<VintedTextResponse>(res);
 }
 
+// GET /vinted-annonces?q=... → lambda-sunset-create-vinted-text-claude
+// Recherche dans les annonces générées sauvegardées (DynamoDB VintedAnnonces,
+// TTL 60 jours). q vide → dernières annonces.
+export type SavedVintedAnnonce = {
+  code_article: string;
+  titre: string;
+  corps: string;
+  created_at: string;
+};
+export type VintedAnnoncesSearchResponse = {
+  total: number;
+  results: SavedVintedAnnonce[];
+};
+
+export async function searchVintedAnnonces(q: string): Promise<VintedAnnoncesSearchResponse> {
+  if (shouldUseMock()) {
+    await new Promise(r => setTimeout(r, 400));
+    const all: SavedVintedAnnonce[] = [
+      {
+        code_article: 'R61005H148',
+        titre: 'Alpinestars T-GP Plus R V2 | Veste moto sport été Homme S | Mesh respirant - Micro taches',
+        corps: '🌬️ Annonce sauvegardée (mock) — texte d’exemple pour visualiser le rendu.\n\nUGS : R61005H148',
+        created_at: new Date(Date.now() - 86_400_000).toISOString(),
+      },
+      {
+        code_article: 'R61053H135',
+        titre: 'TCX Street 3 Lady Tex WP | Chaussures moto étanches Femme 37 - Très bon état',
+        corps: '👟 Annonce sauvegardée (mock) — texte d’exemple pour visualiser le rendu.\n\nUGS : R61053H135',
+        created_at: new Date(Date.now() - 3 * 86_400_000).toISOString(),
+      },
+    ];
+    const needle = q.trim().toLowerCase();
+    const results = needle
+      ? all.filter(a => a.code_article.toLowerCase().includes(needle) || a.titre.toLowerCase().includes(needle))
+      : all;
+    return { total: results.length, results };
+  }
+
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL}/vinted-annonces?q=${encodeURIComponent(q.trim())}`,
+    { headers: { ...(await authHeader()) } },
+  );
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Recherche d'annonces échouée : ${txt || res.status}`);
+  }
+  return parseApiResponse<VintedAnnoncesSearchResponse>(res);
+}
+
 export async function fetchVintedEvents(opts: {
   type: VintedEvent['eventType'];
   from?: string;

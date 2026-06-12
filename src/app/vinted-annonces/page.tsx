@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { FaUpload, FaFileCsv, FaCheckCircle, FaTimesCircle, FaSpinner, FaPenNib, FaCog, FaCopy, FaCheck, FaDownload, FaExclamationTriangle, FaSearch } from "react-icons/fa";
-import { fetchLambdaDetails, generateVintedText, type ShopifyBatchUsage, type VintedTextResult, type VintedTextRow } from "@/lib/api";
+import { fetchLambdaDetails, generateVintedText, searchVintedAnnonces, type SavedVintedAnnonce, type ShopifyBatchUsage, type VintedTextResult, type VintedTextRow } from "@/lib/api";
 
 /**
  * Parser CSV qui gère les valeurs multi-lignes entre guillemets — le CSV Vinted
@@ -62,6 +62,12 @@ type GenState =
   | { kind: "running"; done: number; total: number }
   | { kind: "done"; results: VintedTextResult[]; durationMs: number; usage: AggregatedUsage };
 
+type SavedSearchState =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "done"; query: string; total: number; results: SavedVintedAnnonce[] }
+  | { kind: "error"; message: string };
+
 function mergeUsage(a: AggregatedUsage, b: AggregatedUsage): AggregatedUsage {
   if (!a) return b;
   if (!b) return a;
@@ -109,6 +115,8 @@ const VintedAnnoncesPage = () => {
   const [state, setState] = useState<GenState>({ kind: "idle" });
   const [dragDepth, setDragDepth] = useState(0);
   const [skuQuery, setSkuQuery] = useState("");
+  const [savedQuery, setSavedQuery] = useState("");
+  const [savedState, setSavedState] = useState<SavedSearchState>({ kind: "idle" });
   const isDragging = dragDepth > 0;
 
   // Garde-fou : les prompts (systemPrompt + claudePrompt) doivent exister dans la
@@ -218,6 +226,28 @@ const VintedAnnoncesPage = () => {
     setParseError(null);
     setSkuQuery("");
     setState({ kind: "idle" });
+  };
+
+  // Recherche dans les annonces déjà générées (DynamoDB, conservées 2 mois) —
+  // permet de retrouver une annonce préparée à l'avance sans la regénérer.
+  const handleSavedSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (savedState.kind === "loading") return;
+    setSavedState({ kind: "loading" });
+    try {
+      const resp = await searchVintedAnnonces(savedQuery);
+      setSavedState({ kind: "done", query: savedQuery.trim(), total: resp.total, results: resp.results });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Erreur de recherche";
+      setSavedState({ kind: "error", message: msg });
+    }
+  };
+
+  const formatSavedDate = (iso: string) => {
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime())
+      ? ""
+      : d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
   };
 
   const previewRows = useMemo(() => rows.slice(0, 10), [rows]);
