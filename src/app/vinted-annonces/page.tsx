@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { FaUpload, FaFileCsv, FaCheckCircle, FaTimesCircle, FaSpinner, FaPenNib, FaCog, FaCopy, FaCheck, FaDownload, FaExclamationTriangle } from "react-icons/fa";
+import { FaUpload, FaFileCsv, FaCheckCircle, FaTimesCircle, FaSpinner, FaPenNib, FaCog, FaCopy, FaCheck, FaDownload, FaExclamationTriangle, FaSearch } from "react-icons/fa";
 import { fetchLambdaDetails, generateVintedText, type ShopifyBatchUsage, type VintedTextResult, type VintedTextRow } from "@/lib/api";
 
 /**
@@ -108,6 +108,7 @@ const VintedAnnoncesPage = () => {
   const [parseError, setParseError] = useState<string | null>(null);
   const [state, setState] = useState<GenState>({ kind: "idle" });
   const [dragDepth, setDragDepth] = useState(0);
+  const [skuQuery, setSkuQuery] = useState("");
   const isDragging = dragDepth > 0;
 
   // Garde-fou : les prompts (systemPrompt + claudePrompt) doivent exister dans la
@@ -215,6 +216,7 @@ const VintedAnnoncesPage = () => {
     setRows([]);
     setFilename(null);
     setParseError(null);
+    setSkuQuery("");
     setState({ kind: "idle" });
   };
 
@@ -227,6 +229,19 @@ const VintedAnnoncesPage = () => {
   const errorResults = useMemo(
     () => (state.kind === "done" ? state.results.filter(r => r.status === "error") : []),
     [state],
+  );
+
+  // Recherche par SKU/UGS (et titre) dans les annonces générées — filtre
+  // uniquement l'affichage des cartes ; "Tout copier" / .txt restent globaux.
+  const normalizedQuery = skuQuery.trim().toLowerCase();
+  const filteredResults = useMemo(
+    () =>
+      normalizedQuery.length === 0
+        ? okResults
+        : okResults.filter(r =>
+            r.code_article.toLowerCase().includes(normalizedQuery) ||
+            (r.titre ?? "").toLowerCase().includes(normalizedQuery)),
+    [okResults, normalizedQuery],
   );
 
   // Texte global (titre + corps de chaque annonce) pour "Tout copier" / téléchargement.
@@ -446,6 +461,27 @@ const VintedAnnoncesPage = () => {
               </div>
             </div>
 
+            {okResults.length > 0 && (
+              <div className="mt-4 flex items-center gap-3 flex-wrap">
+                <div className="relative flex-1 min-w-[220px] max-w-md">
+                  <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm pointer-events-none" />
+                  <input
+                    type="search"
+                    value={skuQuery}
+                    onChange={(e) => setSkuQuery(e.target.value)}
+                    placeholder="Rechercher par SKU / UGS ou titre…"
+                    aria-label="Rechercher une annonce par SKU, UGS ou titre"
+                    className="w-full bg-[#1c1f2e] border border-gray-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none"
+                  />
+                </div>
+                {normalizedQuery.length > 0 && (
+                  <span className="text-xs text-gray-400">
+                    <strong className="text-white">{filteredResults.length}</strong> / {okResults.length} annonce(s)
+                  </span>
+                )}
+              </div>
+            )}
+
             <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-gray-500 mt-4">
               <span>Durée : {(state.durationMs / 1000).toFixed(1)}s</span>
               {state.usage && (
@@ -484,7 +520,12 @@ const VintedAnnoncesPage = () => {
           )}
 
           {/* Cartes d'annonces */}
-          {okResults.map((r) => (
+          {normalizedQuery.length > 0 && filteredResults.length === 0 && okResults.length > 0 && (
+            <div className="bg-[#23263A] rounded-2xl shadow-lg p-6 text-center text-gray-400">
+              Aucune annonce ne correspond à «&nbsp;{skuQuery.trim()}&nbsp;».
+            </div>
+          )}
+          {filteredResults.map((r) => (
             <div key={r.code_article} className="bg-[#23263A] rounded-2xl shadow-lg p-5">
               <div className="flex items-start justify-between gap-4 mb-3">
                 <div className="min-w-0">
