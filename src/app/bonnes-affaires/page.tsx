@@ -270,10 +270,23 @@ const DealRow: React.FC<{ it: DealCandidate; onStatus: (externalId: string, s: s
       <td className="py-2.5 px-2"><TierBadge tier={it.tier} /></td>
       <td className="py-2.5 px-2">
         {it.image_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={it.image_url} alt="" className="w-10 h-10 rounded object-cover" />
+          <div className="group relative w-16 h-16">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={it.image_url}
+              alt=""
+              className="w-16 h-16 rounded-lg object-cover cursor-zoom-in transition-transform group-hover:scale-105"
+            />
+            {/* Aperçu agrandi au survol : position fixed → échappe au rognage du conteneur overflow-x-auto. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={it.image_url}
+              alt=""
+              className="hidden group-hover:block fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-80 h-80 object-contain rounded-xl border border-edge shadow-2xl bg-card p-1 pointer-events-none"
+            />
+          </div>
         ) : (
-          <div className="w-10 h-10 rounded bg-card border border-edge" />
+          <div className="w-16 h-16 rounded-lg bg-card border border-edge" />
         )}
       </td>
       <td className="py-2.5 px-3 max-w-xs">
