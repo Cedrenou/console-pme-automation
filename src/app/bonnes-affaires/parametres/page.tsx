@@ -30,9 +30,17 @@ const OWNER_OPTIONS = [
   { value: "pro", label: "Pros" },
 ] as const;
 
+// Catégories Leboncoin balayées (noms d'enum lbc.Category côté agent).
+const CATEGORY_OPTIONS = [
+  { value: "VEHICULES_EQUIPEMENT_MOTO", label: "Équipement moto" },
+  { value: "MODE_VETEMENTS", label: "Vêtements (Mode)" },
+  { value: "MODE_CHAUSSURES", label: "Chaussures (Mode)" },
+] as const;
+
 // Toutes les valeurs sont stockées en string côté DynamoDB (config map).
 type ConfigShape = {
   queries: string[];
+  categories: string[];
   targetBrands: string[];
   sort: string;
   owner: string;
@@ -56,6 +64,7 @@ type ConfigShape = {
 
 const DEFAULT_CONFIG: ConfigShape = {
   queries: ["blouson moto", "veste moto", "pantalon moto", "bottes moto", "gants moto", "combinaison moto", "dorsale moto"],
+  categories: ["VEHICULES_EQUIPEMENT_MOTO", "MODE_VETEMENTS"],
   targetBrands: ["dainese", "alpinestars", "rev'it", "furygan", "ixon", "spidi", "held", "rukka", "shoei", "shark", "tcx", "sidi", "bering", "segura", "richa"],
   sort: "newest", owner: "private",
   priceMin: "0", priceMax: "300",
@@ -113,8 +122,13 @@ const BonnesAffairesParametresPage = () => {
         const parsedBrands = c.targetBrands
           ? String(c.targetBrands).split(",").map((b) => b.trim()).filter(Boolean)
           : [];
+        const known = new Set<string>(CATEGORY_OPTIONS.map((o) => o.value));
+        const parsedCategories = c.categories
+          ? String(c.categories).split(",").map((x) => x.trim()).filter((x) => known.has(x))
+          : [];
         setConfig({
           queries: parsedQueries.length ? parsedQueries.slice(0, MAX_QUERIES) : DEFAULT_CONFIG.queries,
+          categories: parsedCategories.length ? parsedCategories : DEFAULT_CONFIG.categories,
           targetBrands: parsedBrands.length ? parsedBrands : DEFAULT_CONFIG.targetBrands,
           sort: c.sort ?? DEFAULT_CONFIG.sort,
           owner: c.owner ?? DEFAULT_CONFIG.owner,
@@ -165,6 +179,12 @@ const BonnesAffairesParametresPage = () => {
     if (!hasBrand(name)) set({ targetBrands: [...config.targetBrands.filter((b) => b.trim()), name] });
   };
 
+  const toggleCategory = (val: string) => set({
+    categories: config.categories.includes(val)
+      ? config.categories.filter((c) => c !== val)
+      : [...config.categories, val],
+  });
+
   const handleSave = async () => {
     setSaving(true); setSaveError(null); setSaveSuccess(false);
 
@@ -182,6 +202,10 @@ const BonnesAffairesParametresPage = () => {
       setSaveError(`Maximum ${MAX_QUERIES} recherches (garde-fou anti-ban).`);
       setSaving(false); return;
     }
+    if (config.categories.length === 0) {
+      setSaveError("Au moins une catégorie est requise.");
+      setSaving(false); return;
+    }
     if (Number(config.reqDelayMin) > Number(config.reqDelayMax)) {
       setSaveError("Le délai mini ne peut pas dépasser le délai maxi.");
       setSaving(false); return;
@@ -190,6 +214,7 @@ const BonnesAffairesParametresPage = () => {
     try {
       await updateLambda(LAMBDA_NAME, {
         queries: cleanQueries.join(","),
+        categories: config.categories.join(","),
         targetBrands: config.targetBrands.map((b) => b.trim().toLowerCase()).filter(Boolean).join(","),
         sort: config.sort,
         owner: config.owner,
@@ -281,13 +306,38 @@ const BonnesAffairesParametresPage = () => {
             {config.queries.length >= MAX_QUERIES && (
               <p className="text-xs text-amber-400 mt-2">Maximum {MAX_QUERIES} recherches atteint (garde-fou anti-ban).</p>
             )}
-            {config.queries.filter((q) => q.trim()).length > Number(config.maxRequests) && (
-              <p className="text-xs text-amber-400 mt-2">
-                ⚠️ {config.queries.filter((q) => q.trim()).length} recherches &gt; plafond de {config.maxRequests} requêtes/run :
-                les dernières seront ignorées. Augmente le plafond (section Cadence) ou réduis les recherches.
-              </p>
-            )}
+            {(() => {
+              const nbQ = config.queries.filter((q) => q.trim()).length;
+              const reqs = nbQ * Math.max(config.categories.length, 1) * Math.max(Number(config.pages) || 1, 1);
+              return reqs > Number(config.maxRequests) ? (
+                <p className="text-xs text-amber-400 mt-2">
+                  ⚠️ {nbQ} recherches × {config.categories.length} catégorie(s) × {config.pages} page(s) = <strong>{reqs} requêtes</strong> &gt; plafond de {config.maxRequests}/run : les dernières seront ignorées. Augmente le plafond (section Cadence) ou réduis.
+                </p>
+              ) : null;
+            })()}
           </div>
+
+          <div className="sm:col-span-2">
+            <span className="text-sm font-medium block mb-2">Catégories Leboncoin balayées</span>
+            <div className="flex flex-wrap gap-2">
+              {CATEGORY_OPTIONS.map((o) => {
+                const on = config.categories.includes(o.value);
+                return (
+                  <button
+                    key={o.value} type="button" onClick={() => toggleCategory(o.value)}
+                    className={`inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-full border transition-colors cursor-pointer ${
+                      on ? "border-blue-500 bg-blue-600/15 text-blue-200" : "border-gray-600 bg-card text-gray-300 hover:border-blue-500"
+                    }`}
+                  >
+                    {on ? <FaCheckCircle className="text-xs" /> : <FaPlus className="text-xs" />}
+                    {o.label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-gray-500 mt-2">Chaque mot-clé est cherché dans chaque catégorie cochée → multiplie les requêtes (voir plafond).</p>
+          </div>
+
           <label className="block">
             <span className="text-sm font-medium block mb-1">Tri</span>
             <select value={config.sort} onChange={(e) => set({ sort: e.target.value })}
