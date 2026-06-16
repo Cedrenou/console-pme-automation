@@ -221,6 +221,36 @@ export async function fetchLambdaLogs(lambdaId: string) {
 // Le reste du repo utilise "clientA" en hardcodé — à unifier le jour où l'auth Supabase arrivera.
 const VINTED_CLIENT_ID = 'sunset';
 
+// === Bonnes affaires (agent Leboncoin) ===
+// Candidats écrits par l'agent dans DynamoDB DealCandidates(-dev), keyés sous clientId="sunset".
+// La config de l'agent passe par fetchLambdaDetails/updateLambda("agent-bonnes-affaires").
+export async function fetchDealCandidates() {
+  if (shouldUseMock()) return [];
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL}/clients/${VINTED_CLIENT_ID}/bonnes-affaires`,
+    { headers: await authHeader() }
+  );
+  if (!res.ok) throw new Error("Erreur lors de la récupération des candidats");
+  return parseApiResponse(res);
+}
+
+export async function updateDealStatus(externalId: string, status: string) {
+  if (shouldUseMock()) return { success: true };
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL}/clients/${VINTED_CLIENT_ID}/bonnes-affaires/${encodeURIComponent(externalId)}`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
+      body: JSON.stringify({ status }),
+    }
+  );
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`Erreur lors de la mise à jour du statut: ${errorText}`);
+  }
+  return parseApiResponse(res);
+}
+
 export type VintedStats = {
   period: { from: string | null; to: string | null };
   sales: { count: number; priced_count?: number; total_revenue: number; avg_price: number };

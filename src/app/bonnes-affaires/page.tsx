@@ -1,14 +1,14 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
-import { createClient } from "@/utils/supabase/client";
+import Link from "next/link";
+import { fetchDealCandidates, updateDealStatus } from "@/lib/api";
 import {
   FaSearch, FaExternalLinkAlt, FaCheck, FaTimes, FaUndo, FaSearchDollar,
-  FaTruck, FaHandshake,
+  FaTruck, FaHandshake, FaCog,
 } from "react-icons/fa";
 
-// Candidat produit par l'agent à bonnes affaires (table public.deal_candidates).
+// Candidat produit par l'agent à bonnes affaires (DynamoDB DealCandidates, keyé par external_id).
 type DealCandidate = {
-  id: string;
   external_id: string;
   url: string;
   title: string | null;
@@ -81,30 +81,29 @@ const BonnesAffairesPage = () => {
     const load = async () => {
       setLoading(true);
       setError(null);
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("deal_candidates")
-        .select("*")
-        .order("found_at", { ascending: false });
-      if (error) {
-        console.error(error);
+      try {
+        const data = (await fetchDealCandidates()) as DealCandidate[];
+        // Tri par défaut : plus récents d'abord (Dynamo renvoie par clé de tri).
+        data.sort((a, b) => (b.found_at ?? "").localeCompare(a.found_at ?? ""));
+        setItems(data ?? []);
+      } catch (err) {
+        console.error(err);
         setError("Erreur lors du chargement des candidats.");
-      } else {
-        setItems((data ?? []) as DealCandidate[]);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
     load();
   }, []);
 
   // Maj de statut : update optimiste + rollback en cas d'échec.
-  const setStatus = async (id: string, status: string) => {
+  const setStatus = async (externalId: string, status: string) => {
     const prev = items;
-    setItems(curr => curr.map(it => (it.id === id ? { ...it, status } : it)));
-    const supabase = createClient();
-    const { error } = await supabase.from("deal_candidates").update({ status }).eq("id", id);
-    if (error) {
-      console.error(error);
+    setItems(curr => curr.map(it => (it.external_id === externalId ? { ...it, status } : it)));
+    try {
+      await updateDealStatus(externalId, status);
+    } catch (err) {
+      console.error(err);
       setItems(prev); // rollback
     }
   };
@@ -143,6 +142,12 @@ const BonnesAffairesPage = () => {
           </p>
         </div>
         <div className="flex flex-wrap gap-2 items-center">
+          <Link
+            href="/bonnes-affaires/parametres"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-semibold bg-card-2 text-gray-300 hover:bg-edge transition-colors"
+          >
+            <FaCog /> Paramètres
+          </Link>
           {STATUS_FILTERS.map(s => {
             const active = statusFilter === s.id;
             return (
@@ -228,7 +233,7 @@ const BonnesAffairesPage = () => {
               </thead>
               <tbody>
                 {filtered.map(it => (
-                  <DealRow key={it.id} it={it} onStatus={setStatus} />
+                  <DealRow key={it.external_id} it={it} onStatus={setStatus} />
                 ))}
               </tbody>
             </table>
@@ -239,7 +244,7 @@ const BonnesAffairesPage = () => {
   );
 };
 
-const DealRow: React.FC<{ it: DealCandidate; onStatus: (id: string, s: string) => void }> = ({ it, onStatus }) => {
+const DealRow: React.FC<{ it: DealCandidate; onStatus: (externalId: string, s: string) => void }> = ({ it, onStatus }) => {
   const bought = it.status === "bought";
   const rejected = it.status === "rejected";
   const rowClass = rejected
@@ -326,7 +331,7 @@ const DealRow: React.FC<{ it: DealCandidate; onStatus: (id: string, s: string) =
           {bought || rejected ? (
             <button
               type="button"
-              onClick={() => onStatus(it.id, "new")}
+              onClick={() => onStatus(it.external_id, "new")}
               title="Réinitialiser"
               className="cursor-pointer inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-md bg-card-2 text-gray-300 hover:bg-edge transition-colors"
             >
@@ -336,7 +341,7 @@ const DealRow: React.FC<{ it: DealCandidate; onStatus: (id: string, s: string) =
             <>
               <button
                 type="button"
-                onClick={() => onStatus(it.id, "bought")}
+                onClick={() => onStatus(it.external_id, "bought")}
                 title="Marquer comme acheté"
                 className="cursor-pointer inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-md bg-green-600/90 text-white hover:bg-green-600 transition-colors"
               >
@@ -344,7 +349,7 @@ const DealRow: React.FC<{ it: DealCandidate; onStatus: (id: string, s: string) =
               </button>
               <button
                 type="button"
-                onClick={() => onStatus(it.id, "rejected")}
+                onClick={() => onStatus(it.external_id, "rejected")}
                 title="Rejeter"
                 className="cursor-pointer inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-md bg-card-2 text-gray-300 hover:bg-red-600/80 hover:text-white transition-colors"
               >
