@@ -1,11 +1,14 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { FaArrowLeft, FaSave, FaSpinner, FaCheckCircle, FaTimesCircle } from "react-icons/fa";
+import { FaArrowLeft, FaSave, FaSpinner, FaCheckCircle, FaTimesCircle, FaPlus, FaTrash } from "react-icons/fa";
 import { fetchLambdaDetails, updateLambda } from "@/lib/api";
 
 // Item de config (clientA, agent-bonnes-affaires) dans ClientLambdas.
 const LAMBDA_NAME = "agent-bonnes-affaires";
+
+// Garde-fou anti-ban : nombre maximum de recherches Leboncoin par run.
+const MAX_QUERIES = 10;
 
 const MODEL_OPTIONS = [
   { value: "claude-opus-4-8", label: "Opus 4.8 — meilleur jugement (recommandé, faible volume)" },
@@ -29,7 +32,7 @@ const OWNER_OPTIONS = [
 
 // Toutes les valeurs sont stockées en string côté DynamoDB (config map).
 type ConfigShape = {
-  queries: string;
+  queries: string[];
   sort: string;
   owner: string;
   priceMin: string;
@@ -51,7 +54,7 @@ type ConfigShape = {
 };
 
 const DEFAULT_CONFIG: ConfigShape = {
-  queries: "blouson moto,veste moto,pantalon moto,bottes moto,gants moto,combinaison moto,dorsale moto",
+  queries: ["blouson moto", "veste moto", "pantalon moto", "bottes moto", "gants moto", "combinaison moto", "dorsale moto"],
   sort: "newest", owner: "private",
   priceMin: "0", priceMax: "300",
   limit: "100", pages: "1", maxRequests: "8",
@@ -100,8 +103,11 @@ const BonnesAffairesParametresPage = () => {
         const data = await fetchLambdaDetails(LAMBDA_NAME) as { config?: Record<string, string> };
         const c = data.config ?? {};
         const pct = c.minMarginPct !== undefined ? Math.round(Number(c.minMarginPct) * 100) : 20;
+        const parsedQueries = c.queries
+          ? String(c.queries).split(",").map((q) => q.trim()).filter(Boolean)
+          : [];
         setConfig({
-          queries: c.queries ?? DEFAULT_CONFIG.queries,
+          queries: parsedQueries.length ? parsedQueries.slice(0, MAX_QUERIES) : DEFAULT_CONFIG.queries,
           sort: c.sort ?? DEFAULT_CONFIG.sort,
           owner: c.owner ?? DEFAULT_CONFIG.owner,
           priceMin: String(c.priceMin ?? DEFAULT_CONFIG.priceMin),
@@ -132,6 +138,10 @@ const BonnesAffairesParametresPage = () => {
 
   const set = (patch: Partial<ConfigShape>) => setConfig((c) => ({ ...c, ...patch }));
 
+  const setQuery = (i: number, val: string) => set({ queries: config.queries.map((q, idx) => (idx === i ? val : q)) });
+  const addQuery = () => { if (config.queries.length < MAX_QUERIES) set({ queries: [...config.queries, ""] }); };
+  const removeQuery = (i: number) => set({ queries: config.queries.filter((_, idx) => idx !== i) });
+
   const handleSave = async () => {
     setSaving(true); setSaveError(null); setSaveSuccess(false);
 
@@ -140,8 +150,13 @@ const BonnesAffairesParametresPage = () => {
       setSaveError("Le taux de marge doit être un pourcentage entre 0 et 100.");
       setSaving(false); return;
     }
-    if (config.queries.trim().length === 0) {
+    const cleanQueries = config.queries.map((q) => q.trim()).filter(Boolean);
+    if (cleanQueries.length === 0) {
       setSaveError("Au moins une recherche est requise.");
+      setSaving(false); return;
+    }
+    if (cleanQueries.length > MAX_QUERIES) {
+      setSaveError(`Maximum ${MAX_QUERIES} recherches (garde-fou anti-ban).`);
       setSaving(false); return;
     }
     if (Number(config.reqDelayMin) > Number(config.reqDelayMax)) {
@@ -151,7 +166,7 @@ const BonnesAffairesParametresPage = () => {
 
     try {
       await updateLambda(LAMBDA_NAME, {
-        queries: config.queries.split(",").map((q) => q.trim()).filter(Boolean).join(","),
+        queries: cleanQueries.join(","),
         sort: config.sort,
         owner: config.owner,
         priceMin: String(Number(config.priceMin)),
@@ -207,14 +222,48 @@ const BonnesAffairesParametresPage = () => {
       )}
 
       <div className="space-y-6">
-        <Section title="Recherches Leboncoin" desc="Une recherche par mot-clé (catégorie Équipement moto). Sépare par des virgules.">
-          <label className="block sm:col-span-2">
-            <span className="text-sm font-medium block mb-1">Mots-clés</span>
-            <textarea
-              value={config.queries} onChange={(e) => set({ queries: e.target.value })} rows={3}
-              className="w-full bg-card border border-gray-600 rounded-lg px-3 py-2 text-fg font-mono text-sm focus:border-blue-500 focus:outline-none resize-y"
-            />
-          </label>
+        <Section title="Recherches Leboncoin" desc="Une recherche par ligne (catégorie Équipement moto). Cible large (« veste moto ») ou par marque (« blouson dainese »).">
+          <div className="sm:col-span-2">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium">Recherches</span>
+              <span className={`text-xs ${config.queries.length >= MAX_QUERIES ? "text-amber-400" : "text-gray-500"}`}>
+                {config.queries.length}/{MAX_QUERIES}
+              </span>
+            </div>
+            <div className="space-y-2">
+              {config.queries.map((q, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <input
+                    type="text" value={q} onChange={(e) => setQuery(i, e.target.value)}
+                    placeholder="ex : blouson dainese"
+                    className="flex-1 bg-card border border-gray-600 rounded-lg px-3 py-2 text-fg focus:border-blue-500 focus:outline-none"
+                  />
+                  <button
+                    type="button" onClick={() => removeQuery(i)} disabled={config.queries.length <= 1}
+                    title="Supprimer cette recherche"
+                    className="p-2.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-card disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <FaTrash />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <button
+              type="button" onClick={addQuery} disabled={config.queries.length >= MAX_QUERIES}
+              className="mt-3 inline-flex items-center gap-2 text-sm px-3 py-2 rounded-lg bg-card border border-gray-600 hover:border-blue-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <FaPlus className="text-xs" /> Ajouter une recherche
+            </button>
+            {config.queries.length >= MAX_QUERIES && (
+              <p className="text-xs text-amber-400 mt-2">Maximum {MAX_QUERIES} recherches atteint (garde-fou anti-ban).</p>
+            )}
+            {config.queries.filter((q) => q.trim()).length > Number(config.maxRequests) && (
+              <p className="text-xs text-amber-400 mt-2">
+                ⚠️ {config.queries.filter((q) => q.trim()).length} recherches &gt; plafond de {config.maxRequests} requêtes/run :
+                les dernières seront ignorées. Augmente le plafond (section Cadence) ou réduis les recherches.
+              </p>
+            )}
+          </div>
           <label className="block">
             <span className="text-sm font-medium block mb-1">Tri</span>
             <select value={config.sort} onChange={(e) => set({ sort: e.target.value })}
