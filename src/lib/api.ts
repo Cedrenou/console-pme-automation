@@ -234,6 +234,20 @@ export async function fetchDealCandidates() {
   return parseApiResponse(res);
 }
 
+export type BrandSuggestion = { brand: string; sales: number; revenue: number };
+
+// Suggestions de marques d'après les ventes Vinted réelles (scan VintedEvents).
+export async function fetchBrandSuggestions(): Promise<BrandSuggestion[]> {
+  if (shouldUseMock()) return [];
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL}/clients/${VINTED_CLIENT_ID}/vinted/brands`,
+    { headers: await authHeader() }
+  );
+  if (!res.ok) throw new Error("Erreur lors de la récupération des suggestions de marques");
+  const data = await parseApiResponse<{ brands?: BrandSuggestion[] }>(res);
+  return data.brands ?? [];
+}
+
 export async function updateDealStatus(externalId: string, status: string) {
   if (shouldUseMock()) return { success: true };
   const res = await fetch(

@@ -1,8 +1,8 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { FaArrowLeft, FaSave, FaSpinner, FaCheckCircle, FaTimesCircle, FaPlus, FaTrash } from "react-icons/fa";
-import { fetchLambdaDetails, updateLambda } from "@/lib/api";
+import { FaArrowLeft, FaSave, FaSpinner, FaCheckCircle, FaTimesCircle, FaPlus, FaTrash, FaTag } from "react-icons/fa";
+import { fetchLambdaDetails, updateLambda, fetchBrandSuggestions, type BrandSuggestion } from "@/lib/api";
 
 // Item de config (clientA, agent-bonnes-affaires) dans ClientLambdas.
 const LAMBDA_NAME = "agent-bonnes-affaires";
@@ -33,6 +33,7 @@ const OWNER_OPTIONS = [
 // Toutes les valeurs sont stockées en string côté DynamoDB (config map).
 type ConfigShape = {
   queries: string[];
+  targetBrands: string[];
   sort: string;
   owner: string;
   priceMin: string;
@@ -55,6 +56,7 @@ type ConfigShape = {
 
 const DEFAULT_CONFIG: ConfigShape = {
   queries: ["blouson moto", "veste moto", "pantalon moto", "bottes moto", "gants moto", "combinaison moto", "dorsale moto"],
+  targetBrands: ["dainese", "alpinestars", "rev'it", "furygan", "ixon", "spidi", "held", "rukka", "shoei", "shark", "tcx", "sidi", "bering", "segura", "richa"],
   sort: "newest", owner: "private",
   priceMin: "0", priceMax: "300",
   limit: "100", pages: "1", maxRequests: "8",
@@ -76,14 +78,14 @@ const Section: React.FC<{ title: string; desc?: string; children: React.ReactNod
 );
 
 const NumberField: React.FC<{
-  label: string; value: string; onChange: (v: string) => void; step?: number; min?: number; hint?: string;
-}> = ({ label, value, onChange, step = 1, min = 0, hint }) => (
+  label: string; value: string; onChange: (v: string) => void; step?: number; min?: number; hint?: string; disabled?: boolean;
+}> = ({ label, value, onChange, step = 1, min = 0, hint, disabled = false }) => (
   <label className="block">
     <span className="text-sm font-medium block mb-1">{label}</span>
     <input
-      type="number" step={step} min={min} value={value}
+      type="number" step={step} min={min} value={value} disabled={disabled}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full bg-card border border-gray-600 rounded-lg px-3 py-2 text-fg focus:border-blue-500 focus:outline-none"
+      className="w-full bg-card border border-gray-600 rounded-lg px-3 py-2 text-fg focus:border-blue-500 focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
     />
     {hint && <span className="text-xs text-gray-500 mt-1 block">{hint}</span>}
   </label>
@@ -96,6 +98,8 @@ const BonnesAffairesParametresPage = () => {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [suggestions, setSuggestions] = useState<BrandSuggestion[]>([]);
+  const [sugLoading, setSugLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
@@ -106,8 +110,12 @@ const BonnesAffairesParametresPage = () => {
         const parsedQueries = c.queries
           ? String(c.queries).split(",").map((q) => q.trim()).filter(Boolean)
           : [];
+        const parsedBrands = c.targetBrands
+          ? String(c.targetBrands).split(",").map((b) => b.trim()).filter(Boolean)
+          : [];
         setConfig({
           queries: parsedQueries.length ? parsedQueries.slice(0, MAX_QUERIES) : DEFAULT_CONFIG.queries,
+          targetBrands: parsedBrands.length ? parsedBrands : DEFAULT_CONFIG.targetBrands,
           sort: c.sort ?? DEFAULT_CONFIG.sort,
           owner: c.owner ?? DEFAULT_CONFIG.owner,
           priceMin: String(c.priceMin ?? DEFAULT_CONFIG.priceMin),
@@ -136,11 +144,26 @@ const BonnesAffairesParametresPage = () => {
     load();
   }, []);
 
+  useEffect(() => {
+    fetchBrandSuggestions()
+      .then(setSuggestions)
+      .catch(() => setSuggestions([]))
+      .finally(() => setSugLoading(false));
+  }, []);
+
   const set = (patch: Partial<ConfigShape>) => setConfig((c) => ({ ...c, ...patch }));
 
   const setQuery = (i: number, val: string) => set({ queries: config.queries.map((q, idx) => (idx === i ? val : q)) });
   const addQuery = () => { if (config.queries.length < MAX_QUERIES) set({ queries: [...config.queries, ""] }); };
   const removeQuery = (i: number) => set({ queries: config.queries.filter((_, idx) => idx !== i) });
+
+  const setBrand = (i: number, val: string) => set({ targetBrands: config.targetBrands.map((b, idx) => (idx === i ? val : b)) });
+  const addBrand = () => set({ targetBrands: [...config.targetBrands, ""] });
+  const removeBrand = (i: number) => set({ targetBrands: config.targetBrands.filter((_, idx) => idx !== i) });
+  const hasBrand = (name: string) => config.targetBrands.some((b) => b.trim().toLowerCase() === name.toLowerCase());
+  const addBrandFromSuggestion = (name: string) => {
+    if (!hasBrand(name)) set({ targetBrands: [...config.targetBrands.filter((b) => b.trim()), name] });
+  };
 
   const handleSave = async () => {
     setSaving(true); setSaveError(null); setSaveSuccess(false);
@@ -167,11 +190,12 @@ const BonnesAffairesParametresPage = () => {
     try {
       await updateLambda(LAMBDA_NAME, {
         queries: cleanQueries.join(","),
+        targetBrands: config.targetBrands.map((b) => b.trim().toLowerCase()).filter(Boolean).join(","),
         sort: config.sort,
         owner: config.owner,
         priceMin: String(Number(config.priceMin)),
         priceMax: String(Number(config.priceMax)),
-        limit: String(Number(config.limit)),
+        limit: "100",   // verrouillé : max API LBC par requête
         pages: String(Number(config.pages)),
         maxRequests: String(Number(config.maxRequests)),
         reqDelayMin: String(Number(config.reqDelayMin)),
@@ -291,8 +315,66 @@ const BonnesAffairesParametresPage = () => {
           </label>
         </Section>
 
+        <Section title="Marques cibles" desc="Seule une annonce dont la marque est dans cette liste peut être flaggée 🟢/🟡 (marque détectée dans le titre).">
+          <div className="sm:col-span-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {config.targetBrands.map((b, i) => (
+                <div key={i} className="flex items-center gap-1.5">
+                  <input
+                    type="text" value={b} onChange={(e) => setBrand(i, e.target.value)} placeholder="ex : dainese"
+                    className="flex-1 min-w-0 bg-card border border-gray-600 rounded-lg px-3 py-2 text-fg text-sm focus:border-blue-500 focus:outline-none"
+                  />
+                  <button type="button" onClick={() => removeBrand(i)} title="Retirer cette marque"
+                    className="p-2 rounded-lg text-gray-400 hover:text-red-400 hover:bg-card transition-colors">
+                    <FaTrash className="text-xs" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <button type="button" onClick={addBrand}
+              className="mt-3 inline-flex items-center gap-2 text-sm px-3 py-2 rounded-lg bg-card border border-gray-600 hover:border-blue-500 transition-colors">
+              <FaPlus className="text-xs" /> Ajouter une marque
+            </button>
+          </div>
+
+          <div className="sm:col-span-2 border-t border-edge pt-4 mt-1">
+            <div className="flex items-center gap-2 mb-1">
+              <FaTag className="text-emerald-400 text-sm" />
+              <span className="text-sm font-medium">Suggestions d&apos;après tes ventes</span>
+            </div>
+            <p className="text-xs text-gray-400 mb-3">
+              Marques qui se vendent le mieux dans ton historique Vinted (365 j). Clique pour ajouter à ta liste.
+            </p>
+            {sugLoading ? (
+              <div className="text-sm text-gray-500 flex items-center gap-2"><FaSpinner className="animate-spin" /> Analyse de tes ventes…</div>
+            ) : suggestions.length === 0 ? (
+              <p className="text-sm text-gray-500 italic">Aucune suggestion disponible.</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {suggestions.slice(0, 20).map((s) => {
+                  const added = hasBrand(s.brand);
+                  return (
+                    <button
+                      key={s.brand} type="button" disabled={added} onClick={() => addBrandFromSuggestion(s.brand)}
+                      title={`${s.sales} ventes · ${s.revenue.toLocaleString("fr-FR")} €`}
+                      className={`inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-full border transition-colors ${
+                        added ? "border-emerald-600/40 bg-emerald-600/10 text-emerald-300 cursor-default"
+                              : "border-gray-600 bg-card hover:border-blue-500 text-gray-200 cursor-pointer"
+                      }`}
+                    >
+                      {added ? <FaCheckCircle className="text-xs" /> : <FaPlus className="text-xs" />}
+                      <span className="font-medium">{s.brand}</span>
+                      <span className="text-xs text-gray-400">{s.sales}× · {s.revenue.toLocaleString("fr-FR")} €</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </Section>
+
         <Section title="Cadence & anti-ban" desc="Volume et espacement des requêtes pour rester sous le radar Datadome.">
-          <NumberField label="Résultats par recherche" value={config.limit} onChange={(v) => set({ limit: v })} hint="100 = max page LBC" />
+          <NumberField label="Résultats par recherche" value="100" onChange={() => {}} disabled hint="🔒 Verrouillé : maximum de l'API Leboncoin par requête (100). Au-delà il faudrait paginer (+ de requêtes = risque de ban)." />
           <NumberField label="Pages par mot-clé" value={config.pages} onChange={(v) => set({ pages: v })} />
           <NumberField label="Plafond de requêtes / run" value={config.maxRequests} onChange={(v) => set({ maxRequests: v })} hint="Garde-fou anti-ban" />
           <div />
